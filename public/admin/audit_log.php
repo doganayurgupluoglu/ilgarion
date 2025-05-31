@@ -6,14 +6,13 @@ require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 
-// Sadece süper adminler audit log'u görebilir
-if (!is_super_admin($pdo)) {
-    $_SESSION['error_message'] = "Audit log'a sadece süper adminler erişebilir.";
-    header('Location: ' . get_auth_base_url() . '/admin/manage_roles.php');
-    exit;
-}
+// Yetki kontrolü - audit log görüntüleme yetkisi gerekli
+require_permission($pdo, 'admin.audit_log.view');
 
 $page_title = "Audit Log - Sistem İzleme";
+
+// Export yetkisi kontrolü
+$can_export = has_permission($pdo, 'admin.audit_log.export');
 
 // Filtreleme parametreleri
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -23,6 +22,130 @@ $user_filter = $_GET['user'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 $target_type_filter = $_GET['target_type'] ?? '';
+$ip_filter = $_GET['ip_filter'] ?? '';
+
+// Export işlemi
+if (isset($_GET['export']) && $_GET['export'] === 'csv' && $can_export) {
+    // Export için aynı filtreleri kullan ama limit olmadan
+    $export_where_conditions = [];
+    $export_params = [];
+
+    if (!empty($action_filter) && validate_sql_input($action_filter, 'general')) {
+        $export_where_conditions[] = "action LIKE :action";
+        $export_params[':action'] = "%$action_filter%";
+    }
+
+    if (!empty($user_filter) && is_numeric($user_filter)) {
+        $export_where_conditions[] = "user_id = :user_id";
+        $export_params[':user_id'] = (int)$user_filter;
+    }
+
+    if (!empty($date_from) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from)) {
+        $export_where_conditions[] = "DATE(created_at) >= :date_from";
+        $export_params[':date_from'] = $date_from;
+    }
+
+    if (!empty($date_to) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to)) {
+        $export_where_conditions[] = "DATE(created_at) <= :date_to";
+        $export_params[':date_to'] = $date_to;
+    }
+
+    if (!empty($target_type_filter) && validate_sql_input($target_type_filter, 'general')) {
+        $export_where_conditions[] = "target_type = :target_type";
+        $export_params[':target_type'] = $target_type_filter;
+    }
+
+    if (!empty($ip_filter) && validate_sql_input($ip_filter, 'general')) {
+        $export_where_conditions[] = "ip_address LIKE :ip_address";
+        $export_params[':ip_address'] = "%$ip_filter%";
+    }
+
+    $export_where_clause = '';
+    if (!empty($export_where_conditions)) {
+        $export_where_clause = 'WHERE ' . implode(' AND ', $export_where_conditions);
+    }
+
+    try {
+        $export_query = "
+            SELECT 
+                al.id,
+                al.created_at,
+                u.username,
+                u.ingame_name,
+                al.user_id,
+                al.action,
+                al.target_type,
+                al.target_id,
+                al.ip_address,
+                al.user_agent,
+                al.old_values,
+                al.new_values
+            FROM audit_log al
+            LEFT JOIN users u ON al.user_id = u.id
+            $export_where_clause
+            ORDER BY al.created_at DESC
+            LIMIT 5000
+        ";
+        
+        $stmt_export = $pdo->prepare($export_query);
+        foreach ($export_params as $key => $value) {
+            $stmt_export->bindValue($key, $value);
+        }
+        $stmt_export->execute();
+        $export_data = $stmt_export->fetchAll();
+
+        // CSV export
+        $filename = 'audit_log_' . date('Y-m-d_H-i-s') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=' . $filename);
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Expires: 0');
+
+        $output = fopen('php://output', 'w');
+        
+        // UTF-8 BOM for Excel compatibility
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // CSV headers
+        fputcsv($output, [
+            'ID', 'Tarih/Saat', 'Kullanıcı Adı', 'Oyun İçi İsim', 'Kullanıcı ID', 
+            'İşlem', 'Hedef Tip', 'Hedef ID', 'IP Adresi', 'User Agent', 
+            'Eski Değerler', 'Yeni Değerler'
+        ]);
+
+        // CSV data
+        foreach ($export_data as $row) {
+            fputcsv($output, [
+                $row['id'],
+                $row['created_at'],
+                $row['username'] ?: 'Sistem',
+                $row['ingame_name'] ?: '-',
+                $row['user_id'] ?: 'NULL',
+                $row['action'],
+                $row['target_type'] ?: '-',
+                $row['target_id'] ?: '-',
+                $row['ip_address'] ?: '-',
+                $row['user_agent'] ?: '-',
+                $row['old_values'] ?: '-',
+                $row['new_values'] ?: '-'
+            ]);
+        }
+
+        fclose($output);
+        
+        // Export işlemini audit log'a kaydet
+        audit_log($pdo, $_SESSION['user_id'], 'audit_log_exported', 'system', null, null, [
+            'exported_records' => count($export_data),
+            'filters' => array_keys($export_params),
+            'filename' => $filename
+        ]);
+        
+        exit;
+    } catch (Exception $e) {
+        error_log("Audit log export hatası: " . $e->getMessage());
+        $_SESSION['error_message'] = "Export işlemi sırasında hata oluştu.";
+    }
+}
 
 // Güvenli filtreleme
 $where_conditions = [];
@@ -51,6 +174,11 @@ if (!empty($date_to) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to)) {
 if (!empty($target_type_filter) && validate_sql_input($target_type_filter, 'general')) {
     $where_conditions[] = "target_type = :target_type";
     $params[':target_type'] = $target_type_filter;
+}
+
+if (!empty($ip_filter) && validate_sql_input($ip_filter, 'general')) {
+    $where_conditions[] = "ip_address LIKE :ip_address";
+    $params[':ip_address'] = "%$ip_filter%";
 }
 
 // WHERE clause oluştur
@@ -120,6 +248,16 @@ try {
     error_log("Unique target types çekme hatası: " . $e->getMessage());
 }
 
+// Recent security events (son 24 saat)
+$security_events_count = 0;
+try {
+    $security_query = "SELECT COUNT(*) FROM audit_log WHERE action LIKE '%security%' OR action LIKE '%unauthorized%' OR action LIKE '%violation%' AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+    $stmt_security = execute_safe_query($pdo, $security_query);
+    $security_events_count = $stmt_security->fetchColumn();
+} catch (Exception $e) {
+    error_log("Security events count hatası: " . $e->getMessage());
+}
+
 require_once BASE_PATH . '/src/includes/header.php';
 require_once BASE_PATH . '/src/includes/navbar.php';
 ?>
@@ -127,7 +265,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 <style>
 .audit-log-container {
     width: 100%;
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 30px auto;
     padding: 25px;
     font-family: var(--font);
@@ -146,6 +284,49 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     color: var(--gold);
     font-size: 2rem;
     margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.permission-info {
+    background-color: var(--transparent-gold);
+    color: var(--light-gold);
+    padding: 12px 15px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    border: 1px solid var(--gold);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.permission-info i {
+    color: var(--gold);
+}
+
+.security-alert {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+}
+
+.security-alert.low {
+    background: linear-gradient(135deg, #27ae60, #229954);
+}
+
+.security-alert.medium {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
 }
 
 .audit-filters {
@@ -198,7 +379,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 
 .audit-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
     margin-bottom: 25px;
 }
@@ -350,18 +531,86 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     font-size: 0.8rem;
     text-decoration: underline;
 }
+
+.export-section {
+    background-color: var(--darker-gold-2);
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.export-info {
+    color: var(--lighter-grey);
+    font-size: 0.9rem;
+}
+
+.export-actions {
+    display: flex;
+    gap: 10px;
+}
 </style>
 
 <main class="main-content">
     <div class="container admin-container audit-log-container">
         <div class="page-header-audit">
             <h1 class="page-title-audit"><?php echo htmlspecialchars($page_title); ?></h1>
-            <a href="manage_roles.php" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> Rol Yönetimine Dön
-            </a>
+            <div class="header-actions">
+                <a href="manage_super_admins.php" class="btn btn-sm btn-warning">
+                    <i class="fas fa-crown"></i> Süper Admin Yönetimi
+                </a>
+                <a href="manage_roles.php" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Rol Yönetimine Dön
+                </a>
+            </div>
         </div>
 
         <?php require BASE_PATH . '/src/includes/admin_quick_navigation.php'; ?>
+
+        <div class="permission-info">
+            <i class="fas fa-info-circle"></i>
+            <span>Bu sayfayı görüntülemek için 'admin.audit_log.view' yetkisine sahip olmanız gerekmektedir.</span>
+        </div>
+
+        <!-- Güvenlik durumu -->
+        <?php 
+        $security_class = 'low';
+        $security_message = 'Son 24 saatte güvenlik olayı tespit edilmedi.';
+        $security_icon = 'fa-shield-alt';
+        
+        if ($security_events_count > 10) {
+            $security_class = 'high';
+            $security_message = "Son 24 saatte {$security_events_count} güvenlik olayı tespit edildi! Acil inceleme gerekebilir.";
+            $security_icon = 'fa-exclamation-triangle';
+        } elseif ($security_events_count > 0) {
+            $security_class = 'medium';
+            $security_message = "Son 24 saatte {$security_events_count} güvenlik olayı tespit edildi.";
+            $security_icon = 'fa-info-circle';
+        }
+        ?>
+        <div class="security-alert <?php echo $security_class; ?>">
+            <i class="fas <?php echo $security_icon; ?>"></i>
+            <span><?php echo $security_message; ?></span>
+        </div>
+
+        <!-- Export bölümü -->
+        <?php if ($can_export): ?>
+        <div class="export-section">
+            <div class="export-info">
+                <i class="fas fa-download"></i>
+                <strong>Export İşlemi:</strong> Mevcut filtrelerle eşleşen audit log kayıtlarını CSV formatında dışa aktarabilirsiniz (maksimum 5000 kayıt).
+            </div>
+            <div class="export-actions">
+                <a href="?<?php echo http_build_query(array_merge($_GET, ['export' => 'csv'])); ?>" 
+                   class="btn btn-sm btn-success"
+                   onclick="return confirm('Audit log verilerini CSV formatında dışa aktarmak istediğinizden emin misiniz?\n\nBu işlem audit log\'a kaydedilecektir.');">
+                    <i class="fas fa-file-csv"></i> CSV Olarak İndir
+                </a>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- İstatistikler -->
         <div class="audit-stats">
@@ -385,7 +634,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 
         <!-- Filtreler -->
         <div class="audit-filters">
-            <h3><i class="fas fa-filter"></i> Filtreler</h3>
+            <h3><i class="fas fa-filter"></i> Gelişmiş Filtreler</h3>
             <form method="GET">
                 <div class="filter-row">
                     <div class="filter-group">
@@ -419,12 +668,18 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                placeholder="Kullanıcı ID">
                     </div>
                     <div class="filter-group">
+                        <label>IP Adresi:</label>
+                        <input type="text" name="ip_filter" class="filter-control" 
+                               value="<?php echo htmlspecialchars($ip_filter); ?>" 
+                               placeholder="IP adresi">
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group">
                         <label>Başlangıç Tarihi:</label>
                         <input type="date" name="date_from" class="filter-control" 
                                value="<?php echo htmlspecialchars($date_from); ?>">
                     </div>
-                </div>
-                <div class="filter-row">
                     <div class="filter-group">
                         <label>Bitiş Tarihi:</label>
                         <input type="date" name="date_to" class="filter-control" 
@@ -490,7 +745,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                 </td>
                                 <td>
                                     <span class="audit-action"><?php echo htmlspecialchars($log['action']); ?></span>
-                                    <?php if (strpos($log['action'], 'security') !== false || strpos($log['action'], 'unauthorized') !== false): ?>
+                                    <?php if (strpos($log['action'], 'security') !== false || strpos($log['action'], 'unauthorized') !== false || strpos($log['action'], 'violation') !== false): ?>
                                         <br><span class="security-badge">Güvenlik</span>
                                     <?php endif; ?>
                                 </td>
@@ -511,7 +766,10 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                     <?php if ($log['old_values']): ?>
                                         <button class="expand-btn" onclick="toggleJson(this, 'old')">Göster</button>
                                         <div class="json-preview" style="display: none;">
-                                            <pre><?php echo htmlspecialchars(json_encode(json_decode($log['old_values']), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)); ?></pre>
+                                            <pre><?php 
+                                            $decoded_old = json_decode($log['old_values'], true);
+                                            echo htmlspecialchars(json_encode($decoded_old, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)); 
+                                            ?></pre>
                                         </div>
                                     <?php else: ?>
                                         <span style="color: var(--light-grey);">-</span>
@@ -521,7 +779,10 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                     <?php if ($log['new_values']): ?>
                                         <button class="expand-btn" onclick="toggleJson(this, 'new')">Göster</button>
                                         <div class="json-preview" style="display: none;">
-                                            <pre><?php echo htmlspecialchars(json_encode(json_decode($log['new_values']), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)); ?></pre>
+                                            <pre><?php 
+                                            $decoded_new = json_decode($log['new_values'], true);
+                                            echo htmlspecialchars(json_encode($decoded_new, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)); 
+                                            ?></pre>
                                         </div>
                                     <?php else: ?>
                                         <span style="color: var(--light-grey);">-</span>
@@ -558,15 +819,42 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 
         <!-- Yardım Kutusu -->
         <div style="margin-top: 30px; padding: 20px; background-color: var(--darker-gold-2); border-radius: 8px;">
-            <h4 style="color: var(--gold); margin: 0 0 15px 0;">Audit Log Hakkında:</h4>
-            <ul style="margin: 0; padding-left: 20px; color: var(--lighter-grey); font-size: 0.9rem;">
-                <li><strong>role_created/updated/deleted:</strong> Rol yönetimi işlemleri</li>
-                <li><strong>role_assigned/removed:</strong> Kullanıcılara rol atama/kaldırma</li>
-                <li><strong>permission_check_failed:</strong> Başarısız yetki kontrolleri</li>
-                <li><strong>unauthorized_access_attempt:</strong> Yetkisiz erişim denemeleri</li>
-                <li><strong>security_violation:</strong> Güvenlik ihlalleri</li>
-                <li><strong>invalid_request:</strong> Geçersiz istekler</li>
-            </ul>
+            <h4 style="color: var(--gold); margin: 0 0 15px 0;">Audit Log Türleri ve Açıklamaları:</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                <div>
+                    <h5 style="color: var(--light-gold); margin: 0 0 10px 0;">Rol Yönetimi:</h5>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--lighter-grey); font-size: 0.9rem;">
+                        <li><strong>role_created/updated/deleted:</strong> Rol CRUD işlemleri</li>
+                        <li><strong>role_assigned/removed:</strong> Kullanıcılara rol atama/kaldırma</li>
+                        <li><strong>role_permissions_updated:</strong> Rol yetkilerinin değiştirilmesi</li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 style="color: var(--light-gold); margin: 0 0 10px 0;">Güvenlik Olayları:</h5>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--lighter-grey); font-size: 0.9rem;">
+                        <li><strong>unauthorized_access_attempt:</strong> Yetkisiz erişim denemeleri</li>
+                        <li><strong>permission_check_failed:</strong> Başarısız yetki kontrolleri</li>
+                        <li><strong>security_violation:</strong> Güvenlik ihlalleri</li>
+                        <li><strong>super_admin_added/removed:</strong> Süper admin değişiklikleri</li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 style="color: var(--light-gold); margin: 0 0 10px 0;">Sistem İşlemleri:</h5>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--lighter-grey); font-size: 0.9rem;">
+                        <li><strong>system_setting_updated:</strong> Sistem ayarları değişiklikleri</li>
+                        <li><strong>audit_log_exported:</strong> Audit log dışa aktarma</li>
+                        <li><strong>invalid_request:</strong> Geçersiz istekler</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; padding: 15px; background-color: var(--transparent-gold); border-radius: 4px;">
+                <strong style="color: var(--gold);">💡 İpucu:</strong>
+                <span style="color: var(--lighter-grey); font-size: 0.9rem;">
+                    Güvenlik olaylarını izlemek için "security", "unauthorized" veya "violation" kelimelerini İşlem filtresinde arayabilirsiniz.
+                    Belirli bir kullanıcının tüm aktivitelerini görmek için Kullanıcı ID filtresini kullanın.
+                </span>
+            </div>
         </div>
     </div>
 </main>
@@ -591,6 +879,87 @@ document.addEventListener('DOMContentLoaded', function() {
             // Optional: Auto-submit on filter change
             // this.form.submit();
         });
+    });
+    
+    // Real-time search for IP addresses
+    const ipFilter = document.querySelector('input[name="ip_filter"]');
+    if (ipFilter) {
+        ipFilter.addEventListener('input', function() {
+            // Simple IP validation visual feedback
+            const value = this.value;
+            const isValidIP = /^(\d{1,3}\.){0,3}\d{0,3}$/.test(value) || value === '';
+            this.style.borderColor = isValidIP ? '' : 'var(--red)';
+        });
+    }
+    
+    // Enhanced security event highlighting
+    const securityRows = document.querySelectorAll('.audit-table tbody tr');
+    securityRows.forEach(row => {
+        const actionCell = row.querySelector('.audit-action');
+        if (actionCell && actionCell.textContent.toLowerCase().includes('security')) {
+            row.style.borderLeft = '3px solid var(--red)';
+            row.style.backgroundColor = 'rgba(231, 76, 60, 0.05)';
+        }
+    });
+    
+    // Export confirmation with details
+    const exportLinks = document.querySelectorAll('a[href*="export=csv"]');
+    exportLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            const url = new URL(this.href);
+            const params = url.searchParams;
+            let filterCount = 0;
+            let filterDetails = [];
+            
+            params.forEach((value, key) => {
+                if (value && key !== 'export') {
+                    filterCount++;
+                    filterDetails.push(`${key}: ${value}`);
+                }
+            });
+            
+            const message = `Audit log verilerini CSV formatında dışa aktarmak istediğinizden emin misiniz?\n\n` +
+                          `Aktif Filtre Sayısı: ${filterCount}\n` +
+                          (filterDetails.length > 0 ? `Filtreler:\n- ${filterDetails.join('\n- ')}\n\n` : '') +
+                          `Bu işlem audit log'a kaydedilecektir.\n\n` +
+                          `Maksimum 5000 kayıt dışa aktarılacaktır.`;
+            
+            if (!confirm(message)) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+F için filtre alanına odaklan
+        if (e.ctrlKey && e.key === 'f') {
+            e.preventDefault();
+            const firstFilter = document.querySelector('.filter-control');
+            if (firstFilter) firstFilter.focus();
+        }
+        
+        // Escape tuşu ile JSON önizlemelerini kapat
+        if (e.key === 'Escape') {
+            const openPreviews = document.querySelectorAll('.json-preview[style*="block"]');
+            openPreviews.forEach(preview => {
+                preview.style.display = 'none';
+                const button = preview.previousElementSibling;
+                if (button && button.classList.contains('expand-btn')) {
+                    button.textContent = 'Göster';
+                }
+            });
+        }
+    });
+    
+    // Tooltip for complex data
+    const auditDataCells = document.querySelectorAll('.audit-data');
+    auditDataCells.forEach(cell => {
+        const content = cell.textContent.trim();
+        if (content.length > 50) {
+            cell.title = content;
+        }
     });
 });
 </script>

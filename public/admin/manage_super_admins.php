@@ -6,12 +6,15 @@ require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 
-// Sadece süper adminler bu sayfayı görebilir
+// Yetki kontrolü - hem süper admin olmak hem de manage yetkisi gerekli
 if (!is_super_admin($pdo)) {
     $_SESSION['error_message'] = "Bu sayfaya sadece süper adminler erişebilir.";
     header('Location: ' . get_auth_base_url() . '/admin/manage_roles.php');
     exit;
 }
+
+// Ek yetki kontrolü - manage yetkisi
+require_permission($pdo, 'admin.super_admin.manage');
 
 $page_title = "Süper Admin Yönetimi";
 
@@ -49,6 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if (set_system_setting($pdo, 'super_admin_users', $current_list, 'json', 
                                           'Süper admin kullanıcı ID listesi', $_SESSION['user_id'])) {
                         $_SESSION['success_message'] = "Kullanıcı '{$user['username']}' süper admin olarak eklendi.";
+                        
+                        // Audit log
+                        audit_log($pdo, $_SESSION['user_id'], 'super_admin_added', 'user', $user_id_to_add, null, [
+                            'added_user_id' => $user_id_to_add,
+                            'added_username' => $user['username'],
+                            'action_user_id' => $_SESSION['user_id']
+                        ]);
                     } else {
                         $_SESSION['error_message'] = "Süper admin eklenirken hata oluştu.";
                     }
@@ -64,6 +74,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if ($user_id_to_remove == $_SESSION['user_id']) {
                 $_SESSION['error_message'] = "Kendinizi süper admin listesinden çıkaramazsınız.";
             } else {
+                // Kullanıcı adını audit için al
+                $user_query = "SELECT username FROM users WHERE id = :user_id";
+                $stmt_user = execute_safe_query($pdo, $user_query, [':user_id' => $user_id_to_remove]);
+                $removed_user = $stmt_user->fetch();
+                
                 // Mevcut super admin listesini al
                 $current_list = get_system_setting($pdo, 'super_admin_users', []);
                 $new_list = array_values(array_filter($current_list, function($id) use ($user_id_to_remove) {
@@ -74,6 +89,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if (set_system_setting($pdo, 'super_admin_users', $new_list, 'json', 
                                           'Süper admin kullanıcı ID listesi', $_SESSION['user_id'])) {
                         $_SESSION['success_message'] = "Kullanıcı süper admin listesinden çıkarıldı.";
+                        
+                        // Audit log
+                        audit_log($pdo, $_SESSION['user_id'], 'super_admin_removed', 'user', $user_id_to_remove, null, [
+                            'removed_user_id' => $user_id_to_remove,
+                            'removed_username' => $removed_user['username'] ?? 'Unknown',
+                            'action_user_id' => $_SESSION['user_id']
+                        ]);
                     } else {
                         $_SESSION['error_message'] = "Süper admin çıkarılırken hata oluştu.";
                     }
@@ -85,6 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     } catch (Exception $e) {
         error_log("Süper admin yönetimi hatası: " . $e->getMessage());
         $_SESSION['error_message'] = "İşlem sırasında bir hata oluştu.";
+        
+        // Güvenlik ihlali audit log
+        audit_log($pdo, $_SESSION['user_id'], 'super_admin_management_error', 'system', null, null, [
+            'action' => $action,
+            'error' => $e->getMessage(),
+            'user_id' => $_SESSION['user_id']
+        ]);
     }
     
     header('Location: ' . $_SERVER['REQUEST_URI']);
@@ -284,30 +313,71 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     color: var(--light-grey);
     font-style: italic;
 }
+
+.permission-info {
+    background-color: var(--transparent-gold);
+    color: var(--light-gold);
+    padding: 12px 15px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    border: 1px solid var(--gold);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.permission-info i {
+    color: var(--gold);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .super-admin-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .super-admin-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
 </style>
 
 <main class="main-content">
     <div class="container admin-container super-admin-container">
         <div class="page-header-super-admin">
             <h1 class="page-title-super-admin"><?php echo htmlspecialchars($page_title); ?></h1>
-            <a href="manage_roles.php" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-arrow-left"></i> Rol Yönetimine Dön
-            </a>
+            <div>
+                <a href="audit_log.php" class="btn btn-sm btn-info" style="margin-right: 10px;">
+                    <i class="fas fa-clipboard-list"></i> Audit Log
+                </a>
+                <a href="manage_roles.php" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Rol Yönetimine Dön
+                </a>
+            </div>
         </div>
 
         <?php require BASE_PATH . '/src/includes/admin_quick_navigation.php'; ?>
+
+        <div class="permission-info">
+            <i class="fas fa-info-circle"></i>
+            <span>Bu sayfayı görüntülemek için 'admin.super_admin.manage' yetkisine sahip olmanız gerekmektedir.</span>
+        </div>
 
         <div class="super-admin-warning">
             <i class="fas fa-exclamation-triangle"></i>
             <div>
                 <strong>DİKKAT:</strong> Süper adminler tüm sistem yetkilerine sahiptir ve rol kısıtlamalarını bypass ederler. 
-                Bu listeyi sadece tamamen güvendiğiniz kişilerle paylaşın.
+                Bu listeyi sadece tamamen güvendiğiniz kişilerle paylaşın. Tüm işlemler audit log'a kaydedilir.
             </div>
         </div>
 
         <!-- Mevcut Süper Adminler -->
         <div class="current-super-admins">
-            <h3><i class="fas fa-crown"></i>Mevcut Süper Adminler</h3>
+            <h3><i class="fas fa-crown"></i>Mevcut Süper Adminler (<?php echo count($super_admins); ?>)</h3>
             
             <?php if (empty($super_admins)): ?>
                 <div class="no-super-admins">
@@ -333,7 +403,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                             <div class="super-admin-actions">
                                 <?php if ($admin['id'] != $_SESSION['user_id']): ?>
                                     <form method="POST" style="display: inline;" 
-                                          onsubmit="return confirm('<?php echo htmlspecialchars($admin['username']); ?> kullanıcısını süper admin listesinden çıkarmak istediğinizden emin misiniz?');">
+                                          onsubmit="return confirm('<?php echo htmlspecialchars($admin['username']); ?> kullanıcısını süper admin listesinden çıkarmak istediğinizden emin misiniz?\n\nBu işlem audit log\'a kaydedilecektir.');">
                                         <input type="hidden" name="action" value="remove_super_admin">
                                         <input type="hidden" name="user_id" value="<?php echo $admin['id']; ?>">
                                         <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
@@ -391,15 +461,23 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 
         <!-- Bilgi Kutusu -->
         <div style="margin-top: 30px; padding: 20px; background-color: var(--darker-gold-2); border-radius: 8px;">
-            <h4 style="color: var(--gold); margin: 0 0 15px 0;">Süper Admin Yetkileri:</h4>
+            <h4 style="color: var(--gold); margin: 0 0 15px 0;">Süper Admin Yetkileri ve Güvenlik:</h4>
             <ul style="margin: 0; padding-left: 20px; color: var(--lighter-grey);">
-                <li>Tüm sistem yetkilerine sınırsız erişim</li>
-                <li>Rol kısıtlamalarını bypass etme</li>
-                <li>Diğer süper adminleri yönetme</li>
-                <li>Sistem ayarlarını değiştirme</li>
-                <li>Audit log'ları görüntüleme</li>
-                <li>Kritik sistem işlemlerini gerçekleştirme</li>
+                <li><strong>Tüm sistem yetkilerine sınırsız erişim</strong> - Normal rol kısıtlamalarını bypass eder</li>
+                <li><strong>Rol yönetimi:</strong> Diğer süper adminleri yönetme, tüm rolleri düzenleme</li>
+                <li><strong>Sistem ayarları:</strong> Kritik sistem ayarlarını değiştirme</li>
+                <li><strong>Audit log erişimi:</strong> Tüm sistem işlemlerini görüntüleme ve analiz etme</li>
+                <li><strong>Güvenlik yönetimi:</strong> Güvenlik ayarları ve kullanıcı erişim kontrolü</li>
+                <li><strong>Tam veritabanı erişimi:</strong> SQL injection koruması olmaksızın veri yönetimi</li>
             </ul>
+            
+            <div style="margin-top: 15px; padding: 10px; background-color: var(--transparent-red); border-radius: 4px;">
+                <strong style="color: var(--red);">⚠️ Güvenlik Uyarısı:</strong>
+                <span style="color: var(--lighter-grey); font-size: 0.9rem;">
+                    Süper admin yetkisi sadece sistem yöneticileri ve tamamen güvenilir kişilere verilmelidir. 
+                    Tüm süper admin işlemleri audit log'a kaydedilir ve izlenir.
+                </span>
+            </div>
         </div>
     </div>
 </main>
@@ -413,7 +491,28 @@ document.addEventListener('DOMContentLoaded', function() {
             const submitBtn = this.querySelector('button[type="submit"]');
             if (submitBtn && !submitBtn.disabled) {
                 submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İşleniyor...';
+                
+                // Re-enable after timeout (safety net)
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }, 10000);
+            }
+        });
+    });
+    
+    // Enhanced security check
+    const sensitiveActions = document.querySelectorAll('form[onsubmit*="confirm"]');
+    sensitiveActions.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const username = this.querySelector('input[name="user_id"]').value;
+            const userText = this.closest('.super-admin-item')?.querySelector('.super-admin-username')?.textContent.trim();
+            
+            if (userText && !confirm(`UYARI: ${userText} kullanıcısını süper admin listesinden çıkarmak istediğinizden EMİN misiniz?\n\nBu işlem:\n- Kullanıcının tüm süper admin yetkilerini kaldırır\n- Audit log'a kaydedilir\n- Geri alınamaz\n\nDevam etmek için OK'e tıklayın.`)) {
+                e.preventDefault();
+                return false;
             }
         });
     });
