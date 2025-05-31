@@ -1,3 +1,4 @@
+
 <?php
 // public/event_detail.php
 
@@ -53,7 +54,8 @@ $current_user_id = $current_user_is_logged_in ? ($_SESSION['user_id'] ?? null) :
 $current_user_is_admin = $current_user_is_logged_in ? is_user_admin() : false;
 $current_user_is_approved = $current_user_is_logged_in ? is_user_approved() : false;
 
-$can_view_event_detail = false;
+// Sayfa herkese açık - sadece içerik yetki kontrolü var
+$can_view_event_detail = true;
 $access_message_detail = "";
 
 try {
@@ -77,8 +79,8 @@ try {
     if ($event) {
         $page_title = htmlspecialchars($event['title']);
 
-        // YETKİLENDİRME MANTIĞI
-        if ($event['visibility'] === 'public' && has_permission($pdo, 'event.view_public', $current_user_id)) {
+        // YETKİLENDİRME MANTIĞI - İçerik görünürlüğü kontrolü
+        if ($event['visibility'] === 'public' && (has_permission($pdo, 'event.view_public', $current_user_id) || !$current_user_is_logged_in)) {
             $can_view_event_detail = true;
         } elseif ($current_user_is_approved) { // Giriş yapmış ve onaylı kullanıcılar için
             if ($event['visibility'] === 'members_only' && has_permission($pdo, 'event.view_members_only', $current_user_id)) {
@@ -96,9 +98,17 @@ try {
 
                     if (!empty(array_intersect($current_user_role_ids_detail, $allowed_role_ids_for_event_detail))) {
                         $can_view_event_detail = true;
+                    } else {
+                        $can_view_event_detail = false;
                     }
+                } else {
+                    $can_view_event_detail = false;
                 }
+            } else {
+                $can_view_event_detail = false;
             }
+        } elseif ($event['visibility'] !== 'public') {
+            $can_view_event_detail = false;
         }
 
         // Etkinliği oluşturan veya 'event.view_all' yetkisine sahip olanlar her zaman görebilir
@@ -108,7 +118,7 @@ try {
 
         if (!$can_view_event_detail) {
             if (!$current_user_is_logged_in) {
-                 $access_message_detail = "Bu etkinliği görmek için lütfen <a href='" . get_auth_base_url() . "/login.php' style='color: var(--turquase); font-weight: bold;'>giriş yapın</a> veya <a href='" . get_auth_base_url() . "/register.php' style='color: var(--turquase); font-weight: bold;'>kayıt olun</a>.";
+                 $access_message_detail = "Bu etkinliği görmek için lütfen <a href='" . get_auth_base_url() . "/login.php'>giriş yapın</a> veya <a href='" . get_auth_base_url() . "/register.php'>kayıt olun</a>.";
             } elseif (!$current_user_is_approved) {
                 $access_message_detail = "Bu etkinliği görüntüleyebilmek için hesabınızın onaylanmış olması gerekmektedir.";
             } else {
@@ -192,226 +202,562 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 ?>
 
 <style>
-/* ... (mevcut event_detail.php stilleriniz aynı kalacak) ... */
-.event-detail-page-container-v4 { 
+/* Modern Event Detail Page Styles - Consistent with Gallery & Events */
+.event-detail-page-container { 
     width: 100%;
-    max-width: 1100px; 
-    margin: 40px auto; 
-    padding: 0 20px; 
+    max-width: 1200px; 
+    margin: 0 auto; 
+    padding: 2rem 1rem; 
     font-family: var(--font);
     color: var(--lighter-grey);
 }
-.page-top-nav-controls-evd {
+
+.page-top-nav-controls {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px; 
-    padding-bottom: 15px;
+    margin-bottom: 2rem; 
+    padding-bottom: 1rem;
     border-bottom: 1px solid var(--darker-gold-2); 
 }
-.back-to-events-link-evd {
-    font-size: 0.9rem; color: var(--turquase); text-decoration: none;
-    display: inline-flex; align-items: center; gap: 7px;
-    padding: 7px 15px; 
-    border-radius: 18px; 
+
+.back-to-events-link {
+    font-size: 0.9rem; 
+    color: var(--turquase); 
+    text-decoration: none;
+    display: inline-flex; 
+    align-items: center; 
+    gap: 0.5rem;
+    padding: 0.75rem 1rem; 
+    border-radius: 6px; 
     border: 1px solid var(--turquase); 
     background-color: transparent; 
     transition: all 0.2s ease;
 }
-.back-to-events-link-evd:hover { color: var(--white); background-color: var(--turquase); border-color:var(--turquase); }
-.back-to-events-link-evd i.fas { font-size: 0.85em; }
-.btn-edit-event-evd {
-    background-color: var(--gold); color: var(--darker-gold-2); padding: 7px 15px;
-    border-radius: 18px; text-decoration: none; font-weight: 600; font-size: 0.85rem; 
-    transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 7px;
+
+.back-to-events-link:hover { 
+    color: var(--charcoal); 
+    background-color: var(--turquase); 
+}
+
+.back-to-events-link i.fas { 
+    font-size: 0.85em; 
+}
+
+.btn-edit-event {
+    background-color: var(--gold); 
+    color: var(--charcoal); 
+    padding: 0.75rem 1rem;
+    border-radius: 6px; 
+    text-decoration: none; 
+    font-weight: 500; 
+    font-size: 0.9rem; 
+    transition: all 0.2s ease; 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 0.5rem;
     border: 1px solid var(--gold); 
 }
-.btn-edit-event-evd:hover { background-color: var(--light-gold); color: var(--black); transform: translateY(-1px); border-color:var(--light-gold);}
-.btn-edit-event-evd i.fas { font-size:0.85em;}
-.event-main-header-evd {
-    padding: 20px 0; 
+
+.btn-edit-event:hover { 
+    background-color: var(--light-gold); 
+    color: var(--charcoal);
+}
+
+.btn-edit-event i.fas { 
+    font-size: 0.85em;
+}
+
+.event-main-header {
+    padding: 2rem 1.5rem; 
     border-radius: 8px; 
-    margin-bottom: 35px; 
+    margin-bottom: 2rem; 
     border: 1px solid var(--darker-gold-2); 
     background-color: transparent; 
     text-align: center; 
 }
-.event-main-title-evd {
-    color: var(--gold); font-size: 2.8rem; 
-    font-family: var(--font); margin: 0 0 20px 0; line-height: 1.2; 
-    font-weight: 700; 
+
+.event-main-title {
+    color: var(--gold); 
+    font-size: 2.5rem; 
+    font-family: var(--font); 
+    margin: 0 0 1.5rem 0; 
+    line-height: 1.2; 
+    font-weight: 300; 
     letter-spacing: -0.5px;
 }
-.event-status-alert-evd {
-    padding: 10px 15px; margin: 25px auto; border-radius: 6px; font-size: 0.95rem;
-    border: 1px solid; text-align:center; font-weight:500;
+
+.event-status-alert {
+    padding: 1rem 1.5rem; 
+    margin: 1.5rem auto; 
+    border-radius: 6px; 
+    font-size: 0.9rem;
+    border: 1px solid; 
+    text-align: center; 
+    font-weight: 500;
     max-width: 600px; 
 }
-.event-status-alert-evd.cancelled { background-color: rgba(var(--red-rgb), 0.1); color: var(--red); border-color: var(--red); }
-.event-status-alert-evd.past { background-color: rgba(var(--turquase-rgb), 0.1); color: var(--turquase); border-color: var(--turquase); }
-.event-meta-details-evd {
-    margin-top: 10px; padding-top: 15px;
+
+.event-status-alert.cancelled { 
+    background-color: rgba(255, 82, 82, 0.1); 
+    color: var(--red); 
+    border-color: var(--red); 
+}
+
+.event-status-alert.past { 
+    background-color: rgba(42, 189, 168, 0.1); 
+    color: var(--turquase); 
+    border-color: var(--turquase); 
+}
+
+.event-status-alert.info {
+    background-color: rgba(34, 34, 34, 0.3);
+    color: var(--light-grey);
+    border-color: var(--grey);
+}
+
+.event-meta-details {
+    margin-top: 1rem; 
+    padding-top: 1rem;
     border-top: 1px solid var(--darker-gold-2); 
     font-size: 0.9rem; 
     color: var(--light-grey);
     display: flex; 
-    flex-direction: row; 
     align-items: center; 
     justify-content: center; 
     flex-wrap: wrap; 
-    gap: 15px 25px; 
-}
-.event-meta-details-evd p { margin-bottom: 0; display: flex; align-items: center; gap: 6px;} 
-.event-meta-details-evd p i.fas { color: var(--light-gold); font-size: 0.9em; }
-.event-meta-details-evd strong { color: var(--lighter-grey); font-weight: 400; }
-.event-creator-info-evd { display: inline-flex; align-items: center; gap: 8px; cursor: default; } 
-.creator-avatar-evd { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--gold); }
-.avatar-placeholder-evd { width: 32px; height: 32px; font-size:1rem; background-color:var(--grey); color:var(--gold); display:flex; align-items:center; justify-content:center; font-weight:bold; border:1px solid var(--darker-gold-1); border-radius:50%;}
-.creator-name-link-evd { color: inherit !important; font-weight: 500; font-size:0.95em; text-decoration:none; }
-.creator-name-link-evd:hover { text-decoration:underline; }
-.event-key-details-section {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px; 
-    margin-bottom: 35px;
-    padding: 25px;
-    border: 1px solid var(--darker-gold-2);
-    border-radius: 10px;
-    background-color: transparent; 
-}
-.key-detail-item {
-    background-color: var(--darker-gold-2); 
-    padding: 18px 22px;
-    border-radius: 8px;
-    flex: 1 1 280px; 
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    border-left: 4px solid var(--gold);
-    transition: background-color 0.2s ease;
-}
-.key-detail-item:hover {
-    background-color: var(--darker-gold-1);
-}
-.key-detail-item i.fas {
-    color: var(--gold);
-    font-size: 1.6em; 
-    width: 30px; 
-    text-align: center;
-}
-.key-detail-item div { display: flex; flex-direction: column; }
-.key-detail-item p.detail-label { margin: 0 0 3px 0; font-size: 0.85rem; color: var(--light-grey); text-transform: uppercase; letter-spacing: 0.5px;}
-.key-detail-item strong.detail-value { font-size: 1.1em; color: var(--lighter-grey); font-weight: 600; }
-.key-detail-item strong.detail-value a { color: var(--turquase); text-decoration:none; }
-.key-detail-item strong.detail-value a:hover { text-decoration:underline; }
-.event-content-section-evd {
-    border-radius: 8px; margin-bottom: 35px; 
-    background-color: transparent; 
-    border: 1px solid var(--darker-gold-2);
-    padding: 30px; /* İçerik bölümü için padding artırıldı */
-}
-.section-title-evd {
- color: var(--gold); font-size: 1.8rem; margin: 0 0 20px 0;
-    padding-bottom: 12px; border-bottom: 1px solid var(--darker-gold-2); 
-    font-family: var(--font); font-weight: 600; display:flex; align-items:center; gap:10px;
-}
-.event-description-text-evd p { line-height: 1.75; font-size: 1rem; color: var(--lighter-grey); word-wrap: break-word; }
-.event-description-text-evd p:last-child { margin-bottom:0; }
-.event-images-grid-evd {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
-    gap: 15px; 
-}
-.event-image-item-evd img {
-    width: 100%; height: 180px; object-fit: cover; border-radius: 6px; 
-    border: 1px solid var(--darker-gold-2); cursor: pointer;
-    transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
-}
-.event-image-item-evd img:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(var(--gold-rgb,189,145,42),0.2); opacity:0.9; }
-.event-participation-section-evd {
-    padding: 30px; border-radius: 8px; margin-bottom: 35px; border: 1px solid var(--darker-gold-2);
-    background-color: transparent;
-}
-.participation-buttons-evd { margin-bottom: 30px; text-align:center; padding: 20px;  }
-.participation-buttons-evd form { display: inline-block; margin: 5px 8px; }
-.participation-buttons-evd .btn { font-weight:500; font-size:0.95rem; padding: 9px 20px; border-radius:25px;}
-.participation-buttons-evd .btn.active-status { opacity:0.7; cursor:default; border:2px solid var(--gold) !important; filter: brightness(1.1);}
-.participation-buttons-evd .btn i.fas { margin-right:8px; }
-.participant-columns-container-evd {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
-    gap: 25px; margin-top: 20px;
-}
-.participant-list-column-evd h4.participant-list-title {
-    color: var(--gold); font-size: 1.3rem; margin: 0 0 18px 0;
-    padding-bottom: 12px; border-bottom: 1px solid var(--darker-gold-1); font-weight:600;
-    display:flex; align-items:center; gap:10px;
-}
-ul.participant-list-evd { list-style-type: none; padding-left: 0; margin-top: 10px; }
-ul.participant-list-evd li {
-    display: flex; align-items: center; gap:10px; 
-    padding: 8px 0px; 
-    border-bottom: 1px solid var(--darker-gold-2); font-size: 0.9rem; 
-}
-ul.participant-list-evd li:last-child { border-bottom: none; }
-.participant-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border:1px solid var(--darker-gold-1); }
-.avatar-placeholder-participant-evd { width: 32px; height: 32px; font-size:1em; background-color:var(--grey); color:var(--gold); display:flex; align-items:center; justify-content:center; font-weight:bold; border:1px solid var(--darker-gold-1); border-radius:50%;}
-.participant-name-link-evd { color: inherit !important; font-weight: 500; text-decoration: none; font-size:0.95rem;}
-.participant-ingame-evd { font-size: 0.85rem; color: var(--light-grey); margin-left: 5px; font-style:italic; }
-.event-admin-actions-evd {
-    margin-top: 35px; padding: 20px;
-    border-radius: 8px; text-align: center; border: 1px solid var(--darker-gold-2); 
-    background-color: transparent; 
-}
-.event-admin-actions-evd form { display: inline-block; margin: 5px 8px; }
-.event-admin-actions-evd .btn { font-weight:500; font-size:0.9rem; padding:8px 18px; border-radius:20px;}
-.event-admin-actions-evd .btn i.fas { margin-right:8px;}
-.user-info-trigger.username-role-admin .creator-name-link-evd,
-.user-info-trigger.username-role-admin .participant-name-link-evd { color: var(--gold) !important; }
-.user-info-trigger.username-role-scg_uye .creator-name-link-evd,
-.user-info-trigger.username-role-scg_uye .participant-name-link-evd { color: #A52A2A !important; }
-.user-info-trigger.username-role-ilgarion_turanis .creator-name-link-evd,
-.user-info-trigger.username-role-ilgarion_turanis .participant-name-link-evd { color: var(--turquase) !important; }
-.user-info-trigger.username-role-member .creator-name-link-evd,
-.user-info-trigger.username-role-member .participant-name-link-evd { color: var(--white) !important; }
-.user-info-trigger.username-role-dis_uye .creator-name-link-evd,
-.user-info-trigger.username-role-dis_uye .participant-name-link-evd { color: var(--light-grey) !important; }
-#galleryModal .caption-v2-horizontal { display: none !important; } 
-.access-denied-message-detail { /* Yeni class */
-    text-align: center;
-    font-size: 1.1rem;
-    color: var(--light-grey);
-    padding: 40px 20px;
-    background-color: var(--charcoal);
-    border-radius: 8px;
-    border: 1px dashed var(--darker-gold-1);
-    margin: 40px auto; /* Sayfada ortalamak için */
-    max-width: 700px;
-}
-.access-denied-message-detail a {
-    color: var(--turquase);
-    font-weight: bold;
-}
-.access-denied-message-detail a:hover {
-    color: var(--light-turquase);
+    gap: 1rem; 
 }
 
+.event-meta-details p { 
+    margin-bottom: 0; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem;
+} 
+
+.event-meta-details p i.fas { 
+    color: var(--gold); 
+    font-size: 0.9em; 
+}
+
+.event-meta-details strong { 
+    color: var(--lighter-grey); 
+    font-weight: 500; 
+}
+
+.event-creator-info { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    cursor: default; 
+} 
+
+.creator-avatar { 
+    width: 24px; 
+    height: 24px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+    border: 1px solid var(--gold); 
+}
+
+.avatar-placeholder { 
+    width: 24px; 
+    height: 24px; 
+    font-size: 0.8rem; 
+    background-color: var(--grey); 
+    color: var(--gold); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-weight: 500; 
+    border: 1px solid var(--darker-gold-1); 
+    border-radius: 50%;
+}
+
+.creator-name-link { 
+    color: inherit !important; 
+    font-weight: 500; 
+    font-size: 0.9em; 
+    text-decoration: none; 
+}
+
+.creator-name-link:hover { 
+    color: var(--gold) !important; 
+}
+
+.event-key-details-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem; 
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    border: 1px solid var(--darker-gold-2);
+    border-radius: 8px;
+    background-color: transparent; 
+}
+
+.key-detail-item {
+    background-color: rgba(34, 34, 34, 0.3); 
+    padding: 1rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-left: 3px solid var(--gold);
+    transition: background-color 0.2s ease;
+}
+
+.key-detail-item:hover {
+    background-color: rgba(82, 56, 10, 0.2);
+}
+
+.key-detail-item i.fas {
+    color: var(--gold);
+    font-size: 1.25em; 
+    width: 24px; 
+    text-align: center;
+}
+
+.key-detail-item div { 
+    display: flex; 
+    flex-direction: column; 
+}
+
+.key-detail-item p.detail-label { 
+    margin: 0 0 0.25rem 0; 
+    font-size: 0.8rem; 
+    color: var(--light-grey); 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px;
+}
+
+.key-detail-item strong.detail-value { 
+    font-size: 0.95em; 
+    color: var(--lighter-grey); 
+    font-weight: 500; 
+}
+
+.key-detail-item strong.detail-value a { 
+    color: var(--turquase); 
+    text-decoration: none; 
+}
+
+.key-detail-item strong.detail-value a:hover { 
+    text-decoration: underline; 
+}
+
+.event-content-section {
+    border-radius: 8px; 
+    margin-bottom: 2rem; 
+    background-color: transparent; 
+    border: 1px solid var(--darker-gold-2);
+    padding: 1.5rem; 
+}
+
+.section-title {
+    color: var(--gold); 
+    font-size: 1.5rem; 
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.75rem; 
+    border-bottom: 1px solid var(--darker-gold-2); 
+    font-family: var(--font); 
+    font-weight: 400; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem;
+}
+
+.event-description-text p { 
+    line-height: 1.6; 
+    font-size: 1rem; 
+    color: var(--lighter-grey); 
+    word-wrap: break-word; 
+}
+
+.event-description-text p:last-child { 
+    margin-bottom: 0; 
+}
+
+.event-images-grid {
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+    gap: 1rem; 
+}
+
+.event-image-item img {
+    width: 100%; 
+    height: 160px; 
+    object-fit: cover; 
+    border-radius: 6px; 
+    border: 1px solid var(--darker-gold-2); 
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.event-image-item img:hover { 
+    opacity: 0.9; 
+}
+
+.event-participation-section {
+    padding: 1.5rem; 
+    border-radius: 8px; 
+    margin-bottom: 2rem; 
+    border: 1px solid var(--darker-gold-2);
+    background-color: transparent;
+}
+
+.participation-buttons { 
+    margin-bottom: 2rem; 
+    text-align: center; 
+    padding: 1rem;  
+}
+
+.participation-buttons form { 
+    display: inline-block; 
+    margin: 0.25rem 0.5rem; 
+}
+
+.participation-buttons .btn { 
+    font-weight: 500; 
+    font-size: 0.9rem; 
+    padding: 0.75rem 1.25rem; 
+    border-radius: 6px;
+}
+
+.participation-buttons .btn.active-status { 
+    opacity: 0.7; 
+    cursor: default; 
+    border: 2px solid var(--gold) !important; 
+}
+
+.participation-buttons .btn i.fas { 
+    margin-right: 0.5rem; 
+}
+
+.participant-columns-container {
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+    gap: 1.5rem; 
+    margin-top: 1rem;
+}
+
+.participant-list-column h4.participant-list-title {
+    color: var(--gold); 
+    font-size: 1.125rem; 
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.75rem; 
+    border-bottom: 1px solid var(--darker-gold-1); 
+    font-weight: 400;
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem;
+}
+
+ul.participant-list { 
+    list-style-type: none; 
+    padding-left: 0; 
+    margin-top: 0.5rem; 
+}
+
+ul.participant-list li {
+    display: flex; 
+    align-items: center; 
+    gap: 0.75rem; 
+    padding: 0.5rem 0; 
+    border-bottom: 1px solid var(--darker-gold-2); 
+    font-size: 0.9rem; 
+}
+
+ul.participant-list li:last-child { 
+    border-bottom: none; 
+}
+
+.participant-avatar { 
+    width: 24px; 
+    height: 24px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+    border: 1px solid var(--darker-gold-1); 
+}
+
+.avatar-placeholder-participant { 
+    width: 24px; 
+    height: 24px; 
+    font-size: 0.8em; 
+    background-color: var(--grey); 
+    color: var(--gold); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-weight: 500; 
+    border: 1px solid var(--darker-gold-1); 
+    border-radius: 50%;
+}
+
+.participant-name-link { 
+    color: inherit !important; 
+    font-weight: 500; 
+    text-decoration: none; 
+    font-size: 0.9rem;
+}
+
+.participant-name-link:hover {
+    color: var(--gold) !important;
+}
+
+.participant-ingame { 
+    font-size: 0.8rem; 
+    color: var(--light-grey); 
+    margin-left: 0.25rem; 
+    font-style: italic; 
+}
+
+.no-participants-message {
+    font-size: 0.9em; 
+    text-align: left; 
+    padding-left: 0.25rem;
+    color: var(--light-grey);
+}
+
+.event-admin-actions {
+    margin-top: 2rem; 
+    padding: 1.5rem;
+    border-radius: 8px; 
+    text-align: center; 
+    border: 1px solid var(--darker-gold-2); 
+    background-color: transparent; 
+}
+
+.event-admin-actions form { 
+    display: inline-block; 
+    margin: 0.25rem 0.5rem; 
+}
+
+.event-admin-actions .btn { 
+    font-weight: 500; 
+    font-size: 0.9rem; 
+    padding: 0.75rem 1.25rem; 
+    border-radius: 6px;
+}
+
+.event-admin-actions .btn i.fas { 
+    margin-right: 0.5rem;
+}
+
+.access-denied-message-detail {
+    text-align: center;
+    font-size: 1rem;
+    color: var(--light-grey);
+    padding: 3rem 2rem;
+    border: 1px dashed var(--grey);
+    border-radius: 6px;
+    margin: 2rem auto;
+    max-width: 600px;
+}
+
+.access-denied-message-detail a {
+    color: var(--turquase);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.access-denied-message-detail a:hover {
+    text-decoration: underline;
+}
+
+/* Username Role Colors - Consistent with Gallery & Events */
+.user-info-trigger.username-role-admin .creator-name-link,
+.user-info-trigger.username-role-admin .participant-name-link { 
+    color: var(--gold) !important; 
+}
+
+.user-info-trigger.username-role-scg_uye .creator-name-link,
+.user-info-trigger.username-role-scg_uye .participant-name-link { 
+    color: #A52A2A !important; 
+}
+
+.user-info-trigger.username-role-ilgarion_turanis .creator-name-link,
+.user-info-trigger.username-role-ilgarion_turanis .participant-name-link { 
+    color: var(--turquase) !important; 
+}
+
+.user-info-trigger.username-role-member .creator-name-link,
+.user-info-trigger.username-role-member .participant-name-link { 
+    color: var(--white) !important; 
+}
+
+.user-info-trigger.username-role-dis_uye .creator-name-link,
+.user-info-trigger.username-role-dis_uye .participant-name-link { 
+    color: var(--light-grey) !important; 
+}
+
+/* Modal overrides */
+#galleryModal .caption-v2-horizontal { 
+    display: none !important; 
+} 
+
+/* Responsive Design */
 @media (max-width: 768px) {
-    .event-detail-page-container-v4 { padding: 15px; }
-    .page-top-nav-controls-evd { flex-direction:column; align-items:stretch; gap:15px;} 
-    .back-to-events-link-evd, .btn-edit-event-evd { width:100%; justify-content:center; }
-    .event-main-header-evd h1 { font-size:2.2rem; }
-    .event-key-details-section { grid-template-columns: 1fr; gap: 15px; padding:20px; } 
-    .highlight-card { padding:15px 20px; }
-    .event-content-section-evd { padding: 20px; }
-    .participation-buttons-evd { flex-direction: column; gap: 10px; padding:15px; }
-    .participation-buttons-evd .btn { width: 100%; }
-    .participant-columns-container-evd { grid-template-columns: 1fr; gap:20px; }
-    .event-admin-actions-evd { justify-content: center; padding:20px; }
-    .event-admin-actions-evd .btn { width: 100%; max-width: 280px; }
+    .event-content-section { 
+        padding: 1rem; 
+    }
+    
+    .participation-buttons { 
+        flex-direction: column; 
+        gap: 0.5rem; 
+        padding: 1rem; 
+    }
+    
+    .participation-buttons .btn { 
+        width: 100%; 
+    }
+    
+    .participant-columns-container { 
+        grid-template-columns: 1fr; 
+        gap: 1rem; 
+    }
+    
+    .event-admin-actions { 
+        justify-content: center; 
+        padding: 1rem; 
+    }
+    
+    .event-admin-actions .btn { 
+        width: 100%; 
+        max-width: 280px; 
+    }
+}
+
+@media (max-width: 480px) {
+    .event-detail-page-container {
+        padding: 1rem 0.75rem;
+    }
+    
+    .event-main-title {
+        font-size: 1.75rem;
+    }
+    
+    .event-key-details-section {
+        padding: 0.75rem;
+    }
+    
+    .key-detail-item {
+        padding: 0.75rem;
+    }
+    
+    .event-content-section {
+        padding: 0.75rem;
+    }
+    
+    .participation-buttons {
+        padding: 0.75rem;
+    }
 }
 </style>
 
 <main class="main-content">
-    <div class="container event-detail-page-container-v4">
+    <div class="container event-detail-page-container">
 
         <?php if (!$can_view_event_detail && !empty($access_message_detail)): ?>
             <div class="access-denied-message-detail">
@@ -422,23 +768,31 @@ ul.participant-list-evd li:last-child { border-bottom: none; }
                 </p>
             </div>
         <?php elseif ($event && $can_view_event_detail): ?>
-            <div class="page-top-nav-controls-evd">
-                <a href="events.php" class="back-to-events-link-evd"><i class="fas fa-arrow-left"></i> Tüm Etkinliklere Dön</a>
+            <div class="page-top-nav-controls">
+                <a href="events.php" class="back-to-events-link">
+                    <i class="fas fa-arrow-left"></i> Tüm Etkinliklere Dön
+                </a>
                 <?php if ($can_edit_this_event): ?>
-                    <a href="edit_event.php?id=<?php echo $event['id']; ?>" class="btn-edit-event-evd"><i class="fas fa-edit"></i> Etkinliği Düzenle</a>
+                    <a href="edit_event.php?id=<?php echo $event['id']; ?>" class="btn-edit-event">
+                        <i class="fas fa-edit"></i> Etkinliği Düzenle
+                    </a>
                 <?php endif; ?>
             </div>
 
-            <div class="event-main-header-evd">
-                <h1 class="event-main-title-evd"><?php echo htmlspecialchars($event['title']); ?></h1>
+            <div class="event-main-header">
+                <h1 class="event-main-title"><?php echo htmlspecialchars($event['title']); ?></h1>
 
                 <?php if ($event['status'] === 'cancelled'): ?>
-                    <p class="event-status-alert-evd cancelled"><strong><i class="fas fa-exclamation-triangle"></i> Bu etkinlik iptal edilmiştir.</strong></p>
+                    <p class="event-status-alert cancelled">
+                        <strong><i class="fas fa-exclamation-triangle"></i> Bu etkinlik iptal edilmiştir.</strong>
+                    </p>
                 <?php elseif ($event['status'] === 'past' || new DateTime($event['event_datetime']) < new DateTime()): ?>
-                    <p class="event-status-alert-evd past"><strong><i class="fas fa-history"></i> Bu etkinlik geçmiş bir tarihtedir.</strong></p>
+                    <p class="event-status-alert past">
+                        <strong><i class="fas fa-history"></i> Bu etkinlik geçmiş bir tarihtedir.</strong>
+                    </p>
                 <?php endif; ?>
 
-                <div class="event-meta-details-evd">
+                <div class="event-meta-details">
                     <?php
                     $creator_data_for_popover_detail = [
                         'id' => $event['creator_id'],
@@ -451,11 +805,11 @@ ul.participant-list-evd li:last-child { border-bottom: none; }
                         'user_roles_list' => $event['creator_roles_list']
                     ];
                     echo render_user_info_with_popover(
-                        $pdo, // $pdo eklendi
+                        $pdo,
                         $creator_data_for_popover_detail,
-                        'creator-name-link-evd',
-                        'creator-avatar-evd',
-                        'event-creator-info-evd'
+                        'creator-name-link',
+                        'creator-avatar',
+                        'event-creator-info'
                     );
                     ?>
                 </div>
@@ -484,47 +838,62 @@ ul.participant-list-evd li:last-child { border-bottom: none; }
                 <?php endif; ?>
                  <div class="key-detail-item">
                     <i class="fas fa-map-marker-alt"></i>
-                    <div><p class="detail-label">Konum</p><strong class="detail-value"><?php echo htmlspecialchars($event['location'] ?: 'Belirtilmemiş'); ?></strong></div>
+                    <div>
+                        <p class="detail-label">Konum</p>
+                        <strong class="detail-value"><?php echo htmlspecialchars($event['location'] ?: 'Belirtilmemiş'); ?></strong>
+                    </div>
                 </div>
                 <div class="key-detail-item">
                     <i class="fas fa-tag"></i>
-                    <div><p class="detail-label">Etkinlik Tipi</p><strong class="detail-value"><?php echo htmlspecialchars($event['event_type']); ?></strong></div>
+                    <div>
+                        <p class="detail-label">Etkinlik Tipi</p>
+                        <strong class="detail-value"><?php echo htmlspecialchars($event['event_type']); ?></strong>
+                    </div>
                 </div>
                  <div class="key-detail-item">
                     <i class="fas fa-eye"></i>
-                    <div><p class="detail-label">Görünürlük</p><strong class="detail-value">
-                        <?php
-                        switch ($event['visibility']) {
-                            case 'public': echo 'Herkese Açık'; break;
-                            case 'members_only': echo 'Sadece Üyelere'; break;
-                            case 'faction_only': echo 'Sadece Fraksiyon Üyelerine'; break;
-                            default: echo ucfirst($event['visibility']);
-                        }
-                        ?>
-                    </strong></div>
+                    <div>
+                        <p class="detail-label">Görünürlük</p>
+                        <strong class="detail-value">
+                            <?php
+                            switch ($event['visibility']) {
+                                case 'public': echo 'Herkese Açık'; break;
+                                case 'members_only': echo 'Sadece Üyelere'; break;
+                                case 'faction_only': echo 'Sadece Fraksiyon Üyelerine'; break;
+                                default: echo ucfirst($event['visibility']);
+                            }
+                            ?>
+                        </strong>
+                    </div>
                 </div>
                 <div class="key-detail-item">
                     <i class="fas fa-users"></i>
-                    <div><p class="detail-label">Katılımcı Limiti</p><strong class="detail-value"><?php echo $event['max_participants'] !== null ? htmlspecialchars($event['max_participants']) : 'Sınırsız'; ?></strong></div>
+                    <div>
+                        <p class="detail-label">Katılımcı Limiti</p>
+                        <strong class="detail-value"><?php echo $event['max_participants'] !== null ? htmlspecialchars($event['max_participants']) : 'Sınırsız'; ?></strong>
+                    </div>
                 </div>
             </div>
 
-
             <?php if (!empty($event['description'])): ?>
-            <div class="event-content-section-evd">
-                <h3 class="section-title-evd"><i class="fas fa-info-circle"></i>Etkinlik Açıklaması</h3>
-                <div class="event-description-text-evd">
+            <div class="event-content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-info-circle"></i>Etkinlik Açıklaması
+                </h3>
+                <div class="event-description-text">
                     <p><?php echo nl2br(htmlspecialchars($event['description'])); ?></p>
                 </div>
             </div>
             <?php endif; ?>
 
             <?php if (!empty($event_photos_for_js_modal)): ?>
-            <div class="event-content-section-evd">
-                <h3 class="section-title-evd"><i class="fas fa-images"></i>Etkinlik Fotoğrafları</h3>
-                <div class="event-images-grid-evd">
+            <div class="event-content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-images"></i>Etkinlik Fotoğrafları
+                </h3>
+                <div class="event-images-grid">
                     <?php foreach ($event_photos_for_js_modal as $index => $img_data): ?>
-                        <div class="event-image-item-evd">
+                        <div class="event-image-item">
                             <img src="<?php echo htmlspecialchars($img_data['image_path_full']); ?>"
                                  alt="<?php echo htmlspecialchars($img_data['photo_description'] ?? ($event['title'] . ' fotoğrafı')); ?>"
                                  onclick="openEventPhotoModal(<?php echo $index; ?>)">
@@ -534,11 +903,13 @@ ul.participant-list-evd li:last-child { border-bottom: none; }
             </div>
             <?php endif; ?>
 
-            <div class="event-participation-section-evd">
-                <h3 class="section-title-evd"><i class="fas fa-calendar-check"></i>Katılım Durumu</h3>
+            <div class="event-participation-section">
+                <h3 class="section-title">
+                    <i class="fas fa-calendar-check"></i>Katılım Durumu
+                </h3>
 
                 <?php if ($can_participate): ?>
-                    <div class="participation-buttons-evd">
+                    <div class="participation-buttons">
                         <form action="/src/actions/handle_event_participation.php" method="POST">
                             <input type="hidden" name="event_id" value="<?php echo $event['id']; ?>">
                             <input type="hidden" name="participation_status" value="attending">
@@ -564,103 +935,120 @@ ul.participant-list-evd li:last-child { border-bottom: none; }
                         </form>
                     </div>
                 <?php elseif ($event['status'] !== 'active' || (new DateTime($event['event_datetime']) < new DateTime())): ?>
-                    <p class="event-status-alert-evd info" style="text-align:center; background-color:var(--charcoal); color:var(--light-grey); border-color:var(--grey);">Bu etkinliğe katılım durumu bildirilemez (aktif değil veya geçmişte).</p>
+                    <p class="event-status-alert info">Bu etkinliğe katılım durumu bildirilemez (aktif değil veya geçmişte).</p>
                 <?php elseif (!$current_user_is_approved): ?>
-                     <p class="event-status-alert-evd info" style="text-align:center; background-color:var(--charcoal); color:var(--light-grey); border-color:var(--grey);">Katılım durumu belirtmek için hesabınızın onaylanmış olması gerekmektedir.</p>
+                     <p class="event-status-alert info">Katılım durumu belirtmek için hesabınızın onaylanmış olması gerekmektedir.</p>
                 <?php elseif (!$current_user_is_logged_in): ?>
-                     <p class="event-status-alert-evd info" style="text-align:center; background-color:var(--charcoal); color:var(--light-grey); border-color:var(--grey);">Katılım durumu belirtmek için <a href="<?php echo get_auth_base_url(); ?>/login.php">giriş yapmalısınız</a>.</p>
+                     <p class="event-status-alert info">Katılım durumu belirtmek için <a href="<?php echo get_auth_base_url(); ?>/login.php">giriş yapmalısınız</a>.</p>
                 <?php else: // Katılım yetkisi yoksa (event.participate) ?>
-                     <p class="event-status-alert-evd info" style="text-align:center; background-color:var(--charcoal); color:var(--light-grey); border-color:var(--grey);">Bu etkinliğe katılım durumu bildirme yetkiniz bulunmamaktadır.</p>
+                     <p class="event-status-alert info">Bu etkinliğe katılım durumu bildirme yetkiniz bulunmamaktadır.</p>
                 <?php endif; ?>
 
-
-                <div class="participant-columns-container-evd">
-                    <div class="participant-list-column-evd">
-                        <h4 class="participant-list-title"><i class="fas fa-user-check"></i>Katılanlar (<?php echo count($attending_participants); ?>)</h4>
+                <div class="participant-columns-container">
+                    <div class="participant-list-column">
+                        <h4 class="participant-list-title">
+                            <i class="fas fa-user-check"></i>Katılanlar (<?php echo count($attending_participants); ?>)
+                        </h4>
                         <?php if (!empty($attending_participants)): ?>
-                            <ul class="participant-list-evd">
+                            <ul class="participant-list">
                                 <?php foreach ($attending_participants as $participant): ?>
                                     <li>
                                         <?php
                                         echo render_user_info_with_popover(
-                                            $pdo, // $pdo eklendi
+                                            $pdo,
                                             $participant,
-                                            'participant-name-link-evd',
+                                            'participant-name-link',
                                             'participant-avatar',
                                             ''
                                         );
                                         ?>
-                                        <span class="participant-ingame-evd">(<?php echo htmlspecialchars($participant['ingame_name'] ?: '-'); ?>)</span>
+                                        <span class="participant-ingame">(<?php echo htmlspecialchars($participant['ingame_name'] ?: '-'); ?>)</span>
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
-                        <?php else: ?><p class="no-participants-message" style="font-size:0.9em; text-align:left; padding-left:5px;">Henüz kimse katılmıyor.</p><?php endif; ?>
+                        <?php else: ?>
+                            <p class="no-participants-message">Henüz kimse katılmıyor.</p>
+                        <?php endif; ?>
                     </div>
-                    <div class="participant-list-column-evd">
-                        <h4 class="participant-list-title"><i class="fas fa-user-clock"></i>Belki Katılırım (<?php echo count($maybe_participants); ?>)</h4>
+                    <div class="participant-list-column">
+                        <h4 class="participant-list-title">
+                            <i class="fas fa-user-clock"></i>Belki Katılırım (<?php echo count($maybe_participants); ?>)
+                        </h4>
                         <?php if (!empty($maybe_participants)): ?>
-                            <ul class="participant-list-evd">
+                            <ul class="participant-list">
                                 <?php foreach ($maybe_participants as $participant): ?>
                                     <li>
                                         <?php
                                         echo render_user_info_with_popover(
-                                            $pdo, // $pdo eklendi
+                                            $pdo,
                                             $participant,
-                                            'participant-name-link-evd',
+                                            'participant-name-link',
                                             'participant-avatar',
                                             ''
                                         );
                                         ?>
-                                        <span class="participant-ingame-evd">(<?php echo htmlspecialchars($participant['ingame_name'] ?: '-'); ?>)</span>
+                                        <span class="participant-ingame">(<?php echo htmlspecialchars($participant['ingame_name'] ?: '-'); ?>)</span>
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
-                        <?php else: ?><p class="no-participants-message" style="font-size:0.9em; text-align:left; padding-left:5px;">"Belki katılırım" diyen kimse yok.</p><?php endif; ?>
+                        <?php else: ?>
+                            <p class="no-participants-message">"Belki katılırım" diyen kimse yok.</p>
+                        <?php endif; ?>
                     </div>
-                    <div class="participant-list-column-evd">
-                        <h4 class="participant-list-title"><i class="fas fa-user-times"></i>Katılmıyorum (<?php echo count($declined_participants); ?>)</h4>
+                    <div class="participant-list-column">
+                        <h4 class="participant-list-title">
+                            <i class="fas fa-user-times"></i>Katılmıyorum (<?php echo count($declined_participants); ?>)
+                        </h4>
                         <?php if (!empty($declined_participants)): ?>
-                            <ul class="participant-list-evd">
+                            <ul class="participant-list">
                                 <?php foreach ($declined_participants as $participant): ?>
                                     <li>
                                         <?php
                                         echo render_user_info_with_popover(
-                                            $pdo, // $pdo eklendi
+                                            $pdo,
                                             $participant,
-                                            'participant-name-link-evd',
+                                            'participant-name-link',
                                             'participant-avatar',
                                             ''
                                         );
                                         ?>
-                                        <span class="participant-ingame-evd">(<?php echo htmlspecialchars($participant['ingame_name'] ?: '-'); ?>)</span>
+                                        <span class="participant-ingame">(<?php echo htmlspecialchars($participant['ingame_name'] ?: '-'); ?>)</span>
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
-                        <?php else: ?><p class="no-participants-message" style="font-size:0.9em; text-align:left; padding-left:5px;">Henüz "Katılmıyorum" diyen kimse yok.</p><?php endif; ?>
+                        <?php else: ?>
+                            <p class="no-participants-message">Henüz "Katılmıyorum" diyen kimse yok.</p>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
 
             <?php if ($can_cancel_this_event || $can_delete_this_event_admin): ?>
-            <div class="event-admin-actions-evd">
+            <div class="event-admin-actions">
                 <?php if ($can_cancel_this_event && $event['status'] === 'active'): ?>
                     <form action="/src/actions/handle_event_actions.php" method="POST" onsubmit="return confirm('Bu etkinliği iptal etmek istediğinizden emin misiniz?');">
                         <input type="hidden" name="event_id" value="<?php echo $event['id']; ?>">
                         <input type="hidden" name="action" value="cancel_event">
-                        <button type="submit" class="btn btn-danger"><i class="fas fa-ban"></i> Etkinliği İptal Et</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-ban"></i> Etkinliği İptal Et
+                        </button>
                     </form>
                 <?php elseif ($can_cancel_this_event && ($event['status'] === 'cancelled' || $event['status'] === 'past')): ?>
                      <form action="/src/actions/handle_event_actions.php" method="POST" onsubmit="return confirm('Bu etkinliği tekrar aktif yapmak istediğinizden emin misiniz?');">
                         <input type="hidden" name="event_id" value="<?php echo $event['id']; ?>">
                         <input type="hidden" name="action" value="activate_event">
-                        <button type="submit" class="btn btn-success"><i class="fas fa-play-circle"></i> Tekrar Aktif Et</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-play-circle"></i> Tekrar Aktif Et
+                        </button>
                     </form>
                 <?php endif; ?>
                 <?php if ($can_delete_this_event_admin): ?>
                     <form action="/src/actions/handle_event_actions.php" method="POST" onsubmit="return confirm('Bu etkinliği KALICI OLARAK silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!');">
                         <input type="hidden" name="event_id" value="<?php echo $event['id']; ?>">
                         <input type="hidden" name="action" value="delete_event">
-                        <button type="submit" class="btn btn-secondary"><i class="fas fa-trash-alt"></i> Etkinliği Sil (Admin)</button>
+                        <button type="submit" class="btn btn-secondary">
+                            <i class="fas fa-trash-alt"></i> Etkinliği Sil (Admin)
+                        </button>
                     </form>
                 <?php endif; ?>
             </div>
@@ -684,13 +1072,11 @@ ul.participant-list-evd li:last-child { border-bottom: none; }
     </div>
 </div>
 
-
 <script>
-// ... (mevcut event_detail.php JavaScript kodunuz aynı kalacak) ...
-window.eventPhotosForModal = <?php echo json_encode($event_photos_for_js_modal); ?>;
 window.eventPhotosForModal = <?php echo json_encode($event_photos_for_js_modal); ?>;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Event photo modal functionality
     window.openEventPhotoModal = function(index) {
         if (typeof window.eventPhotosForModal !== 'undefined' && Array.isArray(window.eventPhotosForModal) && window.eventPhotosForModal[index]) {
             const photoData = window.eventPhotosForModal[index];
@@ -730,13 +1116,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Modal controls
     const galleryModal = document.getElementById('galleryModal');
     if(galleryModal){
         const closeBtn = document.getElementById('closeGalleryModalSpan');
         if(closeBtn) closeBtn.onclick = function() { galleryModal.style.display = "none"; };
+        
         galleryModal.addEventListener('click', function(event) {
             if (event.target == galleryModal) galleryModal.style.display = "none";
         });
+        
         document.addEventListener('keydown', function(event) {
             if (galleryModal.style.display === "flex") {
                 const prevBtn = document.getElementById('prevGalleryModalButton'); 
@@ -756,17 +1145,44 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const rootStyles = getComputedStyle(document.documentElement);
-    const setRgbVar = (varName) => {
-        const hexColor = rootStyles.getPropertyValue(`--${varName}`).trim();
-        if (hexColor && hexColor.startsWith('#')) {
-            const r = parseInt(hexColor.slice(1, 3), 16);
-            const g = parseInt(hexColor.slice(3, 5), 16);
-            const b = parseInt(hexColor.slice(5, 7), 16);
-            document.documentElement.style.setProperty(`--${varName}-rgb`, `${r}, ${g}, ${b}`);
-        }
-    };
-    ['darker-gold-2', 'darker-gold-1', 'grey', 'gold', 'charcoal', 'turquase', 'red', 'dark-red', 'light-turquase', 'light-gold', 'transparent-red', 'transparent-turquase-2'].forEach(setRgbVar);
+    // Enhanced form interactions
+    const participationForms = document.querySelectorAll('.participation-buttons form');
+    participationForms.forEach(form => {
+        form.addEventListener('submit', function() {
+            const button = this.querySelector('button');
+            if (button && !button.disabled) {
+                button.style.opacity = '0.6';
+                button.disabled = true;
+                setTimeout(() => {
+                    button.style.opacity = '';
+                    button.disabled = false;
+                }, 2000);
+            }
+        });
+    });
+
+    // Scroll animations for content sections
+    if ('IntersectionObserver' in window) {
+        const sectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -20px 0px'
+        });
+        
+        document.querySelectorAll('.event-content-section, .event-participation-section').forEach(section => {
+            section.style.opacity = '0';
+            section.style.transform = 'translateY(15px)';
+            section.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            sectionObserver.observe(section);
+        });
+    }
 });
 </script>
+
 <?php require_once BASE_PATH . '/src/includes/footer.php'; ?>

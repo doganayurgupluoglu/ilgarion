@@ -179,7 +179,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
             <img src="/public/<?php echo htmlspecialchars($photo_data['image_path']); ?>" alt="Mevcut Fotoğraf">
         </div>
 
-        <form action="<?php echo get_auth_base_url(); ?>/src/actions/handle_admin_gallery_actions.php" method="POST">
+        <form action="/src/actions/handle_admin_gallery_actions.php" method="POST">
             <input type="hidden" name="action" value="update_photo_details">
             <input type="hidden" name="photo_id" value="<?php echo $photo_id_to_edit; ?>">
 

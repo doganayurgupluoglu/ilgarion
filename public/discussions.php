@@ -14,7 +14,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// Oturum ve rol geçerliliğini kontrol et (her sayfanın başında olmalı)
+// Oturum ve rol geçerliliğini kontrol et
 if (is_user_logged_in()) {
     if (function_exists('check_user_session_validity')) {
         check_user_session_validity();
@@ -30,33 +30,9 @@ $current_user_is_admin = $current_user_is_logged_in ? is_user_admin() : false;
 $current_user_is_approved = $current_user_is_logged_in ? is_user_approved() : false;
 
 $can_create_topic = $current_user_is_approved && has_permission($pdo, 'discussion.topic.create', $current_user_id);
-$can_view_discussions_page = false;
-$access_message_discussions = "";
 
-// Sayfa görüntüleme yetkisi kontrolü
-if ($current_user_is_admin || ($current_user_id && has_permission($pdo, 'discussion.view_all', $current_user_id))) {
-    $can_view_discussions_page = true;
-} elseif ($current_user_is_approved) {
-    if (has_permission($pdo, 'discussion.view_approved', $current_user_id) || // Onaylı üyelere açık konuları görme yetkisi
-        has_permission($pdo, 'discussion.view_public', $current_user_id) ||
-        has_permission($pdo, 'discussion.view_faction_only', $current_user_id) // Rol bazlı konuları görme yetkisi (genel)
-       ) {
-        $can_view_discussions_page = true;
-    } else {
-        $access_message_discussions = "Tartışmaları görüntüleme yetkiniz bulunmamaktadır.";
-    }
-} elseif (has_permission($pdo, 'discussion.view_public', null)) { // Misafir kullanıcılar için public konuları görme
-    $can_view_discussions_page = true;
-} else {
-     $access_message_discussions = "Tartışmaları görmek için lütfen <a href='" . get_auth_base_url() . "/login.php' style='color: var(--turquase); font-weight: bold;'>giriş yapın</a> veya <a href='" . get_auth_base_url() . "/register.php' style='color: var(--turquase); font-weight: bold;'>kayıt olun</a>.";
-}
-
-if (!$can_view_discussions_page) {
-    $_SESSION['error_message'] = $access_message_discussions ?: "Tartışmaları görüntüleme yetkiniz bulunmamaktadır.";
-    header('Location: ' . get_auth_base_url() . '/index.php');
-    exit;
-}
-
+// Sayfa herkese açık - sadece içerik yetki kontrolü var
+$can_view_discussions_page = true;
 
 try {
     $sql_base = "SELECT
@@ -101,14 +77,14 @@ try {
     $where_clauses = [];
     $params = [':current_user_id_for_view' => $current_user_id ?? null];
 
-
+    // Görünürlük koşulları - sadece içerik için
     if ($current_user_is_admin || ($current_user_id && has_permission($pdo, 'discussion.view_all', $current_user_id))) {
-        // Admin veya 'view_all' yetkisine sahip olanlar için ek bir WHERE koşulu gerekmez (tüm görünürlükleri görürler)
+        // Admin veya 'view_all' yetkisine sahip olanlar için ek WHERE koşulu gerekmez
     } else {
         $visibility_or_conditions = [];
 
-        // 1. Herkese açık konular (discussion.view_public yetkisiyle)
-        if (has_permission($pdo, 'discussion.view_public', $current_user_id)) {
+        // 1. Herkese açık konular (discussion.view_public yetkisiyle veya misafir kullanıcı)
+        if (has_permission($pdo, 'discussion.view_public', $current_user_id) || !$current_user_is_logged_in) {
             $visibility_or_conditions[] = "dt.is_public_no_auth = 1";
         }
 
@@ -117,8 +93,7 @@ try {
             $visibility_or_conditions[] = "dt.is_members_only = 1";
         }
 
-        // 3. Rol bazlı konular (faction_only gibi)
-        // Kullanıcı onaylı olmalı VE konunun atandığı rollerden birine sahip olmalı
+        // 3. Rol bazlı konular
         if ($current_user_is_approved) {
             $user_actual_role_ids_list = [];
             if ($current_user_id) {
@@ -144,7 +119,7 @@ try {
             }
         }
         
-        // 4. Kullanıcının kendi başlattığı konular her zaman görünür (eğer admin değilse ve view_all yetkisi yoksa)
+        // 4. Kullanıcının kendi başlattığı konular her zaman görünür
         if ($current_user_id && !$current_user_is_admin && !has_permission($pdo, 'discussion.view_all', $current_user_id)) {
             $visibility_or_conditions[] = "dt.user_id = :current_user_id_owner_check_list_page";
             $params[':current_user_id_owner_check_list_page'] = $current_user_id;
@@ -153,7 +128,6 @@ try {
         if (!empty($visibility_or_conditions)) {
             $where_clauses[] = "(" . implode(" OR ", $visibility_or_conditions) . ")";
         } else {
-            // Eğer hiçbir OR koşulu oluşmadıysa (örneğin, misafir ve public görme yetkisi yoksa), hiçbir şey göremez.
             $where_clauses[] = "1=0"; // Hiçbir sonuç döndürmez
         }
     }
@@ -170,7 +144,7 @@ try {
     $stmt->execute($params);
     $raw_topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Okunmamış durumunu belirle (önceki gibi)
+    // Okunmamış durumunu belirle
     foreach ($raw_topics as $topic) {
         $is_unread = false;
         if ($current_user_id && $topic['last_reply_at'] !== null) {
@@ -190,7 +164,7 @@ try {
     }
 
 } catch (PDOException $e) {
-    error_log("Tartışma konularını çekme hatası (discussions.php): " . $e->getMessage() . " --- SQL: " . ($final_sql ?? 'SQL not generated') . " --- Params: " . print_r($params ?? [], true));
+    error_log("Tartışma konularını çekme hatası (discussions.php): " . $e->getMessage());
     $_SESSION['error_message'] = "Tartışmalar yüklenirken bir sorun oluştu.";
 }
 
@@ -199,231 +173,543 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 ?>
 
 <style>
-/* discussions.php için GÜNCELLENMİŞ Stiller */
-.discussions-page-container-v3 {
+/* Modern Discussions Page Styles - Consistent with Gallery & Events */
+.discussions-page-container {
     width: 100%;
-    max-width: 1600px;
-    margin: 20px auto;
-    padding: 25px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
     font-family: var(--font);
     color: var(--lighter-grey);
-    min-height: calc(100vh - var(--navbar-height, 70px) - 140px);
 }
 
-.page-top-nav-controls {    
+.discussions-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 35px; 
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--darker-gold-1);
+    align-items: flex-end;
+    margin-bottom: 3rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--darker-gold-2);
 }
-.page-top-nav-controls .page-title-discussions {
+
+.discussions-header h1 {
     color: var(--gold);
-    font-size: 2.2rem;
+    font-size: 2.5rem;
     font-family: var(--font);
     margin: 0;
-    flex-grow: 1;
+    font-weight: 300;
+    letter-spacing: -0.5px;
 }
-.btn-start-new-topic-main-v2 { 
-    background-color: var(--turquase); color: var(--black); padding: 10px 22px;
-    border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 0.95rem;
-    transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px;
-    border: none; box-shadow: 0 2px 8px rgba(var(--turquase-rgb,0,0,0),0.2);
+
+.discussions-count {
+    color: var(--light-grey);
+    font-size: 1rem;
+    margin-top: 0.25rem;
+}
+
+.btn-new-topic {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: 1px solid var(--turquase);
+    background-color: var(--turquase);
+    color: var(--charcoal);
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-new-topic:hover {
+    background-color: var(--light-turquase);
+    transform: translateY(-1px);
+}
+
+.btn-new-topic i {
+    font-size: 0.9em;
+}
+
+.info-message {
+    text-align: center; 
+    margin-bottom: 2rem; 
+    background-color: rgba(42, 189, 168, 0.1); 
+    color: var(--turquase); 
+    border: 1px solid rgba(42, 189, 168, 0.3); 
+    padding: 1rem; 
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.info-message a { 
+    color: var(--turquase); 
+    font-weight: 500; 
+    text-decoration: none; 
+}
+
+.info-message a:hover { 
+    text-decoration: underline; 
+}
+
+.discussions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.discussion-item {
+    background-color: var(--charcoal);
+    border: 1px solid var(--darker-gold-2);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.discussion-item:hover {
+    border-color: var(--gold);
+}
+
+.discussion-item.unread {
+    border-left: 4px solid var(--gold);
+}
+
+.discussion-item.pinned {
+    border-left: 4px solid var(--turquase);
+    background-color: rgba(42, 189, 168, 0.05);
+}
+
+.discussion-item.locked {
+    opacity: 0.8;
+}
+
+.discussion-content {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.discussion-avatar {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+}
+
+.starter-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--darker-gold-1);
+}
+
+.avatar-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: var(--grey);
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 500;
+    border: 1px solid var(--darker-gold-1);
+}
+
+.discussion-main {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.discussion-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    line-height: 1.3;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.discussion-title a {
+    color: var(--lighter-grey);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.discussion-title a:hover {
+    color: var(--gold);
+}
+
+.discussion-item.unread .discussion-title a {
+    color: var(--white);
+    font-weight: 600;
+}
+
+.topic-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 0.5rem;
+}
+
+.badge-pinned {
+    color: var(--turquase);
+    font-size: 0.9em;
+}
+
+.badge-locked {
+    background-color: var(--red);
+    color: var(--white);
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.discussion-meta {
+    font-size: 0.85rem;
+    color: var(--light-grey);
+    margin-bottom: 0.25rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.discussion-meta .starter-name {
+    color: var(--lighter-grey);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.discussion-meta .starter-name:hover {
+    color: var(--gold);
+}
+
+.discussion-stats {
+    text-align: right;
+    font-size: 0.85rem;
+    color: var(--light-grey);
+    min-width: 140px;
+}
+
+.stat-replies {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+}
+
+.stat-replies i {
+    color: var(--gold);
+    font-size: 0.9em;
+}
+
+.last-reply {
+    font-size: 0.8rem;
+}
+
+.last-reply-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+}
+
+.last-reply-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--darker-gold-2);
+}
+
+.last-reply-avatar-placeholder {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: var(--grey);
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 500;
+    border: 1px solid var(--darker-gold-2);
+}
+
+.last-reply-name {
+    color: var(--lighter-grey);
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.last-reply-name:hover {
+    color: var(--gold);
+}
+
+.empty-state {
+    text-align: center;
+    font-size: 1rem;
+    color: var(--light-grey);
+    padding: 3rem 2rem;
+    border: 1px dashed var(--grey);
+    border-radius: 6px;
+    margin-top: 2rem;
+}
+
+.empty-state a {
+    color: var(--turquase);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.empty-state a:hover {
+    text-decoration: underline;
+}
+
+/* User Info Trigger Base Styles */
+.user-info-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: default;
+    position: relative;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.user-info-trigger img {
+    max-width: 100% !important;
+    height: auto !important;
+    flex-shrink: 0;
+    max-height: 48px !important;
+    width: auto !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+}
+
+/* Specifically target avatar images in user info triggers */
+.user-info-trigger .starter-avatar,
+.user-info-trigger .last-reply-avatar,
+.user-info-trigger .avatar-placeholder {
+    width: 48px !important;
+    height: 48px !important;
+    max-width: 48px !important;
+    max-height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    flex-shrink: 0 !important;
+}
+
+.user-info-trigger a {
+    transition: color 0.2s ease;
+    text-decoration: none;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
-.btn-start-new-topic-main-v2:hover {
-    background-color: var(--light-turquase); color: var(--darker-gold-2);
-    transform: translateY(-2px); box-shadow: 0 4px 12px rgba(var(--turquase-rgb,0,0,0),0.3);
-}
-.btn-start-new-topic-main-v2 i.fas { font-size: 0.9em; }
 
-.discussion-list { list-style-type: none; padding: 0; margin: 0; }
-.discussion-list-item {
-    background-color: var(--charcoal);
-    border: 1px solid var(--darker-gold-1);
-    border-left-width: 5px;
-    border-radius: 10px;
-    margin-bottom: 18px;
-    padding: 18px 22px;
-    display: grid;
-    grid-template-columns: auto 1fr auto; 
-    grid-template-areas: "avatar info stats";
-    gap: 18px; 
-    align-items: flex-start; 
-    transition: all 0.25s ease;
-}
-.discussion-list-item:hover {
-    background-color: var(--darker-gold-2);
-    border-color: var(--gold); 
-    transform: translateY(-3px) scale(1.01); 
-    box-shadow: 0 6px 20px rgba(var(--gold-rgb, 189,145,42), 0.1); 
-}
-.discussion-list-item.topic-unread { border-left-color: var(--gold); }
-.discussion-list-item.topic-unread:hover { border-left-color: var(--light-gold); }
-.discussion-list-item.topic-read { border-left-color: var(--grey); }
-.discussion-list-item.topic-read:hover { border-left-color: var(--light-grey); }
-.discussion-list-item.pinned-topic {
-    border-left-color: var(--turquase) !important; 
-    background-color: rgba(var(--turquase-rgb, 0,0,0), 0.05); 
-}
-.discussion-list-item.pinned-topic:hover {
-    border-left-color: var(--light-turquase) !important;
-    box-shadow: 0 6px 20px rgba(var(--turquase-rgb,0,0,0), 0.15);
+.user-info-trigger a:hover {
+    text-decoration: underline;
 }
 
-.discussion-avatar-area { grid-area: avatar; flex-shrink: 0; padding-top: 2px; } 
-.starter-avatar-disc-list { 
-    width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--darker-gold-1);
-}
-.avatar-placeholder-disc-list { 
-    width: 50px; height: 50px; border-radius: 50%; background-color: var(--grey); color: var(--gold);
-    display: flex; align-items: center; justify-content: center; font-size: 1.7rem; font-weight: bold;
-    border: 2px solid var(--darker-gold-1); line-height: 1;
+/* Force any image inside discussion content to be controlled */
+.discussion-content img,
+.discussion-main img,
+.discussion-avatar img {
+    max-width: 48px !important;
+    max-height: 48px !important;
+    width: 48px !important;
+    height: 48px !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
 }
 
-.discussion-info-area { 
-    grid-area: info;
-    display: flex;
-    flex-direction: column;
-    gap: 5px; 
-    min-width:0; 
+/* Username Role Colors - Consistent with other pages */
+.user-info-trigger.username-role-admin .starter-name,
+.user-info-trigger.username-role-admin .last-reply-name,
+.user-info-trigger.username-role-admin a {
+    color: var(--gold) !important;
 }
-.discussion-title { margin: 0; font-size: 1.35rem; line-height: 1.3; }
-.discussion-title a { color: var(--lighter-grey); text-decoration: none; font-weight: 600; word-break: break-word; }
-.discussion-title a:hover { color: var(--gold); text-decoration: underline; }
-.discussion-list-item.topic-unread .discussion-title a { color: var(--white); }
-.discussion-list-item.topic-unread .discussion-title a strong { color: var(--gold); }
 
-.topic-icons-bar { display: inline-flex; align-items: center; gap: 10px; margin-left: 8px; }
-.topic-status-badge.locked-topic {
-    font-size: 0.78rem; padding: 3px 7px; border-radius: 4px;
-    font-weight: 500; vertical-align: middle;
-    background-color: var(--dark-red); color: var(--white); border: 1px solid var(--red);
+.user-info-trigger.username-role-scg_uye .starter-name,
+.user-info-trigger.username-role-scg_uye .last-reply-name,
+.user-info-trigger.username-role-scg_uye a {
+    color: #A52A2A !important;
 }
-.topic-pin-icon { color: var(--turquase); font-size: 1.1em; vertical-align: middle; }
 
-.discussion-meta { font-size: 0.85rem; color: var(--light-grey); }
-.discussion-meta .starter-name-wrapper { 
-    display: inline-flex; align-items:center; gap:4px; cursor:default;
+.user-info-trigger.username-role-ilgarion_turanis .starter-name,
+.user-info-trigger.username-role-ilgarion_turanis .last-reply-name,
+.user-info-trigger.username-role-ilgarion_turanis a {
+    color: var(--turquase) !important;
 }
-.discussion-meta .starter-name-link { 
-    color: inherit !important; 
-    font-weight: 500; text-decoration: none;
+
+.user-info-trigger.username-role-member .starter-name,
+.user-info-trigger.username-role-member .last-reply-name,
+.user-info-trigger.username-role-member a {
+    color: var(--white) !important;
 }
-.discussion-meta .starter-name-link:hover { text-decoration: underline; }
 
-
-.discussion-stats-area { 
-    grid-area: stats;
-    flex-shrink: 0;
-    text-align: right;
-    font-size: 0.9rem;
-    color: var(--light-grey);
-    min-width: 180px; 
-    display: flex;
-    flex-direction: column;
-    gap: 8px; 
-    align-items: flex-end; 
-    padding-top:2px; 
+.user-info-trigger.username-role-dis_uye .starter-name,
+.user-info-trigger.username-role-dis_uye .last-reply-name,
+.user-info-trigger.username-role-dis_uye a {
+    color: var(--light-grey) !important;
 }
-.discussion-stats-area .stat-item { display: block; }
-.discussion-stats-area .stat-item i.fas { margin-right: 6px; color:var(--light-grey); font-size:0.9em;}
-.discussion-stats-area .last-reply-info { font-size: 0.85rem; color: var(--light-grey); text-align: right; }
-.last-reply-info .last-reply-text { display:block; margin-bottom:3px;}
-.last-reply-info .replier-avatar-area { 
-    display: inline-flex; align-items: center; gap: 6px; cursor: default;
-}
-.replier-avatar-micro { 
-    width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid var(--darker-gold-2);
-}
-.avatar-placeholder-micro { 
-    width: 22px; height: 22px; border-radius: 50%; background-color: var(--grey); color: var(--gold);
-    display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold;
-    border: 1px solid var(--darker-gold-1); line-height: 1;
-}
-.replier-name-link { 
-    color: inherit !important; 
-    font-weight: 500; text-decoration: none; font-size:0.95em;
-}
-.replier-name-link:hover { text-decoration: underline; }
 
-/* Kullanıcı adı renkleri (style.css'den gelmeli) */
-.discussion-avatar-area.username-role-admin .starter-avatar-disc-list,
-.discussion-avatar-area.username-role-admin .avatar-placeholder-disc-list,
-.last-reply-info .replier-avatar-area.username-role-admin .replier-avatar-micro,
-.last-reply-info .replier-avatar-area.username-role-admin .avatar-placeholder-micro { border-color: var(--gold) !important; }
-
-.discussion-meta .starter-name-wrapper.username-role-admin .starter-name-link,
-.last-reply-info .replier-avatar-area.username-role-admin .replier-name-link { color: var(--gold) !important; }
-
-.discussion-meta .starter-name-wrapper.username-role-scg_uye .starter-name-link,
-.last-reply-info .replier-avatar-area.username-role-scg_uye .replier-name-link { color: #A52A2A !important; }
-/* Diğer roller için benzer stiller eklenebilir veya render_user_info_with_popover'daki inline stil yeterli olabilir */
-
-
-.empty-message { text-align: center; font-size: 1.1rem; color: var(--light-grey); padding: 30px 20px; background-color: var(--charcoal); border-radius: 6px; border: 1px dashed var(--darker-gold-1); margin-top:20px;}
-.empty-message a { color:var(--turquase); font-weight:bold;}
-.empty-message a:hover { color:var(--light-turquase);}
-
-@media (max-width: 992px) { 
-    .discussion-list-item {
-        grid-template-columns: auto 1fr; 
-        grid-template-areas:
-            "avatar info"
-            "stats stats"; 
-        align-items: center; 
+/* Responsive Design */
+@media (max-width: 768px) {
+    .discussions-page-container {
+        padding: 1.5rem 1rem;
     }
-    .discussion-stats-area {
-        grid-area: stats; 
-        text-align: left; 
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px dashed var(--darker-gold-2);
+    
+    .discussions-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .discussions-header h1 {
+        font-size: 2rem;
+    }
+    
+    .btn-new-topic {
         width: 100%;
+        justify-content: center;
+    }
+    
+    .discussion-content {
+        grid-template-columns: auto 1fr;
+        grid-template-areas:
+            "avatar main"
+            "stats stats";
+        gap: 1rem;
+    }
+    
+    .discussion-avatar {
+        grid-area: avatar;
+    }
+    
+    .discussion-main {
+        grid-area: main;
         min-width: 0;
-        align-items: flex-start; 
-        gap:5px;
+        overflow: hidden;
+    }
+    
+    .discussion-main img {
+        max-height: 150px;
+    }
+    
+    .discussion-stats {
+        grid-area: stats;
+        text-align: left;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--darker-gold-2);
+        min-width: 0;
+        max-width: 100%;
+    }
+    
+    .last-reply-user {
+        justify-content: flex-start;
     }
 }
-@media (max-width: 768px) { 
-    .discussions-page-container-v3 { padding: 20px; }
-    .page-top-nav-controls { flex-direction: column; align-items: stretch; gap:15px; }
-    .btn-start-new-topic-main-v2 { width:100%; text-align:center; justify-content:center;}
-    .page-top-nav-controls .page-title-discussions { font-size: 2rem; text-align:center; }
-    .discussion-list-item {
-        padding: 15px;
-        gap: 15px; 
+
+@media (max-width: 480px) {
+    .discussions-page-container {
+        padding: 1rem 0.75rem;
     }
-    .discussion-title { font-size: 1.15rem; }
+    
+    .discussions-header h1 {
+        font-size: 1.75rem;
+    }
+    
+    .discussion-item {
+        padding: 1rem;
+    }
+    
+    .discussion-title {
+        font-size: 1.125rem;
+    }
+    
+    .discussion-main img {
+        max-height: 120px;
+    }
+    
+    .topic-badges {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+        margin-left: 0;
+        margin-top: 0.25rem;
+    }
+    
+    .discussion-content {
+        gap: 0.75rem;
+    }
 }
 </style>
 
 <main class="main-content">
-    <div class="container discussions-page-container-v3">
-        <div class="page-top-nav-controls">
-            <h1 class="page-title-discussions"><?php echo htmlspecialchars($page_title); ?> (<?php echo count($topics_with_details); ?> Konu)</h1>
+    <div class="container discussions-page-container">
+        <div class="discussions-header">
+            <div>
+                <h1><?php echo htmlspecialchars($page_title); ?></h1>
+                <div class="discussions-count"><?php echo count($topics_with_details); ?> Tartışma Konusu</div>
+            </div>
             <?php if ($can_create_topic): ?>
-                <a href="new_discussion_topic.php" class="btn-start-new-topic-main-v2"><i class="fas fa-plus-circle"></i> Yeni Tartışma Başlat</a>
+                <a href="new_discussion_topic.php" class="btn-new-topic">
+                    <i class="fas fa-plus-circle"></i>
+                    Yeni Tartışma Başlat
+                </a>
             <?php endif; ?>
         </div>
 
         <?php // Hata ve başarı mesajları header.php'de gösteriliyor ?>
 
-        <?php if (!$current_user_is_logged_in && $can_view_discussions_page && !empty($topics_with_details)): ?>
-            <div class="info-message" style="text-align: center; margin-bottom: 20px; background-color: var(--transparent-turquase-2); color: var(--turquase); border: 1px solid var(--turquase); padding: 10px; border-radius: 5px;">
-                <i class="fas fa-info-circle"></i> Şu anda sadece herkese açık tartışmaları görüntülüyorsunuz. Daha fazla tartışmaya erişmek için <a href="<?php echo get_auth_base_url(); ?>/login.php" style="color: var(--light-turquase); font-weight:bold;">giriş yapın</a> ya da <a href="<?php echo get_auth_base_url(); ?>/register.php" style="color: var(--light-turquase); font-weight:bold;">kayıt olun</a>.
+        <?php if (!$current_user_is_logged_in && !empty($topics_with_details)): ?>
+            <div class="info-message">
+                <i class="fas fa-info-circle"></i> 
+                Şu anda sadece herkese açık tartışmaları görüntülüyorsunuz. Daha fazla tartışmaya erişmek için 
+                <a href="<?php echo get_auth_base_url(); ?>/login.php">giriş yapın</a> ya da 
+                <a href="<?php echo get_auth_base_url(); ?>/register.php">kayıt olun</a>.
             </div>
         <?php endif; ?>
 
         <?php if (empty($topics_with_details)): ?>
-            <p class="empty-message">Henüz hiç tartışma başlığı açılmamış veya görüntüleme yetkiniz olan bir konu bulunmuyor.
+            <div class="empty-state">
+                <i class="fas fa-comments" style="font-size: 3rem; color: var(--gold); margin-bottom: 1rem;"></i><br>
+                Henüz hiç tartışma başlığı açılmamış veya görüntüleme yetkiniz olan bir konu bulunmuyor.
                 <?php if ($can_create_topic): ?>
-                    İlkini <a href="new_discussion_topic.php">sen başlat</a>!
+                    <br>İlk tartışmayı <a href="new_discussion_topic.php">sen başlat</a>!
                 <?php endif; ?>
-            </p>
+            </div>
         <?php else: ?>
-            <ul class="discussion-list">
+            <ul class="discussions-list">
                 <?php foreach ($topics_with_details as $topic): ?>
                     <?php
                         $starter_popover_data = [
@@ -449,65 +735,74 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                 'user_roles_list' => $topic['last_replier_roles_list']
                             ];
                         }
+                        
+                        // CSS classes for topic state
+                        $itemClasses = ['discussion-item'];
+                        if ($topic['is_unread']) $itemClasses[] = 'unread';
+                        if ($topic['is_pinned']) $itemClasses[] = 'pinned';
+                        if ($topic['is_locked']) $itemClasses[] = 'locked';
                     ?>
-                    <li class="discussion-list-item <?php echo $topic['is_unread'] ? 'topic-unread' : 'topic-read'; ?> <?php echo $topic['is_pinned'] ? 'pinned-topic' : ''; ?>">
-                        <div class="discussion-avatar-area">
-                            <?php echo render_user_info_with_popover($pdo, $starter_popover_data, '', 'starter-avatar-disc-list', 'user-info-trigger'); ?>
-                        </div>
+                    <li class="<?php echo implode(' ', $itemClasses); ?>">
+                        <div class="discussion-content">
+                            
 
-                        <div class="discussion-info-area">
-                            <h3 class="discussion-title">
-                                <a href="discussion_detail.php?id=<?php echo $topic['id']; ?><?php if($topic['is_unread'] && $topic['reply_count'] > 0) echo '#latest-comment'; elseif($topic['is_unread']) echo '#newCommentForm';?>" 
-                                   class="<?php echo $topic['is_unread'] ? 'unread-link-style' : ''; ?>">
-                                    <?php if ($topic['is_unread']): ?><strong><?php endif; ?>
-                                    <?php echo htmlspecialchars($topic['title']); ?>
-                                    <?php if ($topic['is_unread']): ?></strong><?php endif; ?>
-                                </a>
-                                <span class="topic-icons-bar">
-                                    <?php if ($topic['is_pinned']): ?>
-                                        <i class="fas fa-thumbtack topic-pin-icon" title="Sabitlenmiş Konu"></i>
-                                    <?php endif; ?>
-                                    <?php if ($topic['is_locked']): ?>
-                                        <span class="topic-status-badge locked-topic" title="Bu konu yorumlara kapatılmıştır.">🔒 Kilitli</span>
-                                    <?php endif; ?>
-                                </span>
-                            </h3>
-                            <small class="discussion-meta">
-                                <?php // Konu başlatanın popover'ı avatarın üzerine geldiğinde zaten çıkıyor, burada tekrar render_user_info_with_popover çağırmak yerine direkt link verelim.
-                                      // Veya daha küçük bir gösterim için ayrı bir fonksiyon/mantık gerekebilir.
-                                      // Şimdilik, render_user_info_with_popover'ın sadece link class'ını kullanarak metin kısmını alalım.
-                                ?>
-                                <span class="starter-name-wrapper user-info-trigger"
-                                      data-user-id="<?php echo htmlspecialchars($starter_popover_data['id']); ?>"
-                                      data-username="<?php echo htmlspecialchars($starter_popover_data['username']); ?>"
-                                      data-avatar="<?php echo htmlspecialchars(!empty($starter_popover_data['avatar_path']) ? ('/public/' . $starter_popover_data['avatar_path']) : ''); ?>"
-                                      data-ingame="<?php echo htmlspecialchars($starter_popover_data['ingame_name'] ?? 'N/A'); ?>"
-                                      data-discord="<?php echo htmlspecialchars($starter_popover_data['discord_username'] ?? 'N/A'); ?>"
-                                      data-event-count="<?php echo htmlspecialchars($starter_popover_data['user_event_count'] ?? '0'); ?>"
-                                      data-gallery-count="<?php echo htmlspecialchars($starter_popover_data['user_gallery_count'] ?? '0'); ?>"
-                                      data-roles="<?php echo htmlspecialchars($starter_popover_data['user_roles_list'] ?? ''); ?>">
-                                    <a href="view_profile.php?user_id=<?php echo $starter_popover_data['id']; ?>" 
-                                       class="starter-name-link" 
-                                       <?php /* Rol rengi burada render_user_info_with_popover tarafından eklenen inline style ile gelecek */ ?>>
-                                        <?php echo htmlspecialchars($starter_popover_data['username']); ?>
+                            <div class="discussion-main">
+                                <h3 class="discussion-title">
+                                    <a href="discussion_detail.php?id=<?php echo $topic['id']; ?><?php 
+                                        if($topic['is_unread'] && $topic['reply_count'] > 0) echo '#latest-comment'; 
+                                        elseif($topic['is_unread']) echo '#newCommentForm';
+                                    ?>">
+                                        <?php echo htmlspecialchars($topic['title']); ?>
                                     </a>
-                                </span>
-                                tarafından <?php echo date('d M Y, H:i', strtotime($topic['topic_created_at'])); ?> tarihinde başlatıldı.
-                            </small>
-                        </div>
-
-                        <div class="discussion-stats-area">
-                            <span class="stat-item"><i class="fas fa-comments"></i> <?php echo $topic['reply_count']; ?> Yorum</span>
-                            <?php if ($topic['reply_count'] > 0 && $replier_popover_data): ?>
-                                <div class="last-reply-info">
-                                    <span class="last-reply-text">Son Yorum: (<?php echo date('d M, H:i', strtotime($topic['last_reply_at'])); ?>)</span>
-                                    <span class="replier-avatar-area">
-                                        <?php echo render_user_info_with_popover($pdo, $replier_popover_data, 'replier-name-link', 'replier-avatar-micro', 'user-info-trigger'); ?>
+                                    <span class="topic-badges">
+                                        <?php if ($topic['is_pinned']): ?>
+                                            <i class="fas fa-thumbtack badge-pinned" title="Sabitlenmiş Konu"></i>
+                                        <?php endif; ?>
+                                        <?php if ($topic['is_locked']): ?>
+                                            <span class="badge-locked" title="Bu konu yorumlara kapatılmıştır.">
+                                                <i class="fas fa-lock"></i> Kilitli
+                                            </span>
+                                        <?php endif; ?>
                                     </span>
+                                </h3>
+                                
+                                <div class="discussion-meta" style="margin-right: 10px;">
+                                    <?php
+                                    echo render_user_info_with_popover(
+                                        $pdo, 
+                                        $starter_popover_data, 
+                                        'starter-name', 
+                                        '', 
+                                        'user-info-trigger'
+                                    );
+                                    ?>
+                                    <p style="margin-left: 5px;"> tarafından <?php echo date('d M Y, H:i', strtotime($topic['topic_created_at'])); ?> tarihinde başlatıldı.</p>
                                 </div>
-                            <?php elseif($topic['reply_count'] == 0): ?>
-                                <span class="stat-item last-reply-info">Henüz yorum yok</span>
-                            <?php endif; ?>
+                            </div>
+
+                            <div class="discussion-stats">
+                                <div class="stat-replies">
+                                    <i class="fas fa-comments"></i>
+                                    <span><?php echo $topic['reply_count']; ?> Yorum</span>
+                                </div>
+                                
+                                <?php if ($topic['reply_count'] > 0 && $replier_popover_data): ?>
+                                    <div class="last-reply">
+                                        <div>Son: <?php echo date('d M, H:i', strtotime($topic['last_reply_at'])); ?></div>
+                                        <div class="last-reply-user">
+                                            <?php echo render_user_info_with_popover(
+                                                $pdo, 
+                                                $replier_popover_data, 
+                                                'last-reply-name', 
+                                                'last-reply-avatar', 
+                                                'user-info-trigger'
+                                            ); ?>
+                                        </div>
+                                    </div>
+                                <?php elseif($topic['reply_count'] == 0): ?>
+                                    <div class="last-reply">Henüz yorum yok</div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </li>
                 <?php endforeach; ?>
@@ -518,28 +813,191 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Popover.js ve discussion.js zaten footer'da yüklü olduğu için çalışacaktır.
-    // RGB Renkleri için CSS Değişkenlerini Tanımla
-    const rootStyles = getComputedStyle(document.documentElement);
-    const setRgbVar = (varName) => {
-        const hexColor = rootStyles.getPropertyValue(`--${varName}`).trim();
-        if (hexColor && hexColor.startsWith('#')) {
-            let r, g, b;
-            if (hexColor.length === 4) { 
-                r = parseInt(hexColor[1] + hexColor[1], 16);
-                g = parseInt(hexColor[2] + hexColor[2], 16);
-                b = parseInt(hexColor[3] + hexColor[3], 16);
-            } else if (hexColor.length === 7) { 
-                r = parseInt(hexColor.slice(1, 3), 16);
-                g = parseInt(hexColor.slice(3, 5), 16);
-                b = parseInt(hexColor.slice(5, 7), 16);
-            } else {
-                return; 
+    // Enhanced card interactions
+    const discussionItems = document.querySelectorAll('.discussion-item');
+    discussionItems.forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+        
+        item.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+
+    // Intersection Observer for card animations
+    if ('IntersectionObserver' in window) {
+        const cardObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -30px 0px'
+        });
+        
+        discussionItems.forEach(item => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(15px)';
+            item.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            cardObserver.observe(item);
+        });
+    }
+
+    // Mark topics as read when clicked
+    const topicLinks = document.querySelectorAll('.discussion-title a');
+    topicLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            const discussionItem = this.closest('.discussion-item');
+            if (discussionItem && discussionItem.classList.contains('unread')) {
+                // Add visual feedback for read state
+                setTimeout(() => {
+                    discussionItem.classList.remove('unread');
+                    discussionItem.style.borderLeftColor = 'var(--grey)';
+                }, 100);
             }
-            document.documentElement.style.setProperty(`--${varName}-rgb`, `${r}, ${g}, ${b}`);
+        });
+    });
+
+    // Enhanced accessibility
+    document.querySelectorAll('.discussion-item').forEach(item => {
+        item.addEventListener('focus', function() {
+            this.style.outline = '2px solid var(--gold)';
+            this.style.outlineOffset = '2px';
+        });
+        
+        item.addEventListener('blur', function() {
+            this.style.outline = 'none';
+        });
+    });
+
+    // Keyboard navigation for discussion items
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            const focusedItem = document.activeElement;
+            if (focusedItem && focusedItem.classList.contains('discussion-item')) {
+                e.preventDefault();
+                const link = focusedItem.querySelector('.discussion-title a');
+                if (link) {
+                    link.click();
+                }
+            }
         }
-    };
-    ['darker-gold-2', 'darker-gold-1', 'grey', 'gold', 'charcoal', 'turquase', 'red', 'dark-red', 'light-turquase', 'transparent-turquase-2'].forEach(setRgbVar);
+    });
+
+    // Auto-refresh discussions every 2 minutes (optional feature)
+    let autoRefreshInterval;
+    
+    function startAutoRefresh() {
+        autoRefreshInterval = setInterval(() => {
+            // Only refresh if user is active (not idle)
+            if (document.hasFocus()) {
+                // Check for new discussions via AJAX (implementation depends on your backend)
+                checkForNewDiscussions();
+            }
+        }, 120000); // 2 minutes
+    }
+    
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+    }
+    
+    function checkForNewDiscussions() {
+        // This would typically make an AJAX request to check for new discussions
+        // For now, just show a subtle notification if there might be new content
+        const currentCount = document.querySelectorAll('.discussion-item').length;
+        
+        // Example implementation (you'd replace this with actual AJAX call)
+        fetch(window.location.href, {
+            method: 'HEAD',
+            cache: 'no-cache'
+        }).then(response => {
+            // Check if content has changed (you'd implement this based on your needs)
+            // For now, just a placeholder
+        }).catch(error => {
+            console.log('Auto-refresh check failed:', error);
+        });
+    }
+    
+    // Start auto-refresh if user is logged in
+    <?php if ($current_user_is_logged_in): ?>
+    startAutoRefresh();
+    
+    // Stop refresh when page becomes hidden
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopAutoRefresh();
+        } else {
+            startAutoRefresh();
+        }
+    });
+    <?php endif; ?>
+
+    // Show loading state for new topic button
+    const newTopicBtn = document.querySelector('.btn-new-topic');
+    if (newTopicBtn) {
+        newTopicBtn.addEventListener('click', function() {
+            this.style.opacity = '0.7';
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yönlendiriliyor...';
+        });
+    }
+
+    // Enhanced topic title truncation for very long titles
+    const topicTitles = document.querySelectorAll('.discussion-title a');
+    topicTitles.forEach(title => {
+        const maxLength = window.innerWidth < 768 ? 50 : 80;
+        if (title.textContent.length > maxLength) {
+            title.title = title.textContent; // Show full title on hover
+            title.style.overflow = 'hidden';
+            title.style.textOverflow = 'ellipsis';
+            title.style.whiteSpace = 'nowrap';
+            title.style.maxWidth = '100%';
+            title.style.display = 'inline-block';
+        }
+    });
+
+    // Smooth scroll to discussion when coming from notification
+    if (window.location.hash && window.location.hash.startsWith('#discussion-')) {
+        const targetId = window.location.hash.substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            setTimeout(() => {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+                targetElement.style.background = 'rgba(189, 145, 42, 0.1)';
+                setTimeout(() => {
+                    targetElement.style.background = '';
+                }, 2000);
+            }, 500);
+        }
+    }
+
+    // Performance optimization: Lazy load user avatars
+    if ('IntersectionObserver' in window) {
+        const avatarObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const avatar = entry.target;
+                    if (avatar.dataset.src) {
+                        avatar.src = avatar.dataset.src;
+                        avatar.removeAttribute('data-src');
+                        avatarObserver.unobserve(avatar);
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            avatarObserver.observe(img);
+        });
+    }
 });
 </script>
 

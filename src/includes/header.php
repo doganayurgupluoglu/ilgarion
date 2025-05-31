@@ -44,6 +44,7 @@ if (isset($pdo) && function_exists('is_user_logged_in') && is_user_logged_in()) 
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Phudu:wght@300..900&display=swap" rel="stylesheet">
     <?php // Ek CSS dosyaları veya özel <style> blokları buraya eklenebilir ?>
+        
 </head>
 <body>
     <div class="site-container">
