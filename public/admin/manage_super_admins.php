@@ -154,7 +154,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 <style>
 .super-admin-container {
     width: 100%;
-    max-width: 1000px;
+    max-width: 1600px;
     margin: 30px auto;
     padding: 25px;
     font-family: var(--font);

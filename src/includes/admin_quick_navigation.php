@@ -390,7 +390,7 @@ if ($canManageUsers || $canEditRoles) {
                 <span class="permission-badge super-admin">SÜPER ADMİN</span>
             </a>
             <?php else: ?>
-            <span class="btn disabled">
+            <span class="btn disabled" style="display: none;">
                 <i class="fas fa-crown"></i> Süper Admin Yönetimi
                 <span class="permission-badge super-admin">Sadece Süper Admin</span>
             </span>

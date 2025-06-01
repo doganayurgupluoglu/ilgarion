@@ -148,7 +148,7 @@ function get_cached_user_permissions(int $user_id): ?array {
     
     if (isset($_SESSION[$cache_key]) && isset($_SESSION[$cache_time_key])) {
         // Cache 5 dakikadan eskiyse yenile
-        if (time() - $_SESSION[$cache_time_key] < 300) {
+        if (time() - $_SESSION[$cache_time_key] < 5) {
             return $_SESSION[$cache_key];
         } else {
             // Cache süresi dolmuş, temizle
