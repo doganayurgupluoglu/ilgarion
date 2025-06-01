@@ -55,7 +55,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 /* edit_user_roles.php için özel stiller */
 .edit-roles-container {
     width: 100%;
-    max-width: 800px; /* Form için daha geniş alan */
+    max-width: 1600px; /* Form için daha geniş alan */
     margin: 30px auto;
     padding: 25px 30px;
     background-color: var(--charcoal);

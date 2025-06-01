@@ -681,7 +681,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                 <h1><?php echo htmlspecialchars($page_title); ?></h1>
                 <div class="discussions-count"><?php echo count($topics_with_details); ?> Tartışma Konusu</div>
             </div>
-            <?php if ($can_create_topic): ?>
+            <?php if (has_permission('create_discussion_topic')): ?>
                 <a href="new_discussion_topic.php" class="btn-new-topic">
                     <i class="fas fa-plus-circle"></i>
                     Yeni Tartışma Başlat
@@ -689,14 +689,12 @@ require_once BASE_PATH . '/src/includes/navbar.php';
             <?php endif; ?>
         </div>
 
-        <?php // Hata ve başarı mesajları header.php'de gösteriliyor ?>
-
-        <?php if (!$current_user_is_logged_in && !empty($topics_with_details)): ?>
+        <?php if (!is_logged_in() && !empty($topics_with_details)): ?>
             <div class="info-message">
                 <i class="fas fa-info-circle"></i> 
                 Şu anda sadece herkese açık tartışmaları görüntülüyorsunuz. Daha fazla tartışmaya erişmek için 
-                <a href="<?php echo get_auth_base_url(); ?>/login.php">giriş yapın</a> ya da 
-                <a href="<?php echo get_auth_base_url(); ?>/register.php">kayıt olun</a>.
+                <a href="<?php echo get_site_url('auth/login.php'); ?>">giriş yapın</a> ya da 
+                <a href="<?php echo get_site_url('auth/register.php'); ?>">kayıt olun</a>.
             </div>
         <?php endif; ?>
 
@@ -704,7 +702,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
             <div class="empty-state">
                 <i class="fas fa-comments" style="font-size: 3rem; color: var(--gold); margin-bottom: 1rem;"></i><br>
                 Henüz hiç tartışma başlığı açılmamış veya görüntüleme yetkiniz olan bir konu bulunmuyor.
-                <?php if ($can_create_topic): ?>
+                <?php if (has_permission('create_discussion_topic')): ?>
                     <br>İlk tartışmayı <a href="new_discussion_topic.php">sen başlat</a>!
                 <?php endif; ?>
             </div>
@@ -738,14 +736,12 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                         
                         // CSS classes for topic state
                         $itemClasses = ['discussion-item'];
-                        if ($topic['is_unread']) $itemClasses[] = 'unread';
+                        if ($topic['is_unread'] && is_logged_in()) $itemClasses[] = 'unread';
                         if ($topic['is_pinned']) $itemClasses[] = 'pinned';
                         if ($topic['is_locked']) $itemClasses[] = 'locked';
                     ?>
                     <li class="<?php echo implode(' ', $itemClasses); ?>">
                         <div class="discussion-content">
-                            
-
                             <div class="discussion-main">
                                 <h3 class="discussion-title">
                                     <a href="discussion_detail.php?id=<?php echo $topic['id']; ?><?php 
@@ -755,7 +751,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                         <?php echo htmlspecialchars($topic['title']); ?>
                                     </a>
                                     <span class="topic-badges">
-                                        <?php if ($topic['is_pinned']): ?>
+                                        <?php if ($topic['is_pinned'] && has_permission('view_pinned_topics')): ?>
                                             <i class="fas fa-thumbtack badge-pinned" title="Sabitlenmiş Konu"></i>
                                         <?php endif; ?>
                                         <?php if ($topic['is_locked']): ?>

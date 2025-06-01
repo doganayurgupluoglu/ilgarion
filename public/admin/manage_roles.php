@@ -98,7 +98,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 /* Modern Rol Yönetimi Sayfası Stilleri */
 .roles-management-container {
     width: 100%;
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 30px auto;
     padding: 25px;
     font-family: var(--font);
@@ -719,7 +719,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                     </div>
 
                     <div class="role-actions">
-                        <button onclick="viewRolePermissions(<?php echo $role['id']; ?>, '<?php echo htmlspecialchars($role['name']); ?>')" 
+                        <button  style="display: none;" onclick="viewRolePermissions(<?php echo $role['id']; ?>, '<?php echo htmlspecialchars($role['name']); ?>')" 
                                 class="btn btn-sm btn-info">
                             <i class="fas fa-eye"></i> Yetkileri Gör
                         </button>
