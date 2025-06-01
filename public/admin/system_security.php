@@ -244,7 +244,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 <style>
 .security-container {
     width: 100%;
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 30px auto;
     padding: 25px;
     font-family: var(--font);

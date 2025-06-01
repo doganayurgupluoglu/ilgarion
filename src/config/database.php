@@ -30,4 +30,5 @@ try {
 // $pdo değişkenini diğer dosyalarda kullanmak için burada bırakıyoruz.
 // Örneğin: require_once __DIR__ . '/../config/database.php';
 // ve sonra $pdo->query(...) gibi.
+
 ?>
