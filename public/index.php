@@ -717,7 +717,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     margin: 40px 0;
     padding: 30px;
     border-radius: 12px;
-    border: 1px solid var(--darker-gold-1);
+    /* border: 1px solid var(--darker-gold-1); */
     width: 80%;
 }
 

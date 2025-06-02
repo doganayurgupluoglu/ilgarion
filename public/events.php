@@ -1,5 +1,5 @@
 <?php
-// public/events.php
+// public/events.php - Entegre Edilmiş Yeni Yetki Sistemi
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -8,7 +8,10 @@ error_reporting(E_ALL);
 require_once '../src/config/database.php'; // $pdo ve BASE_PATH
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php'; // Yetki fonksiyonları
+require_once BASE_PATH . '/src/functions/enhanced_role_functions.php'; // Gelişmiş yetki kontrolleri
 require_once BASE_PATH . '/src/functions/formatting_functions.php'; // render_user_info_with_popover
+require_once BASE_PATH . '/src/functions/sql_security_functions.php'; // render_user_info_with_popover için
+
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -30,8 +33,8 @@ $current_user_roles_names = $_SESSION['user_roles'] ?? [];
 
 $page_title = "Etkinlikler";
 
-// Yetki kontrolleri
-$can_create_event = $current_user_id && $current_user_is_approved && has_permission($pdo, 'event.create', $current_user_id);
+// Yetki kontrolleri - Gelişmiş yetki sistemi ile
+$can_create_event = $current_user_id && $current_user_is_approved && can_user_create_content($pdo, 'event');
 
 $active_events = [];
 $past_events = [];
@@ -50,26 +53,38 @@ try {
                             u.discord_username AS creator_discord_username,
                             (SELECT COUNT(*) FROM events WHERE created_by_user_id = u.id) AS creator_event_count,
                             (SELECT COUNT(*) FROM gallery_photos WHERE user_id = u.id) AS creator_gallery_count,
-                            (SELECT GROUP_CONCAT(r.name SEPARATOR ',')
+                            (SELECT GROUP_CONCAT(r.name ORDER BY r.priority ASC SEPARATOR ',')
                              FROM user_roles ur_creator
                              JOIN roles r ON ur_creator.role_id = r.id
-                             WHERE ur_creator.user_id = u.id) AS creator_roles_list";
+                             WHERE ur_creator.user_id = u.id) AS creator_roles_list,
+                            (SELECT r.color 
+                             FROM user_roles ur_primary 
+                             JOIN roles r ON ur_primary.role_id = r.id 
+                             WHERE ur_primary.user_id = u.id 
+                             ORDER BY r.priority ASC 
+                             LIMIT 1) AS creator_primary_role_color";
 
     $sql_from_join = " FROM events e JOIN users u ON e.created_by_user_id = u.id";
     $sql_params = [];
     $visibility_conditions_array = [];
 
-    // Görünürlük koşulları - sadece içerik için
+    // Görünürlük koşulları - Gelişmiş yetki sistemi ile
     if ($current_user_is_admin || ($current_user_id && has_permission($pdo, 'event.view_all', $current_user_id))) {
         $visibility_conditions_array[] = "1=1"; // Admin veya özel yetkili her şeyi görür
     } else {
         $specific_visibility_or_conditions = [];
+        
+        // Public events - giriş yapmayan kullanıcılar dahil
         if (has_permission($pdo, 'event.view_public', $current_user_id) || !$current_user_id) {
             $specific_visibility_or_conditions[] = "e.visibility = 'public'";
         }
+        
+        // Members only events - sadece onaylı üyeler
         if ($current_user_id && $current_user_is_approved && has_permission($pdo, 'event.view_members_only', $current_user_id)) {
             $specific_visibility_or_conditions[] = "e.visibility = 'members_only'";
         }
+        
+        // Faction only events - belirli rollere sahip olanlar
         if ($current_user_id && $current_user_is_approved && has_permission($pdo, 'event.view_faction_only', $current_user_id)) {
             $stmt_user_roles_ids = $pdo->prepare("SELECT role_id FROM user_roles WHERE user_id = :current_user_id_for_faction");
             $stmt_user_roles_ids->execute([':current_user_id_for_faction' => $current_user_id]);
@@ -91,6 +106,7 @@ try {
                 }
             }
         }
+        
         if (!empty($specific_visibility_or_conditions)) {
             $visibility_conditions_array[] = "(" . implode(" OR ", $specific_visibility_or_conditions) . ")";
         } else {
@@ -100,6 +116,7 @@ try {
     
     $final_visibility_condition = implode(" AND ", $visibility_conditions_array);
 
+    // Aktif etkinlikleri çek
     $sql_active = $sql_select_fields . $sql_from_join .
                   " WHERE e.status = 'active' AND ($final_visibility_condition)" .
                   " ORDER BY e.event_datetime ASC";
@@ -107,12 +124,46 @@ try {
     $stmt_active->execute($sql_params);
     $active_events = $stmt_active->fetchAll(PDO::FETCH_ASSOC);
 
+    // Geçmiş etkinlikleri çek
     $sql_past = $sql_select_fields . $sql_from_join .
                 " WHERE e.status = 'past' AND ($final_visibility_condition)" .
                 " ORDER BY e.event_datetime DESC";
     $stmt_past = $pdo->prepare($sql_past);
     $stmt_past->execute($sql_params);
     $past_events = $stmt_past->fetchAll(PDO::FETCH_ASSOC);
+
+    // Her etkinlik için görünürlük rollerini al ve içerik erişim kontrolü yap
+    foreach ([$active_events, $past_events] as &$events_array) {
+        foreach ($events_array as $key => &$event) {
+            // Etkinlik verilerini can_user_access_content fonksiyonu için hazırla
+            $content_data = [
+                'visibility' => $event['visibility'],
+                'user_id' => $event['created_by_user_id']
+            ];
+            
+            // Etkinliğin görünürlük rollerini al
+            $content_role_ids = get_content_visibility_roles($pdo, 'event', $event['id']);
+            
+            // Kullanıcının bu etkinliğe erişimi var mı kontrol et
+            $can_access = can_user_access_content($pdo, $content_data, $content_role_ids, $current_user_id);
+            
+            if (!$can_access) {
+                // Erişimi yoksa etkinliği kaldır
+                unset($events_array[$key]);
+                continue;
+            }
+            
+            // Creator için birincil rol rengi belirleme
+            if (!empty($event['creator_roles_list'])) {
+                $creator_roles = explode(',', $event['creator_roles_list']);
+                $event['creator_primary_role'] = trim($creator_roles[0]); // İlk rol (en yüksek öncelikli)
+            } else {
+                $event['creator_primary_role'] = 'member'; // Varsayılan rol
+            }
+        }
+        // Array key'lerini yeniden sırala
+        $events_array = array_values($events_array);
+    }
 
 } catch (PDOException $e) {
     error_log("Etkinlikleri listeleme hatası (events.php): " . $e->getMessage());
@@ -439,25 +490,9 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     text-decoration: underline; 
 }
 
-/* Username Role Colors - Consistent with Gallery */
-.event-creator-info-wrapper.username-role-admin a { 
-    color: var(--gold) !important; 
-}
-
-.event-creator-info-wrapper.username-role-scg_uye a { 
-    color: #A52A2A !important; 
-}
-
-.event-creator-info-wrapper.username-role-ilgarion_turanis a { 
-    color: var(--turquase) !important; 
-}
-
-.event-creator-info-wrapper.username-role-member a { 
-    color: var(--white) !important; 
-}
-
-.event-creator-info-wrapper.username-role-dis_uye a { 
-    color: var(--light-grey) !important; 
+/* Dinamik rol renkleri için - CSS custom properties kullanarak */
+.event-creator-info-wrapper[data-role-color] a {
+    color: var(--dynamic-role-color) !important;
 }
 
 /* Creator info styles */
@@ -623,7 +658,9 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                     'discord_username' => $event['creator_discord_username'],
                                     'user_event_count' => $event['creator_event_count'],
                                     'user_gallery_count' => $event['creator_gallery_count'],
-                                    'user_roles_list' => $event['creator_roles_list']
+                                    'user_roles_list' => $event['creator_roles_list'],
+                                    'primary_role' => $event['creator_primary_role'] ?? 'member',
+                                    'primary_role_color' => $event['creator_primary_role_color'] ?? '#0000ff'
                                 ];
                                 echo render_user_info_with_popover(
                                     $pdo,
@@ -702,7 +739,9 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                             'discord_username' => $event['creator_discord_username'],
                                             'user_event_count' => $event['creator_event_count'],
                                             'user_gallery_count' => $event['creator_gallery_count'],
-                                            'user_roles_list' => $event['creator_roles_list']
+                                            'user_roles_list' => $event['creator_roles_list'],
+                                            'primary_role' => $event['creator_primary_role'] ?? 'member',
+                                            'primary_role_color' => $event['creator_primary_role_color'] ?? '#0000ff'
                                         ];
                                         echo render_user_info_with_popover(
                                             $pdo,
@@ -803,6 +842,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 }, 300);
             }
         });
+    });
+
+    // Dinamik rol renklerini uygula
+    const creatorInfoWrappers = document.querySelectorAll('.event-creator-info-wrapper');
+    creatorInfoWrappers.forEach(wrapper => {
+        const roleColor = wrapper.dataset.roleColor;
+        if (roleColor) {
+            wrapper.style.setProperty('--dynamic-role-color', roleColor);
+        }
     });
 });
 </script>

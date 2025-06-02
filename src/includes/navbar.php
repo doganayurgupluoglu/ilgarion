@@ -280,7 +280,6 @@ $logo_path_navbar = '/assets/logo.png';
     .navbar-center-links {
         display: flex;
         justify-content: center;
-        flex-grow: 1; /* Orta bölümün genişlemesini sağla */
         margin: 0 20px; /* Sağ sol margin */
     }
     

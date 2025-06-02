@@ -1,5 +1,5 @@
 <?php
-// src/functions/sql_security_functions.php
+// src/functions/sql_security_functions.php - DÜZELTME
 
 /**
  * SQL Injection koruması için güvenli veritabanı işlemleri
@@ -197,7 +197,7 @@ function analyze_query_security(string $query): array {
 }
 
 /**
- * Prepared statement'ı güvenli şekilde execute eder
+ * Prepared statement'ı güvenli şekilde execute eder - DÜZELTME
  * @param PDO $pdo Veritabanı bağlantısı
  * @param string $query SQL sorgusu
  * @param array $params Parametreler
@@ -222,25 +222,53 @@ function execute_safe_query(PDO $pdo, string $query, array $params = [], bool $a
             throw new DatabaseException("Failed to prepare statement");
         }
         
-        // Parametreleri bind et ve validate et
-        foreach ($params as $key => $value) {
-            $param_type = PDO::PARAM_STR; // Varsayılan
-            
-            if (is_int($value)) {
-                $param_type = PDO::PARAM_INT;
-            } elseif (is_bool($value)) {
-                $param_type = PDO::PARAM_BOOL;
-                $value = $value ? 1 : 0;
-            } elseif (is_null($value)) {
-                $param_type = PDO::PARAM_NULL;
-            } elseif (is_string($value)) {
-                // String uzunluk kontrolü
-                if (strlen($value) > 65535) { // TEXT limit
-                    throw new InvalidArgumentException("Parameter value too long: $key");
+        // DÜZELTME: Parametreleri doğru şekilde bind et
+        if (!empty($params)) {
+            // Eğer parametreler associative array ise (named parameters)
+            if (array_keys($params) !== range(0, count($params) - 1)) {
+                // Named parameters
+                foreach ($params as $key => $value) {
+                    $param_type = PDO::PARAM_STR; // Varsayılan
+                    
+                    if (is_int($value)) {
+                        $param_type = PDO::PARAM_INT;
+                    } elseif (is_bool($value)) {
+                        $param_type = PDO::PARAM_BOOL;
+                        $value = $value ? 1 : 0;
+                    } elseif (is_null($value)) {
+                        $param_type = PDO::PARAM_NULL;
+                    } elseif (is_string($value)) {
+                        // String uzunluk kontrolü
+                        if (strlen($value) > 65535) { // TEXT limit
+                            throw new InvalidArgumentException("Parameter value too long: $key");
+                        }
+                    }
+                    
+                    $stmt->bindValue($key, $value, $param_type);
+                }
+            } else {
+                // Positional parameters (0-based array'i 1-based'e çevir)
+                foreach ($params as $index => $value) {
+                    $param_type = PDO::PARAM_STR; // Varsayılan
+                    
+                    if (is_int($value)) {
+                        $param_type = PDO::PARAM_INT;
+                    } elseif (is_bool($value)) {
+                        $param_type = PDO::PARAM_BOOL;
+                        $value = $value ? 1 : 0;
+                    } elseif (is_null($value)) {
+                        $param_type = PDO::PARAM_NULL;
+                    } elseif (is_string($value)) {
+                        // String uzunluk kontrolü
+                        if (strlen($value) > 65535) { // TEXT limit
+                            throw new InvalidArgumentException("Parameter value too long at index: $index");
+                        }
+                    }
+                    
+                    // DÜZELTME: PDO positional parameters 1-based
+                    $stmt->bindValue($index + 1, $value, $param_type);
                 }
             }
-            
-            $stmt->bindValue($key, $value, $param_type);
         }
         
         // Execute
@@ -255,7 +283,7 @@ function execute_safe_query(PDO $pdo, string $query, array $params = [], bool $a
         error_log("Database error in execute_safe_query: " . $e->getMessage());
         error_log("Query: " . $query);
         error_log("Params: " . json_encode($params));
-        throw new DatabaseException("Database operation failed");
+        throw new DatabaseException("Database operation failed: " . $e->getMessage());
     }
 }
 
@@ -470,3 +498,4 @@ function create_secure_pdo(string $dsn, string $username, string $password): PDO
         throw new DatabaseException("Database connection failed");
     }
 }
+?>

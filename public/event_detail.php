@@ -1,6 +1,5 @@
-
 <?php
-// public/event_detail.php
+// public/event_detail.php - Entegre Edilmiş Yeni Yetki Sistemi
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -9,6 +8,7 @@ error_reporting(E_ALL);
 require_once '../src/config/database.php'; // $pdo ve BASE_PATH
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php'; // Yetki fonksiyonları
+require_once BASE_PATH . '/src/functions/enhanced_role_functions.php'; // Gelişmiş yetki kontrolleri
 require_once BASE_PATH . '/src/functions/formatting_functions.php'; // render_user_info_with_popover
 require_once BASE_PATH . '/src/functions/notification_functions.php'; // Bildirim fonksiyonları
 
@@ -68,7 +68,16 @@ try {
                     u.discord_username AS creator_discord_username,
                     (SELECT COUNT(*) FROM events WHERE created_by_user_id = u.id) AS creator_event_count,
                     (SELECT COUNT(*) FROM gallery_photos WHERE user_id = u.id) AS creator_gallery_count,
-                    (SELECT GROUP_CONCAT(r.name SEPARATOR ',') FROM user_roles ur_creator JOIN roles r ON ur_creator.role_id = r.id WHERE ur_creator.user_id = u.id) AS creator_roles_list
+                    (SELECT GROUP_CONCAT(r.name ORDER BY r.priority ASC SEPARATOR ',') 
+                     FROM user_roles ur_creator 
+                     JOIN roles r ON ur_creator.role_id = r.id 
+                     WHERE ur_creator.user_id = u.id) AS creator_roles_list,
+                    (SELECT r.color 
+                     FROM user_roles ur_primary 
+                     JOIN roles r ON ur_primary.role_id = r.id 
+                     WHERE ur_primary.user_id = u.id 
+                     ORDER BY r.priority ASC 
+                     LIMIT 1) AS creator_primary_role_color
                 FROM events e JOIN users u ON e.created_by_user_id = u.id
                 WHERE e.id = :event_id";
     $stmt_event = $pdo->prepare($sql_event);
@@ -79,42 +88,18 @@ try {
     if ($event) {
         $page_title = htmlspecialchars($event['title']);
 
-        // YETKİLENDİRME MANTIĞI - İçerik görünürlüğü kontrolü
-        if ($event['visibility'] === 'public' && (has_permission($pdo, 'event.view_public', $current_user_id) || !$current_user_is_logged_in)) {
-            $can_view_event_detail = true;
-        } elseif ($current_user_is_approved) { // Giriş yapmış ve onaylı kullanıcılar için
-            if ($event['visibility'] === 'members_only' && has_permission($pdo, 'event.view_members_only', $current_user_id)) {
-                $can_view_event_detail = true;
-            } elseif ($event['visibility'] === 'faction_only' && has_permission($pdo, 'event.view_faction_only', $current_user_id)) {
-                // Kullanıcının rollerini al (ID olarak)
-                $stmt_user_role_ids_detail = $pdo->prepare("SELECT role_id FROM user_roles WHERE user_id = :user_id");
-                $stmt_user_role_ids_detail->execute([':user_id' => $current_user_id]);
-                $current_user_role_ids_detail = $stmt_user_role_ids_detail->fetchAll(PDO::FETCH_COLUMN);
-
-                if (!empty($current_user_role_ids_detail)) {
-                    $stmt_event_roles_detail = $pdo->prepare("SELECT evr.role_id FROM event_visibility_roles evr WHERE evr.event_id = :event_id");
-                    $stmt_event_roles_detail->execute([':event_id' => $event_id]);
-                    $allowed_role_ids_for_event_detail = $stmt_event_roles_detail->fetchAll(PDO::FETCH_COLUMN);
-
-                    if (!empty(array_intersect($current_user_role_ids_detail, $allowed_role_ids_for_event_detail))) {
-                        $can_view_event_detail = true;
-                    } else {
-                        $can_view_event_detail = false;
-                    }
-                } else {
-                    $can_view_event_detail = false;
-                }
-            } else {
-                $can_view_event_detail = false;
-            }
-        } elseif ($event['visibility'] !== 'public') {
-            $can_view_event_detail = false;
-        }
-
-        // Etkinliği oluşturan veya 'event.view_all' yetkisine sahip olanlar her zaman görebilir
-        if ($current_user_is_logged_in && ($event['created_by_user_id'] == $current_user_id || has_permission($pdo, 'event.view_all', $current_user_id))) {
-            $can_view_event_detail = true;
-        }
+        // YETKİLENDİRME MANTIĞI - Gelişmiş yetki sistemi ile
+        // Etkinlik verilerini can_user_access_content fonksiyonu için hazırla
+        $content_data = [
+            'visibility' => $event['visibility'],
+            'user_id' => $event['created_by_user_id']
+        ];
+        
+        // Etkinliğin görünürlük rollerini al
+        $content_role_ids = get_content_visibility_roles($pdo, 'event', $event_id);
+        
+        // Kullanıcının bu etkinliğe erişimi var mı kontrol et
+        $can_view_event_detail = can_user_access_content($pdo, $content_data, $content_role_ids, $current_user_id);
 
         if (!$can_view_event_detail) {
             if (!$current_user_is_logged_in) {
@@ -128,6 +113,14 @@ try {
         // YETKİLENDİRME MANTIĞI SONU
 
         if ($can_view_event_detail) {
+            // Creator için birincil rol belirleme
+            if (!empty($event['creator_roles_list'])) {
+                $creator_roles = explode(',', $event['creator_roles_list']);
+                $event['creator_primary_role'] = trim($creator_roles[0]); // İlk rol (en yüksek öncelikli)
+            } else {
+                $event['creator_primary_role'] = 'member'; // Varsayılan rol
+            }
+
             if (!empty($event['suggested_loadout_id'])) {
                 $stmt_loadout = $pdo->prepare("SELECT id, set_name FROM loadout_sets WHERE id = :loadout_id");
                 $stmt_loadout->bindParam(':loadout_id', $event['suggested_loadout_id'], PDO::PARAM_INT);
@@ -141,7 +134,16 @@ try {
                                         u.discord_username AS participant_discord_username,
                                         (SELECT COUNT(*) FROM events WHERE created_by_user_id = u.id) AS participant_event_count,
                                         (SELECT COUNT(*) FROM gallery_photos WHERE user_id = u.id) AS participant_gallery_count,
-                                        (SELECT GROUP_CONCAT(r.name SEPARATOR ',') FROM user_roles ur_p JOIN roles r ON ur_p.role_id = r.id WHERE ur_p.user_id = u.id) AS participant_roles_list
+                                        (SELECT GROUP_CONCAT(r.name ORDER BY r.priority ASC SEPARATOR ',') 
+                                         FROM user_roles ur_p 
+                                         JOIN roles r ON ur_p.role_id = r.id 
+                                         WHERE ur_p.user_id = u.id) AS participant_roles_list,
+                                        (SELECT r.color 
+                                         FROM user_roles ur_primary 
+                                         JOIN roles r ON ur_primary.role_id = r.id 
+                                         WHERE ur_primary.user_id = u.id 
+                                         ORDER BY r.priority ASC 
+                                         LIMIT 1) AS participant_primary_role_color
                                      FROM event_participants ep
                                      JOIN users u ON ep.user_id = u.id
                                      WHERE ep.event_id = :event_id
@@ -151,7 +153,15 @@ try {
             $stmt_all_participants->execute();
             $all_participants_with_details_and_roles = $stmt_all_participants->fetchAll(PDO::FETCH_ASSOC);
 
-            foreach($all_participants_with_details_and_roles as $participant) {
+            foreach($all_participants_with_details_and_roles as &$participant) {
+                // Participant için birincil rol belirleme
+                if (!empty($participant['participant_roles_list'])) {
+                    $participant_roles = explode(',', $participant['participant_roles_list']);
+                    $participant['participant_primary_role'] = trim($participant_roles[0]); // İlk rol (en yüksek öncelikli)
+                } else {
+                    $participant['participant_primary_role'] = 'member'; // Varsayılan rol
+                }
+
                 if ($participant['participation_status'] === 'attending') $attending_participants[] = $participant;
                 elseif ($participant['participation_status'] === 'maybe') $maybe_participants[] = $participant;
                 elseif ($participant['participation_status'] === 'declined') $declined_participants[] = $participant;
@@ -191,11 +201,17 @@ try {
     exit;
 }
 
-// Buton görünürlükleri için yetki kontrolleri
-$can_edit_this_event = $current_user_id && $event && (has_permission($pdo, 'event.edit_all', $current_user_id) || (has_permission($pdo, 'event.edit_own', $current_user_id) && $event['created_by_user_id'] == $current_user_id));
-$can_delete_this_event_admin = $current_user_is_admin && has_permission($pdo, 'event.delete_all', $current_user_id); // Sadece admin için ayrı bir silme
-$can_cancel_this_event = $current_user_id && $event && (has_permission($pdo, 'event.manage_participants', $current_user_id) || $current_user_is_admin || ($event['created_by_user_id'] == $current_user_id && has_permission($pdo, 'event.edit_own', $current_user_id))); // Genişletilmiş iptal yetkisi
-$can_participate = $current_user_is_approved && $event && $event['status'] === 'active' && (new DateTime($event['event_datetime']) >= new DateTime()) && has_permission($pdo, 'event.participate', $current_user_id);
+// Buton görünürlükleri için yetki kontrolleri - Gelişmiş yetki sistemi ile
+$can_edit_this_event = $current_user_id && $event && can_user_edit_content($pdo, 'event', $event['created_by_user_id'], $current_user_id);
+$can_delete_this_event_admin = $current_user_is_admin && $event && can_user_delete_content($pdo, 'event', $event['created_by_user_id'], $current_user_id);
+$can_cancel_this_event = $current_user_id && $event && (
+    has_permission($pdo, 'event.manage_participants', $current_user_id) || 
+    $current_user_is_admin || 
+    ($event['created_by_user_id'] == $current_user_id && has_permission($pdo, 'event.edit_own', $current_user_id))
+);
+$can_participate = $current_user_is_approved && $event && $event['status'] === 'active' && 
+                  (new DateTime($event['event_datetime']) >= new DateTime()) && 
+                  has_permission($pdo, 'event.participate', $current_user_id);
 
 require_once BASE_PATH . '/src/includes/header.php';
 require_once BASE_PATH . '/src/includes/navbar.php';
@@ -666,30 +682,36 @@ ul.participant-list li:last-child {
     text-decoration: underline;
 }
 
-/* Username Role Colors - Consistent with Gallery & Events */
+/* Username Role Colors - Rol tabanlı renkler */
 .user-info-trigger.username-role-admin .creator-name-link,
 .user-info-trigger.username-role-admin .participant-name-link { 
-    color: var(--gold) !important; 
+    color: #0091ff !important; /* Admin rengi */
 }
 
 .user-info-trigger.username-role-scg_uye .creator-name-link,
 .user-info-trigger.username-role-scg_uye .participant-name-link { 
-    color: #A52A2A !important; 
+    color: #a52a2a !important; /* SCG üye rengi */
 }
 
 .user-info-trigger.username-role-ilgarion_turanis .creator-name-link,
 .user-info-trigger.username-role-ilgarion_turanis .participant-name-link { 
-    color: var(--turquase) !important; 
+    color: #3da6a2 !important; /* Ilgarion Turanis rengi */
 }
 
 .user-info-trigger.username-role-member .creator-name-link,
 .user-info-trigger.username-role-member .participant-name-link { 
-    color: var(--white) !important; 
+    color: #0000ff !important; /* Member rengi */
 }
 
 .user-info-trigger.username-role-dis_uye .creator-name-link,
 .user-info-trigger.username-role-dis_uye .participant-name-link { 
-    color: var(--light-grey) !important; 
+    color: #808080 !important; /* Dış üye rengi */
+}
+
+/* Dinamik rol renkleri için */
+.user-info-trigger[data-role-color] .creator-name-link,
+.user-info-trigger[data-role-color] .participant-name-link {
+    color: var(--dynamic-role-color) !important;
 }
 
 /* Modal overrides */
@@ -714,7 +736,7 @@ ul.participant-list li:last-child {
     }
     
     .participant-columns-container { 
-        grid-template-columns: 1fr; 
+        grid-template-columns: 1fr;
         gap: 1rem; 
     }
     
@@ -802,7 +824,9 @@ ul.participant-list li:last-child {
                         'discord_username' => $event['creator_discord_username'],
                         'user_event_count' => $event['creator_event_count'],
                         'user_gallery_count' => $event['creator_gallery_count'],
-                        'user_roles_list' => $event['creator_roles_list']
+                        'user_roles_list' => $event['creator_roles_list'],
+                        'primary_role' => $event['creator_primary_role'] ?? 'member',
+                        'primary_role_color' => $event['creator_primary_role_color'] ?? '#0000ff'
                     ];
                     echo render_user_info_with_popover(
                         $pdo,
@@ -954,9 +978,23 @@ ul.participant-list li:last-child {
                                 <?php foreach ($attending_participants as $participant): ?>
                                     <li>
                                         <?php
+                                        // Participant verilerini popover için hazırla
+                                        $participant_data_for_popover = [
+                                            'id' => $participant['user_id'],
+                                            'username' => $participant['username'],
+                                            'avatar_path' => $participant['avatar_path'],
+                                            'ingame_name' => $participant['ingame_name'],
+                                            'discord_username' => $participant['participant_discord_username'],
+                                            'user_event_count' => $participant['participant_event_count'],
+                                            'user_gallery_count' => $participant['participant_gallery_count'],
+                                            'user_roles_list' => $participant['participant_roles_list'],
+                                            'primary_role' => $participant['participant_primary_role'] ?? 'member',
+                                            'primary_role_color' => $participant['participant_primary_role_color'] ?? '#0000ff'
+                                        ];
+                                        
                                         echo render_user_info_with_popover(
                                             $pdo,
-                                            $participant,
+                                            $participant_data_for_popover,
                                             'participant-name-link',
                                             'participant-avatar',
                                             ''
@@ -979,9 +1017,22 @@ ul.participant-list li:last-child {
                                 <?php foreach ($maybe_participants as $participant): ?>
                                     <li>
                                         <?php
+                                        $participant_data_for_popover = [
+                                            'id' => $participant['user_id'],
+                                            'username' => $participant['username'],
+                                            'avatar_path' => $participant['avatar_path'],
+                                            'ingame_name' => $participant['ingame_name'],
+                                            'discord_username' => $participant['participant_discord_username'],
+                                            'user_event_count' => $participant['participant_event_count'],
+                                            'user_gallery_count' => $participant['participant_gallery_count'],
+                                            'user_roles_list' => $participant['participant_roles_list'],
+                                            'primary_role' => $participant['participant_primary_role'] ?? 'member',
+                                            'primary_role_color' => $participant['participant_primary_role_color'] ?? '#0000ff'
+                                        ];
+                                        
                                         echo render_user_info_with_popover(
                                             $pdo,
-                                            $participant,
+                                            $participant_data_for_popover,
                                             'participant-name-link',
                                             'participant-avatar',
                                             ''
@@ -1004,9 +1055,22 @@ ul.participant-list li:last-child {
                                 <?php foreach ($declined_participants as $participant): ?>
                                     <li>
                                         <?php
+                                        $participant_data_for_popover = [
+                                            'id' => $participant['user_id'],
+                                            'username' => $participant['username'],
+                                            'avatar_path' => $participant['avatar_path'],
+                                            'ingame_name' => $participant['ingame_name'],
+                                            'discord_username' => $participant['participant_discord_username'],
+                                            'user_event_count' => $participant['participant_event_count'],
+                                            'user_gallery_count' => $participant['participant_gallery_count'],
+                                            'user_roles_list' => $participant['participant_roles_list'],
+                                            'primary_role' => $participant['participant_primary_role'] ?? 'member',
+                                            'primary_role_color' => $participant['participant_primary_role_color'] ?? '#0000ff'
+                                        ];
+                                        
                                         echo render_user_info_with_popover(
                                             $pdo,
-                                            $participant,
+                                            $participant_data_for_popover,
                                             'participant-name-link',
                                             'participant-avatar',
                                             ''
@@ -1182,6 +1246,15 @@ document.addEventListener('DOMContentLoaded', function() {
             sectionObserver.observe(section);
         });
     }
+
+    // Dinamik rol renklerini uygula
+    const userInfoTriggers = document.querySelectorAll('.user-info-trigger');
+    userInfoTriggers.forEach(trigger => {
+        const roleColor = trigger.dataset.roleColor;
+        if (roleColor) {
+            trigger.style.setProperty('--dynamic-role-color', roleColor);
+        }
+    });
 });
 </script>
 

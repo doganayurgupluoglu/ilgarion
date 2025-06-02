@@ -8,6 +8,7 @@ error_reporting(E_ALL);
 require_once '../src/config/database.php'; // $pdo ve BASE_PATH
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php'; // Yetki fonksiyonları
+require_once BASE_PATH . '/src/functions/enhanced_role_functions.php'; // İçerik erişim kontrolleri
 require_once BASE_PATH . '/src/functions/formatting_functions.php'; // render_user_info_with_popover
 
 if (session_status() == PHP_SESSION_NONE) {
@@ -26,13 +27,17 @@ $topics_with_details = [];
 
 $current_user_is_logged_in = is_user_logged_in();
 $current_user_id = $current_user_is_logged_in ? ($_SESSION['user_id'] ?? null) : null;
-$current_user_is_admin = $current_user_is_logged_in ? is_user_admin() : false;
+$current_user_is_admin = $current_user_is_logged_in ? is_admin($pdo) : false;
 $current_user_is_approved = $current_user_is_logged_in ? is_user_approved() : false;
 
-$can_create_topic = $current_user_is_approved && has_permission($pdo, 'discussion.topic.create', $current_user_id);
+// Yeni yetki sistemi ile kontroller
+$can_create_topic = $current_user_is_approved && has_permission($pdo, 'discussion.topic.create');
+$can_view_public = has_permission($pdo, 'discussion.view_public') || !$current_user_is_logged_in; // Misafir kullanıcılar da herkese açık içeriği görebilir
+$can_view_members_only = $current_user_is_approved && has_permission($pdo, 'discussion.view_approved');
+$can_view_all = $current_user_is_admin || has_permission($pdo, 'discussion.topic.edit_all');
 
-// Sayfa herkese açık - sadece içerik yetki kontrolü var
-$can_view_discussions_page = true;
+// Base URL fonksiyonu (navbar ile uyumlu)
+$baseUrl = get_auth_base_url();
 
 try {
     $sql_base = "SELECT
@@ -46,7 +51,7 @@ try {
                 u_starter.discord_username AS topic_starter_discord,
                 (SELECT COUNT(*) FROM events WHERE created_by_user_id = u_starter.id) AS topic_starter_event_count,
                 (SELECT COUNT(*) FROM gallery_photos WHERE user_id = u_starter.id) AS topic_starter_gallery_count,
-                (SELECT GROUP_CONCAT(r_starter.name ORDER BY FIELD(r_starter.name, '" . implode("','", $GLOBALS['role_priority'] ?? []) . "') SEPARATOR ',')
+                (SELECT GROUP_CONCAT(r_starter.name ORDER BY r_starter.priority ASC SEPARATOR ',')
                  FROM user_roles ur_starter
                  JOIN roles r_starter ON ur_starter.role_id = r_starter.id
                  WHERE ur_starter.user_id = u_starter.id) AS topic_starter_roles_list,
@@ -58,7 +63,7 @@ try {
                 u_replier.discord_username AS last_replier_discord,
                 (SELECT COUNT(*) FROM events WHERE created_by_user_id = u_replier.id) AS last_replier_event_count,
                 (SELECT COUNT(*) FROM gallery_photos WHERE user_id = u_replier.id) AS last_replier_gallery_count,
-                (SELECT GROUP_CONCAT(r_replier.name ORDER BY FIELD(r_replier.name, '" . implode("','", $GLOBALS['role_priority'] ?? []) . "') SEPARATOR ',')
+                (SELECT GROUP_CONCAT(r_replier.name ORDER BY r_replier.priority ASC SEPARATOR ',')
                  FROM user_roles ur_replier
                  JOIN roles r_replier ON ur_replier.role_id = r_replier.id
                  WHERE ur_replier.user_id = u_replier.id) AS last_replier_roles_list,
@@ -77,52 +82,47 @@ try {
     $where_clauses = [];
     $params = [':current_user_id_for_view' => $current_user_id ?? null];
 
-    // Görünürlük koşulları - sadece içerik için
-    if ($current_user_is_admin || ($current_user_id && has_permission($pdo, 'discussion.view_all', $current_user_id))) {
+    // Gelişmiş görünürlük kontrolleri - can_user_access_content benzeri mantık
+    if ($can_view_all) {
         // Admin veya 'view_all' yetkisine sahip olanlar için ek WHERE koşulu gerekmez
     } else {
         $visibility_or_conditions = [];
 
-        // 1. Herkese açık konular (discussion.view_public yetkisiyle veya misafir kullanıcı)
-        if (has_permission($pdo, 'discussion.view_public', $current_user_id) || !$current_user_is_logged_in) {
+        // 1. Herkese açık konular
+        if ($can_view_public) {
             $visibility_or_conditions[] = "dt.is_public_no_auth = 1";
         }
 
-        // 2. Onaylı üyelere açık konular (discussion.view_approved yetkisiyle)
-        if ($current_user_is_approved && has_permission($pdo, 'discussion.view_approved', $current_user_id)) {
+        // 2. Onaylı üyelere açık konular
+        if ($can_view_members_only) {
             $visibility_or_conditions[] = "dt.is_members_only = 1";
         }
 
-        // 3. Rol bazlı konular
-        if ($current_user_is_approved) {
-            $user_actual_role_ids_list = [];
-            if ($current_user_id) {
-                $stmt_user_role_ids_list = $pdo->prepare("SELECT role_id FROM user_roles WHERE user_id = :current_user_id_for_role_check");
-                $stmt_user_role_ids_list->execute([':current_user_id_for_role_check' => $current_user_id]);
-                $user_actual_role_ids_list = $stmt_user_role_ids_list->fetchAll(PDO::FETCH_COLUMN);
-            }
-
-            if (!empty($user_actual_role_ids_list)) {
-                $role_placeholders_sql = [];
-                foreach ($user_actual_role_ids_list as $idx_role_list => $role_id_val_list) {
-                    $placeholder_role_list = ':user_role_id_for_topic_visibility_' . $idx_role_list;
-                    $role_placeholders_sql[] = $placeholder_role_list;
-                    $params[$placeholder_role_list] = $role_id_val_list;
+        // 3. Rol bazlı konular (faction_only)
+        if ($current_user_is_approved && $current_user_id) {
+            $user_roles = get_user_roles($pdo, $current_user_id);
+            $user_role_ids = array_column($user_roles, 'id');
+            
+            if (!empty($user_role_ids)) {
+                $role_placeholders = [];
+                foreach ($user_role_ids as $idx => $role_id) {
+                    $placeholder = ':user_role_id_' . $idx;
+                    $role_placeholders[] = $placeholder;
+                    $params[$placeholder] = $role_id;
                 }
-                $in_clause_roles_sql_list = implode(',', $role_placeholders_sql);
-                if (!empty($in_clause_roles_sql_list)) {
-                     $visibility_or_conditions[] = "(dt.is_public_no_auth = 0 AND dt.is_members_only = 0 AND EXISTS (
-                                                    SELECT 1 FROM discussion_topic_visibility_roles dtvr_check_list
-                                                    WHERE dtvr_check_list.topic_id = dt.id AND dtvr_check_list.role_id IN (" . $in_clause_roles_sql_list . ")
-                                                 ))";
-                }
+                $in_clause_roles = implode(',', $role_placeholders);
+                
+                $visibility_or_conditions[] = "(dt.is_public_no_auth = 0 AND dt.is_members_only = 0 AND EXISTS (
+                                                SELECT 1 FROM discussion_topic_visibility_roles dtvr
+                                                WHERE dtvr.topic_id = dt.id AND dtvr.role_id IN (" . $in_clause_roles . ")
+                                             ))";
             }
         }
         
         // 4. Kullanıcının kendi başlattığı konular her zaman görünür
-        if ($current_user_id && !$current_user_is_admin && !has_permission($pdo, 'discussion.view_all', $current_user_id)) {
-            $visibility_or_conditions[] = "dt.user_id = :current_user_id_owner_check_list_page";
-            $params[':current_user_id_owner_check_list_page'] = $current_user_id;
+        if ($current_user_id) {
+            $visibility_or_conditions[] = "dt.user_id = :current_user_id_owner";
+            $params[':current_user_id_owner'] = $current_user_id;
         }
 
         if (!empty($visibility_or_conditions)) {
@@ -176,7 +176,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 /* Modern Discussions Page Styles - Consistent with Gallery & Events */
 .discussions-page-container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: 2rem 1rem;
     font-family: var(--font);
@@ -388,8 +388,8 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     color: var(--light-grey);
     margin-bottom: 0.25rem;
     display: flex;
-    justify-content: center;
     align-items: center;
+    gap: 5px;
 }
 
 .discussion-meta .starter-name {
@@ -549,35 +549,35 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     flex-shrink: 0 !important;
 }
 
-/* Username Role Colors - Consistent with other pages */
-.user-info-trigger.username-role-admin .starter-name,
-.user-info-trigger.username-role-admin .last-reply-name,
-.user-info-trigger.username-role-admin a {
-    color: var(--gold) !important;
+/* Rol Bazlı Renk Sistemleri - Navbar ile uyumlu */
+.user-info-trigger.role-admin .starter-name,
+.user-info-trigger.role-admin .last-reply-name,
+.user-info-trigger.role-admin a {
+    color: #0091ff !important; /* Admin rol rengi */
 }
 
-.user-info-trigger.username-role-scg_uye .starter-name,
-.user-info-trigger.username-role-scg_uye .last-reply-name,
-.user-info-trigger.username-role-scg_uye a {
-    color: #A52A2A !important;
+.user-info-trigger.role-ilgarion_turanis .starter-name,
+.user-info-trigger.role-ilgarion_turanis .last-reply-name,
+.user-info-trigger.role-ilgarion_turanis a {
+    color: #3da6a2 !important; /* Ilgarion Turanis rol rengi */
 }
 
-.user-info-trigger.username-role-ilgarion_turanis .starter-name,
-.user-info-trigger.username-role-ilgarion_turanis .last-reply-name,
-.user-info-trigger.username-role-ilgarion_turanis a {
-    color: var(--turquase) !important;
+.user-info-trigger.role-scg_uye .starter-name,
+.user-info-trigger.role-scg_uye .last-reply-name,
+.user-info-trigger.role-scg_uye a {
+    color: #a52a2a !important; /* SCG üye rol rengi */
 }
 
-.user-info-trigger.username-role-member .starter-name,
-.user-info-trigger.username-role-member .last-reply-name,
-.user-info-trigger.username-role-member a {
-    color: var(--white) !important;
+.user-info-trigger.role-member .starter-name,
+.user-info-trigger.role-member .last-reply-name,
+.user-info-trigger.role-member a {
+    color: #0000ff !important; /* Member rol rengi */
 }
 
-.user-info-trigger.username-role-dis_uye .starter-name,
-.user-info-trigger.username-role-dis_uye .last-reply-name,
-.user-info-trigger.username-role-dis_uye a {
-    color: var(--light-grey) !important;
+.user-info-trigger.role-dis_uye .starter-name,
+.user-info-trigger.role-dis_uye .last-reply-name,
+.user-info-trigger.role-dis_uye a {
+    color: #808080 !important; /* Dış üye rol rengi */
 }
 
 /* Responsive Design */
@@ -681,20 +681,20 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                 <h1><?php echo htmlspecialchars($page_title); ?></h1>
                 <div class="discussions-count"><?php echo count($topics_with_details); ?> Tartışma Konusu</div>
             </div>
-            <?php if (has_permission('create_discussion_topic')): ?>
-                <a href="new_discussion_topic.php" class="btn-new-topic">
+            <?php if ($can_create_topic): ?>
+                <a href="<?php echo htmlspecialchars($baseUrl); ?>/new_discussion_topic.php" class="btn-new-topic">
                     <i class="fas fa-plus-circle"></i>
                     Yeni Tartışma Başlat
                 </a>
             <?php endif; ?>
         </div>
 
-        <?php if (!is_logged_in() && !empty($topics_with_details)): ?>
+        <?php if (!$current_user_is_logged_in && !empty($topics_with_details)): ?>
             <div class="info-message">
                 <i class="fas fa-info-circle"></i> 
                 Şu anda sadece herkese açık tartışmaları görüntülüyorsunuz. Daha fazla tartışmaya erişmek için 
-                <a href="<?php echo get_site_url('auth/login.php'); ?>">giriş yapın</a> ya da 
-                <a href="<?php echo get_site_url('auth/register.php'); ?>">kayıt olun</a>.
+                <a href="<?php echo htmlspecialchars($baseUrl); ?>/login.php">giriş yapın</a> ya da 
+                <a href="<?php echo htmlspecialchars($baseUrl); ?>/register.php">kayıt olun</a>.
             </div>
         <?php endif; ?>
 
@@ -702,14 +702,28 @@ require_once BASE_PATH . '/src/includes/navbar.php';
             <div class="empty-state">
                 <i class="fas fa-comments" style="font-size: 3rem; color: var(--gold); margin-bottom: 1rem;"></i><br>
                 Henüz hiç tartışma başlığı açılmamış veya görüntüleme yetkiniz olan bir konu bulunmuyor.
-                <?php if (has_permission('create_discussion_topic')): ?>
-                    <br>İlk tartışmayı <a href="new_discussion_topic.php">sen başlat</a>!
+                <?php if ($can_create_topic): ?>
+                    <br>İlk tartışmayı <a href="<?php echo htmlspecialchars($baseUrl); ?>/new_discussion_topic.php">sen başlat</a>!
                 <?php endif; ?>
             </div>
         <?php else: ?>
             <ul class="discussions-list">
                 <?php foreach ($topics_with_details as $topic): ?>
                     <?php
+                        // Rol bazında renk belirleme - en yüksek öncelikli rolü al
+                        $starter_primary_role = '';
+                        $replier_primary_role = '';
+                        
+                        if (!empty($topic['topic_starter_roles_list'])) {
+                            $starter_roles = explode(',', $topic['topic_starter_roles_list']);
+                            $starter_primary_role = trim($starter_roles[0]); // İlk rol en yüksek öncelikli
+                        }
+                        
+                        if (!empty($topic['last_replier_roles_list'])) {
+                            $replier_roles = explode(',', $topic['last_replier_roles_list']);
+                            $replier_primary_role = trim($replier_roles[0]); // İlk rol en yüksek öncelikli
+                        }
+
                         $starter_popover_data = [
                             'id' => $topic['topic_starter_id'],
                             'username' => $topic['topic_starter_username'],
@@ -720,6 +734,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                             'user_gallery_count' => $topic['topic_starter_gallery_count'],
                             'user_roles_list' => $topic['topic_starter_roles_list']
                         ];
+                        
                         $replier_popover_data = null;
                         if ($topic['last_replier_user_id']) {
                             $replier_popover_data = [
@@ -736,7 +751,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                         
                         // CSS classes for topic state
                         $itemClasses = ['discussion-item'];
-                        if ($topic['is_unread'] && is_logged_in()) $itemClasses[] = 'unread';
+                        if ($topic['is_unread'] && $current_user_is_logged_in) $itemClasses[] = 'unread';
                         if ($topic['is_pinned']) $itemClasses[] = 'pinned';
                         if ($topic['is_locked']) $itemClasses[] = 'locked';
                     ?>
@@ -751,7 +766,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                         <?php echo htmlspecialchars($topic['title']); ?>
                                     </a>
                                     <span class="topic-badges">
-                                        <?php if ($topic['is_pinned'] && has_permission('view_pinned_topics')): ?>
+                                        <?php if ($topic['is_pinned']): ?>
                                             <i class="fas fa-thumbtack badge-pinned" title="Sabitlenmiş Konu"></i>
                                         <?php endif; ?>
                                         <?php if ($topic['is_locked']): ?>
@@ -762,17 +777,17 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                     </span>
                                 </h3>
                                 
-                                <div class="discussion-meta" style="margin-right: 10px;">
+                                <div class="discussion-meta">
                                     <?php
                                     echo render_user_info_with_popover(
                                         $pdo, 
                                         $starter_popover_data, 
                                         'starter-name', 
                                         '', 
-                                        'user-info-trigger'
+                                        'user-info-trigger' . ($starter_primary_role ? ' role-' . $starter_primary_role : '')
                                     );
                                     ?>
-                                    <p style="margin-left: 5px;"> tarafından <?php echo date('d M Y, H:i', strtotime($topic['topic_created_at'])); ?> tarihinde başlatıldı.</p>
+                                    <span>tarafından <?php echo date('d M Y, H:i', strtotime($topic['topic_created_at'])); ?> tarihinde başlatıldı.</span>
                                 </div>
                             </div>
 
@@ -791,7 +806,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                                                 $replier_popover_data, 
                                                 'last-reply-name', 
                                                 'last-reply-avatar', 
-                                                'user-info-trigger'
+                                                'user-info-trigger' . ($replier_primary_role ? ' role-' . $replier_primary_role : '')
                                             ); ?>
                                         </div>
                                     </div>
@@ -994,6 +1009,53 @@ document.addEventListener('DOMContentLoaded', function() {
             avatarObserver.observe(img);
         });
     }
+
+    // Role-based styling enhancements
+    document.querySelectorAll('.user-info-trigger').forEach(trigger => {
+        // Add subtle animation for role-colored usernames
+        if (trigger.classList.contains('role-admin') || 
+            trigger.classList.contains('role-ilgarion_turanis') ||
+            trigger.classList.contains('role-scg_uye')) {
+            trigger.addEventListener('mouseenter', function() {
+                this.style.textShadow = '0 0 5px currentColor';
+            });
+            
+            trigger.addEventListener('mouseleave', function() {
+                this.style.textShadow = 'none';
+            });
+        }
+    });
+
+    // Enhanced permission-based UI adjustments
+    <?php if (!$current_user_is_logged_in): ?>
+    // Add subtle visual cues for guest users
+    document.body.classList.add('guest-user');
+    <?php elseif (!$current_user_is_approved): ?>
+    // Add visual cues for unapproved users
+    document.body.classList.add('unapproved-user');
+    <?php endif; ?>
+
+    // Performance monitoring (optional)
+    if ('PerformanceObserver' in window) {
+        const perfObserver = new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+                if (entry.entryType === 'navigation') {
+                    console.log('Page load time:', entry.loadEventEnd - entry.loadEventStart, 'ms');
+                }
+            }
+        });
+        perfObserver.observe({ entryTypes: ['navigation'] });
+    }
+
+    // Enhanced error handling for AJAX operations
+    window.addEventListener('unhandledrejection', function(event) {
+        console.warn('Unhandled promise rejection:', event.reason);
+        // Optionally show user-friendly error message
+        if (event.reason && event.reason.message && event.reason.message.includes('fetch')) {
+            // Network error handling
+            console.log('Network issue detected, discussion features may be limited');
+        }
+    });
 });
 </script>
 

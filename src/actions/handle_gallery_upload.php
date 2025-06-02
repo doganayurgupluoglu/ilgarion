@@ -1,157 +1,289 @@
 <?php
-// src/actions/handle_gallery_upload.php
+// src/action/handle_gallery_upload.php
+header('Content-Type: application/json');
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once dirname(__DIR__) . '/config/database.php'; // $pdo ve BASE_PATH
-require_once BASE_PATH . '/src/functions/auth_functions.php';
+// Error handling
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Upload'da error display kapalı olmalı
 
-require_approved_user(); // Sadece onaylanmış kullanıcılar
+try {
+    require_once '../src/config/database.php';
+    require_once BASE_PATH . '/src/functions/auth_functions.php';
+    require_once BASE_PATH . '/src/functions/role_functions.php';
+    require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+} catch (Exception $e) {
+    error_log("Upload file include error: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'Sistem hatası oluştu.'
+    ]);
+    exit;
+}
 
-$baseUrl = get_auth_base_url(); 
-$user_id = $_SESSION['user_id'];
+// Sadece POST isteklerini kabul et
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Sadece POST istekleri kabul edilir'
+    ]);
+    exit;
+}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $description = trim($_POST['description'] ?? '');
-    $image_file = $_FILES['gallery_image'] ?? null;
+// Rate limiting kontrolü
+if (!check_rate_limit('photo_upload', 20, 3600)) { // 1 saatte 20 upload
+    http_response_code(429);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Çok fazla fotoğraf yüklüyorsunuz. Lütfen bekleyin.'
+    ]);
+    exit;
+}
 
-    // Yeni görünürlük alanları
-    $is_public_no_auth = isset($_POST['is_public_no_auth']) && $_POST['is_public_no_auth'] == '1';
-    $is_members_only = isset($_POST['is_members_only']) && $_POST['is_members_only'] == '1';
-    $assigned_role_ids = isset($_POST['assigned_role_ids']) && is_array($_POST['assigned_role_ids'])
-                        ? array_map('intval', $_POST['assigned_role_ids'])
-                        : [];
-
-    // Form girdilerini session'a kaydet (hata durumunda geri doldurmak için)
-    $_SESSION['form_input_gallery'] = $_POST;
-
-    if (empty($description)) {
-        $_SESSION['error_message'] = "Fotoğraf açıklaması boş bırakılamaz.";
-        header('Location: ' . $baseUrl . '/gallery/upload.php'); // Yönlendirme yolu güncellendi
+// Yetki kontrolü
+try {
+    if (!is_user_logged_in()) {
+        http_response_code(401);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Bu işlem için giriş yapmalısınız.'
+        ]);
         exit;
     }
 
-    // Görünürlük mantığı
-    if ($is_public_no_auth) {
-        $is_members_only = false;
-        $assigned_role_ids = [];
-    } elseif (!empty($assigned_role_ids)) {
-        $is_members_only = false; // Belirli roller seçiliyse, genel üye görünürlüğü olmamalı
-    } elseif (!$is_members_only && empty($assigned_role_ids) && !$is_public_no_auth) {
-        // Eğer hiçbiri seçili değilse, varsayılan olarak members_only yapabilir veya hata verebiliriz.
-        // Şimdilik handle_guide.php'deki gibi hata verelim.
-        $_SESSION['error_message'] = "Lütfen bir görünürlük ayarı seçin (Herkese Açık, Tüm Üyelere veya Belirli Roller).";
-        header('Location: ' . $baseUrl . '/gallery/upload.php'); // Yönlendirme yolu güncellendi
+    if (!is_user_approved()) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Hesabınızın onaylanmış olması gerekmektedir.'
+        ]);
         exit;
     }
 
+    if (!has_permission($pdo, 'gallery.upload')) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Fotoğraf yükleme yetkiniz bulunmamaktadır.'
+        ]);
+        exit;
+    }
+} catch (Exception $e) {
+    error_log("Permission check error in upload_photo: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'message' => 'Yetki kontrolü sırasında hata oluştu.'
+    ]);
+    exit;
+}
 
-    if (isset($image_file) && $image_file['error'] === UPLOAD_ERR_OK) {
-        $upload_dir_base = BASE_PATH . '/public/uploads/gallery/';
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-        $max_size = 20 * 1024 * 1024; 
+// Input validation
+$description = trim($_POST['description'] ?? '');
+$visibility = $_POST['visibility'] ?? 'members';
 
-        if (!is_dir($upload_dir_base)) {
-            if (!mkdir($upload_dir_base, 0775, true)) {
-                $_SESSION['error_message'] = "Galeri yükleme klasörü oluşturulamadı.";
-                error_log("Galeri yükleme klasörü oluşturulamadı: " . $upload_dir_base);
-                header('Location: ' . $baseUrl . '/gallery/upload.php'); // Yönlendirme yolu güncellendi
-                exit;
-            }
-        }
-         if (!is_writable($upload_dir_base)) {
-            $_SESSION['error_message'] = "Sunucu yapılandırma hatası: Galeri yükleme klasörü yazılabilir değil.";
-            error_log("Galeri yükleme klasörü yazılabilir değil: " . $upload_dir_base);
-            header('Location: ' . $baseUrl . '/gallery/upload.php'); // Yönlendirme yolu güncellendi
-            exit;
-        }
+// Visibility validation
+if (!in_array($visibility, ['public', 'members'])) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Geçersiz görünürlük ayarı.'
+    ]);
+    exit;
+}
 
-        $file_tmp_name = $image_file['tmp_name'];
-        $file_name_original = $image_file['name'];
-        $file_size = $image_file['size'];
+// Description validation
+if (strlen($description) > 500) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Açıklama 500 karakterden uzun olamaz.'
+    ]);
+    exit;
+}
 
-        if (!file_exists($file_tmp_name) || !is_uploaded_file($file_tmp_name)) {
-             $_SESSION['error_message'] = "Geçici dosya bulunamadı veya geçersiz ($file_name_original).";
-             header('Location: ' . $baseUrl . '/gallery/upload.php'); // Yönlendirme yolu güncellendi
-             exit;
-        }
-        $file_type = mime_content_type($file_tmp_name);
+// File upload validation
+if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+    $upload_errors = [
+        UPLOAD_ERR_INI_SIZE => 'Dosya boyutu çok büyük.',
+        UPLOAD_ERR_FORM_SIZE => 'Dosya boyutu çok büyük.',
+        UPLOAD_ERR_PARTIAL => 'Dosya kısmen yüklendi.',
+        UPLOAD_ERR_NO_FILE => 'Dosya seçilmedi.',
+        UPLOAD_ERR_NO_TMP_DIR => 'Geçici dizin bulunamadı.',
+        UPLOAD_ERR_CANT_WRITE => 'Dosya yazılamadı.',
+        UPLOAD_ERR_EXTENSION => 'Dosya yükleme engellenmiş.'
+    ];
+    
+    $error_message = $upload_errors[$_FILES['photo']['error']] ?? 'Bilinmeyen yükleme hatası.';
+    echo json_encode([
+        'success' => false,
+        'message' => $error_message
+    ]);
+    exit;
+}
 
-        if (!in_array($file_type, $allowed_types)) {
-            $_SESSION['error_message'] = "Geçersiz dosya tipi ($file_name_original - Tip: $file_type). Sadece JPG, PNG, GIF.";
-            header('Location: ' . $baseUrl . '/gallery/upload.php'); // Yönlendirme yolu güncellendi
-            exit;
-        }
-        if ($file_size > $max_size) {
-            $_SESSION['error_message'] = "Dosya boyutu çok büyük ($file_name_original). Maksimum " . ($max_size / 1024 / 1024) . "MB.";
-            header('Location: ' . $baseUrl . '/gallery/upload.php'); // Yönlendirme yolu güncellendi
-            exit;
-        }
+$file = $_FILES['photo'];
+$current_user_id = $_SESSION['user_id'];
 
-        $file_extension = strtolower(pathinfo($file_name_original, PATHINFO_EXTENSION));
-        $new_filename = 'gallery_user' . $user_id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $file_extension;
-        $destination = $upload_dir_base . $new_filename;
+try {
+    // Dosya güvenlik kontrolleri
+    $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    $max_file_size = 10 * 1024 * 1024; // 5MB
 
-        if (move_uploaded_file($file_tmp_name, $destination)) {
-            $db_image_path = 'uploads/gallery/' . $new_filename;
+    // MIME type kontrolü
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime_type = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
 
-            try {
-                $pdo->beginTransaction();
-                $stmt = $pdo->prepare(
-                    "INSERT INTO gallery_photos (user_id, image_path, description, is_public_no_auth, is_members_only) 
-                     VALUES (:user_id, :image_path, :description, :is_public_no_auth, :is_members_only)"
-                );
-                $params_insert = [
-                    ':user_id' => $user_id,
-                    ':image_path' => $db_image_path,
-                    ':description' => $description,
-                    ':is_public_no_auth' => $is_public_no_auth ? 1 : 0,
-                    ':is_members_only' => $is_members_only ? 1 : 0
-                ];
-
-                if ($stmt->execute($params_insert)) {
-                    $new_photo_id = $pdo->lastInsertId();
-
-                    // Eğer belirli roller seçilmişse, gallery_photo_visibility_roles tablosuna ekle
-                    if (!$is_public_no_auth && !$is_members_only && !empty($assigned_role_ids)) {
-                        $stmt_role_insert = $pdo->prepare("INSERT INTO gallery_photo_visibility_roles (photo_id, role_id) VALUES (?, ?)");
-                        foreach ($assigned_role_ids as $role_id) {
-                            $stmt_role_insert->execute([$new_photo_id, $role_id]);
-                        }
-                    }
-                    $pdo->commit();
-                    unset($_SESSION['form_input_gallery']); // Başarılıysa form girdilerini temizle
-                    $_SESSION['success_message'] = "Fotoğraf başarıyla galeriye yüklendi!";
-                    header('Location: ' . $baseUrl . '/gallery.php');
-                    exit;
-                } else {
-                    $pdo->rollBack();
-                    $_SESSION['error_message'] = "Fotoğraf bilgileri veritabanına kaydedilirken bir hata oluştu.";
-                    if (file_exists($destination)) unlink($destination);
-                }
-            } catch (PDOException $e) {
-                if ($pdo->inTransaction()) $pdo->rollBack();
-                error_log("Galeri fotoğrafı DB kaydetme hatası: " . $e->getMessage());
-                $_SESSION['error_message'] = "Veritabanı hatası oluştu: " . $e->getMessage();
-                 if (file_exists($destination)) unlink($destination);
-            }
-        } else {
-            $_SESSION['error_message'] = "Fotoğraf sunucuya yüklenirken bir hata oluştu.";
-            error_log("move_uploaded_file galeride başarısız: " . $file_name_original . " Hedef: " . $destination . " PHP Hata: " . print_r(error_get_last(), true));
-        }
-    } elseif (isset($image_file) && $image_file['error'] !== UPLOAD_ERR_NO_FILE) {
-        $_SESSION['error_message'] = "Fotoğraf yüklenirken bir sorun oluştu. Hata kodu: " . $image_file['error'];
-    } else { // Dosya seçilmemişse
-        $_SESSION['error_message'] = "Lütfen bir fotoğraf dosyası seçin.";
+    if (!in_array($mime_type, $allowed_types)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Geçersiz dosya türü. Sadece JPG, PNG, GIF ve WebP dosyaları kabul edilir.'
+        ]);
+        exit;
     }
 
-    header('Location: ' . $baseUrl . '/gallery/upload.php'); // Yönlendirme yolu güncellendi
-    exit;
+    // Dosya boyutu kontrolü
+    if ($file['size'] > $max_file_size) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Dosya boyutu 5MB\'dan büyük olamaz.'
+        ]);
+        exit;
+    }
 
-} else {
-    header('Location: ' . $baseUrl . '/index.php');
-    exit;
+    // Dosya adı güvenlik kontrolü
+    $original_name = basename($file['name']);
+    $path_info = pathinfo($original_name);
+    $extension = strtolower($path_info['extension'] ?? '');
+    
+    $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    if (!in_array($extension, $allowed_extensions)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Geçersiz dosya uzantısı.'
+        ]);
+        exit;
+    }
+
+    // Upload dizinini oluştur
+    $upload_dir = BASE_PATH . '/public/uploads/gallery/';
+    if (!is_dir($upload_dir)) {
+        if (!mkdir($upload_dir, 0755, true)) {
+            error_log("Could not create upload directory: " . $upload_dir);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Upload dizini oluşturulamadı.'
+            ]);
+            exit;
+        }
+    }
+
+    // Benzersiz dosya adı oluştur
+    $timestamp = time();
+    $random_string = substr(md5(uniqid(rand(), true)), 0, 8);
+    $new_filename = "gallery_user{$current_user_id}_{$timestamp}_{$random_string}.{$extension}";
+    $upload_path = $upload_dir . $new_filename;
+    $relative_path = 'uploads/gallery/' . $new_filename;
+
+    // Dosyayı yükle
+    if (!move_uploaded_file($file['tmp_name'], $upload_path)) {
+        error_log("Could not move uploaded file to: " . $upload_path);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Dosya yüklenemedi.'
+        ]);
+        exit;
+    }
+
+    // Görünürlük ayarlarını belirle
+    $is_public_no_auth = ($visibility === 'public') ? 1 : 0;
+    $is_members_only = ($visibility === 'members') ? 1 : 0;
+
+    // Veritabanına kaydet
+    $insert_query = "
+        INSERT INTO gallery_photos (user_id, image_path, description, is_public_no_auth, is_members_only)
+        VALUES (:user_id, :image_path, :description, :is_public_no_auth, :is_members_only)
+    ";
+    
+    $insert_params = [
+        ':user_id' => $current_user_id,
+        ':image_path' => $relative_path,
+        ':description' => $description,
+        ':is_public_no_auth' => $is_public_no_auth,
+        ':is_members_only' => $is_members_only
+    ];
+
+    $stmt = execute_safe_query($pdo, $insert_query, $insert_params);
+    $photo_id = $pdo->lastInsertId();
+
+    if (!$photo_id) {
+        // Veritabanı hatası durumunda dosyayı sil
+        if (file_exists($upload_path)) {
+            unlink($upload_path);
+        }
+        echo json_encode([
+            'success' => false,
+            'message' => 'Fotoğraf veritabanına kaydedilemedi.'
+        ]);
+        exit;
+    }
+
+    // Opsiyonel: Resim boyutlarını alabilir ve thumbnail oluşturabilirsiniz
+    $image_info = getimagesize($upload_path);
+    $width = $image_info[0] ?? 0;
+    $height = $image_info[1] ?? 0;
+
+    // Audit log
+    audit_log($pdo, $current_user_id, 'photo_uploaded', 'gallery_photo', $photo_id, null, [
+        'file_name' => $new_filename,
+        'original_name' => $original_name,
+        'file_size' => $file['size'],
+        'mime_type' => $mime_type,
+        'dimensions' => "{$width}x{$height}",
+        'visibility' => $visibility,
+        'description_length' => strlen($description)
+    ]);
+
+    // Başarılı yanıt
+    echo json_encode([
+        'success' => true,
+        'message' => 'Fotoğraf başarıyla yüklendi!',
+        'photo_id' => $photo_id,
+        'file_path' => $relative_path,
+        'file_name' => $new_filename,
+        'dimensions' => [
+            'width' => $width,
+            'height' => $height
+        ]
+    ]);
+
+} catch (PDOException $e) {
+    error_log("Database error in upload_photo: " . $e->getMessage());
+    error_log("User ID: $current_user_id, File: " . ($new_filename ?? 'unknown'));
+    
+    // Hata durumunda yüklenen dosyayı sil
+    if (isset($upload_path) && file_exists($upload_path)) {
+        unlink($upload_path);
+    }
+    
+    echo json_encode([
+        'success' => false,
+        'message' => 'Veritabanı hatası oluştu.'
+    ]);
+} catch (Exception $e) {
+    error_log("General error in upload_photo: " . $e->getMessage());
+    error_log("User ID: $current_user_id, File: " . ($original_name ?? 'unknown'));
+    
+    // Hata durumunda yüklenen dosyayı sil
+    if (isset($upload_path) && file_exists($upload_path)) {
+        unlink($upload_path);
+    }
+    
+    echo json_encode([
+        'success' => false,
+        'message' => 'Beklenmeyen bir hata oluştu.'
+    ]);
 }
 ?>
