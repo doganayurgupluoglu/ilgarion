@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['action'])) {
-    $user_id_to_manage = (int)$_POST['user_id'];
+    $user_id_to_manage = (int) $_POST['user_id'];
     $action = $_POST['action'];
     $current_admin_id = $_SESSION['user_id'];
 
@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
         $is_super_admin_user = is_super_admin($pdo);
         $user_roles = get_user_roles($pdo, $current_admin_id);
         $user_highest_priority = 999;
-        
+
         foreach ($user_roles as $role) {
             if ($role['priority'] < $user_highest_priority) {
                 $user_highest_priority = $role['priority'];
@@ -139,29 +139,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
                 $stmt_update_status = $pdo->prepare("UPDATE users SET status = :status WHERE id = :user_id AND status = 'pending'");
                 $stmt_update_status->bindParam(':status', $new_status);
                 $stmt_update_status->bindParam(':user_id', $user_id_to_manage, PDO::PARAM_INT);
-                
+
                 if ($stmt_update_status->execute()) {
                     if ($stmt_update_status->rowCount() > 0) {
                         // Varsayılan olarak "Dış üye" rolünü ata (eğer henüz rolü yoksa)
                         $stmt_check_roles = $pdo->prepare("SELECT COUNT(*) FROM user_roles WHERE user_id = ?");
                         $stmt_check_roles->execute([$user_id_to_manage]);
-                        
+
                         if ($stmt_check_roles->fetchColumn() == 0) {
                             $stmt_dis_uye_role = $pdo->prepare("SELECT id FROM roles WHERE name = 'dis_uye'");
                             $stmt_dis_uye_role->execute();
                             $default_role_id = $stmt_dis_uye_role->fetchColumn();
-                            
+
                             if ($default_role_id) {
                                 $stmt_assign_default_role = $pdo->prepare("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)");
                                 $stmt_assign_default_role->execute([$user_id_to_manage, $default_role_id]);
                             }
                         }
-                        
+
                         $success_message = "Kullanıcı başarıyla onaylandı.";
-                        
+
                         // Audit log
-                        audit_log($pdo, $current_admin_id, 'user_approved', 'user', $user_id_to_manage, 
-                            ['old_status' => 'pending'], 
+                        audit_log(
+                            $pdo,
+                            $current_admin_id,
+                            'user_approved',
+                            'user',
+                            $user_id_to_manage,
+                            ['old_status' => 'pending'],
                             ['new_status' => 'approved', 'target_username' => $target_user['username']]
                         );
                     } else {
@@ -177,12 +182,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
                 $stmt_update_status = $pdo->prepare("UPDATE users SET status = :status WHERE id = :user_id");
                 $stmt_update_status->bindParam(':status', $new_status);
                 $stmt_update_status->bindParam(':user_id', $user_id_to_manage, PDO::PARAM_INT);
-                
+
                 if ($stmt_update_status->execute()) {
                     $success_message = "Kullanıcı başarıyla reddedildi.";
-                    
+
                     // Audit log
-                    audit_log($pdo, $current_admin_id, 'user_rejected', 'user', $user_id_to_manage,
+                    audit_log(
+                        $pdo,
+                        $current_admin_id,
+                        'user_rejected',
+                        'user',
+                        $user_id_to_manage,
                         ['old_status' => $target_user['status']],
                         ['new_status' => 'rejected', 'target_username' => $target_user['username']]
                     );
@@ -196,12 +206,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
                 $stmt_update_status = $pdo->prepare("UPDATE users SET status = :status WHERE id = :user_id");
                 $stmt_update_status->bindParam(':status', $new_status);
                 $stmt_update_status->bindParam(':user_id', $user_id_to_manage, PDO::PARAM_INT);
-                
+
                 if ($stmt_update_status->execute()) {
                     $success_message = "Kullanıcı başarıyla askıya alındı.";
-                    
+
                     // Audit log
-                    audit_log($pdo, $current_admin_id, 'user_suspended', 'user', $user_id_to_manage,
+                    audit_log(
+                        $pdo,
+                        $current_admin_id,
+                        'user_suspended',
+                        'user',
+                        $user_id_to_manage,
                         ['old_status' => $target_user['status']],
                         ['new_status' => 'suspended', 'target_username' => $target_user['username']]
                     );
@@ -215,13 +230,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
                 $stmt_update_status = $pdo->prepare("UPDATE users SET status = :status WHERE id = :user_id AND (status = 'suspended' OR status = 'rejected')");
                 $stmt_update_status->bindParam(':status', $new_status);
                 $stmt_update_status->bindParam(':user_id', $user_id_to_manage, PDO::PARAM_INT);
-                
+
                 if ($stmt_update_status->execute()) {
                     if ($stmt_update_status->rowCount() > 0) {
                         $success_message = "Kullanıcı tekrar onaylı duruma getirildi.";
-                        
+
                         // Audit log
-                        audit_log($pdo, $current_admin_id, 'user_reinstated', 'user', $user_id_to_manage,
+                        audit_log(
+                            $pdo,
+                            $current_admin_id,
+                            'user_reinstated',
+                            'user',
+                            $user_id_to_manage,
                             ['old_status' => $target_user['status']],
                             ['new_status' => 'approved', 'target_username' => $target_user['username']]
                         );
@@ -233,57 +253,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
                 }
                 break;
 
-            case 'assign_role':
-                if (isset($_POST['role_to_assign'])) {
-                    $role_name_to_assign = trim($_POST['role_to_assign']);
-                    
-                    // Input validation
-                    if (!validate_sql_input($role_name_to_assign, 'role_name')) {
-                        throw new SecurityException("Invalid role name format: $role_name_to_assign");
-                    }
-                    
-                    $stmt_role_id = $pdo->prepare("SELECT id, priority FROM roles WHERE name = ?");
-                    $stmt_role_id->execute([$role_name_to_assign]);
-                    $role_data = $stmt_role_id->fetch();
+           case 'assign_role':
+    if (isset($_POST['role_to_assign'])) {
+        $role_name_to_assign = trim($_POST['role_to_assign']);
+        
+        // Input validation
+        if (!validate_sql_input($role_name_to_assign, 'role_name')) {
+            throw new SecurityException("Invalid role name format: $role_name_to_assign");
+        }
+        
+        $stmt_role_id = $pdo->prepare("SELECT id, priority FROM roles WHERE name = ?");
+        $stmt_role_id->execute([$role_name_to_assign]);
+        $role_data = $stmt_role_id->fetch();
 
-                    if ($role_data) {
-                        $role_id = $role_data['id'];
-                        $role_priority = $role_data['priority'];
-                        
-                        // Hiyerarşi kontrolü - Atanacak rol admin'in seviyesinden düşük olmalı
-                        if (!$is_super_admin_user && $role_priority <= $user_highest_priority) {
-                            throw new SecurityException("Cannot assign role with higher or equal priority");
-                        }
+        if ($role_data) {
+            $role_id = $role_data['id'];
+            $role_priority = $role_data['priority'];
+            
+            // Hiyerarşi kontrolü - Atanacak rol admin'in seviyesinden düşük olmalı
+            if (!$is_super_admin_user && $role_priority <= $user_highest_priority) {
+                throw new SecurityException("Cannot assign role with higher or equal priority");
+            }
 
-                        $stmt_check_existing_role = $pdo->prepare("SELECT COUNT(*) FROM user_roles WHERE user_id = ? AND role_id = ?");
-                        $stmt_check_existing_role->execute([$user_id_to_manage, $role_id]);
-                        
-                        if ($stmt_check_existing_role->fetchColumn() == 0) {
-                            if (assign_role($pdo, $user_id_to_manage, $role_id, $current_admin_id)) {
-                                $success_message = "'".htmlspecialchars($role_name_to_assign)."' rolü kullanıcıya atandı.";
-                            } else {
-                                $error_message = "Rol atanırken bir hata oluştu.";
-                            }
-                        } else {
-                            $error_message = "Kullanıcı zaten '".htmlspecialchars($role_name_to_assign)."' rolüne sahip.";
-                        }
-                    } else {
-                        $error_message = "Geçersiz rol adı: ".htmlspecialchars($role_name_to_assign);
-                    }
+            // Admin rolünü atama özel kontrolü - SADECE ADMIN KORUNACAK
+            if ($role_name_to_assign === 'admin' && !$is_super_admin_user) {
+                $_SESSION['error_message'] = "Admin rolü sadece süper adminler tarafından atanabilir.";
+                audit_log($pdo, $current_admin_id, 'unauthorized_admin_role_assignment_attempt', 'user_management', $user_id_to_manage, null, [
+                    'role_name' => $role_name_to_assign,
+                    'reason' => 'Non-super admin tried to assign admin role'
+                ]);
+                header('Location: ' . $redirect_page);
+                exit;
+            }
+
+            $stmt_check_existing_role = $pdo->prepare("SELECT COUNT(*) FROM user_roles WHERE user_id = ? AND role_id = ?");
+            $stmt_check_existing_role->execute([$user_id_to_manage, $role_id]);
+            
+            if ($stmt_check_existing_role->fetchColumn() == 0) {
+                if (assign_role($pdo, $user_id_to_manage, $role_id, $current_admin_id)) {
+                    $success_message = "'".htmlspecialchars($role_name_to_assign)."' rolü kullanıcıya atandı.";
                 } else {
-                    $error_message = "Atanacak rol belirtilmedi.";
+                    $error_message = "Rol atanırken bir hata oluştu.";
                 }
-                break;
-
+            } else {
+                $error_message = "Kullanıcı zaten '".htmlspecialchars($role_name_to_assign)."' rolüne sahip.";
+            }
+        } else {
+            $error_message = "Geçersiz rol adı: ".htmlspecialchars($role_name_to_assign);
+        }
+    } else {
+        $error_message = "Atanacak rol belirtilmedi.";
+    }
+    break;
             case 'remove_role':
                 if (isset($_POST['role_to_remove'])) {
                     $role_name_to_remove = trim($_POST['role_to_remove']);
-                    
+
                     // Input validation
                     if (!validate_sql_input($role_name_to_remove, 'role_name')) {
                         throw new SecurityException("Invalid role name format: $role_name_to_remove");
                     }
-                    
+
                     $stmt_role_id = $pdo->prepare("SELECT id, priority FROM roles WHERE name = ?");
                     $stmt_role_id->execute([$role_name_to_remove]);
                     $role_data = $stmt_role_id->fetch();
@@ -291,19 +321,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
                     if ($role_data) {
                         $role_id = $role_data['id'];
                         $role_priority = $role_data['priority'];
-                        
+
                         // Hiyerarşi kontrolü - Kaldırılacak rol admin'in seviyesinden düşük olmalı
                         if (!$is_super_admin_user && $role_priority <= $user_highest_priority) {
                             throw new SecurityException("Cannot remove role with higher or equal priority");
                         }
 
+                        // Admin rolünü kaldırma özel kontrolü - SADECE ADMIN KORUNACAK
+                        if ($role_name_to_remove === 'admin' && !$is_super_admin_user) {
+                            $_SESSION['error_message'] = "Admin rolü sadece süper adminler tarafından kaldırılabilir.";
+                            audit_log($pdo, $current_admin_id, 'unauthorized_admin_role_removal_attempt', 'user_management', $user_id_to_manage, null, [
+                                'role_name' => $role_name_to_remove,
+                                'reason' => 'Non-super admin tried to remove admin role'
+                            ]);
+                            header('Location: ' . $redirect_page);
+                            exit;
+                        }
+
                         if (remove_role($pdo, $user_id_to_manage, $role_id, $current_admin_id)) {
-                            $success_message = "'".htmlspecialchars($role_name_to_remove)."' rolü kullanıcıdan kaldırıldı.";
+                            $success_message = "'" . htmlspecialchars($role_name_to_remove) . "' rolü kullanıcıdan kaldırıldı.";
                         } else {
                             $error_message = "Rol kaldırılırken bir hata oluştu.";
                         }
                     } else {
-                        $error_message = "Geçersiz rol adı: ".htmlspecialchars($role_name_to_remove);
+                        $error_message = "Geçersiz rol adı: " . htmlspecialchars($role_name_to_remove);
                     }
                 } else {
                     $error_message = "Kaldırılacak rol belirtilmedi.";
@@ -324,7 +365,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
     } catch (SecurityException $e) {
         error_log("Güvenlik ihlali - Kullanıcı yönetimi ($action): " . $e->getMessage());
         $_SESSION['error_message'] = "Güvenlik ihlali tespit edildi. İşlem engellendi.";
-        
+
         // Güvenlik ihlali audit log
         audit_log($pdo, $current_admin_id, 'security_violation', 'user_management', $user_id_to_manage, null, [
             'action' => $action,
@@ -333,15 +374,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
             'target_priority' => $target_user_priority ?? null,
             'target_username' => $target_user['username'] ?? 'unknown'
         ]);
-        
+
     } catch (DatabaseException $e) {
         error_log("Veritabanı hatası - Kullanıcı yönetimi ($action): " . $e->getMessage());
         $_SESSION['error_message'] = "İşlem sırasında bir veritabanı hatası oluştu.";
-        
+
     } catch (PDOException $e) {
         error_log("Kullanıcı yönetimi işlemi hatası: " . $e->getMessage());
         $_SESSION['error_message'] = "İşlem sırasında bir veritabanı hatası oluştu.";
-        
+
     } catch (Exception $e) {
         error_log("Genel hata - Kullanıcı yönetimi ($action): " . $e->getMessage());
         $_SESSION['error_message'] = "İşlem sırasında beklenmeyen bir hata oluştu.";
@@ -352,7 +393,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
 
 } else {
     $_SESSION['error_message'] = "Geçersiz istek.";
-    
+
     // Audit log - geçersiz istek
     audit_log($pdo, $_SESSION['user_id'] ?? null, 'invalid_request', 'user_management', null, null, [
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
@@ -361,7 +402,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'], $_POST['ac
         'ip_address' => get_client_ip(),
         'post_data_keys' => array_keys($_POST ?? [])
     ]);
-    
+
     header('Location: ' . $redirect_page);
     exit;
 }

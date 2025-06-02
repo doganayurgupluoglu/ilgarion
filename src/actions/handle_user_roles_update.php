@@ -156,18 +156,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id_to_update']))
         // Korumalı rolleri final rol listesine ekle
         $final_role_ids = array_unique(array_merge($assigned_role_ids_from_form, $protected_roles));
 
+        // ⚠️ SADECE ADMIN ROLÜ KORUNACAK - DİĞER ROLLER ARTIK KORUNMUYOR
         // Admin rolü kontrolü (özel durum)
         $admin_role_query = "SELECT id FROM roles WHERE name = 'admin'";
         $stmt_admin_role = execute_safe_query($pdo, $admin_role_query);
         $admin_role_id = $stmt_admin_role->fetchColumn();
 
+        $admin_role_warning_messages = [];
+
         if ($admin_role_id && in_array($admin_role_id, $current_role_ids)) {
             // Kullanıcının admin rolü var, kaldırılmaya çalışılıyor mu?
-            if (!in_array($admin_role_id, $assigned_role_ids_from_form) && !$is_super_admin_user) {
-                // Admin rolünü korumalı olarak işaretle
-                if (!in_array($admin_role_id, $final_role_ids)) {
-                    $final_role_ids[] = $admin_role_id;
+            if (!in_array($admin_role_id, $assigned_role_ids_from_form)) {
+                // Admin rolünü kaldırma işlemi - sadece süper adminler yapabilir
+                if (!$is_super_admin_user) {
+                    // Admin rolünü korumalı olarak işaretle - süper admin değilse kaldıramaz
+                    if (!in_array($admin_role_id, $final_role_ids)) {
+                        $final_role_ids[] = $admin_role_id;
+                    }
+                    
+                    // Uyarı mesajı ekle
+                    $admin_role_warning_messages[] = "Admin rolü sadece süper adminler tarafından kaldırılabilir. Bu rol korundu.";
+                    
+                    // Audit log - yetkisiz admin rol kaldırma girişimi
+                    audit_log($pdo, $current_admin_id, 'unauthorized_admin_role_removal_attempt', 'user_roles_update', $user_id_to_update, null, [
+                        'target_user_id' => $user_id_to_update,
+                        'attempted_by_non_super_admin' => true,
+                        'admin_role_protected' => true
+                    ]);
                 }
+                // Süper admin ise admin rolünü kaldırabilir - özel işlem gerekmez
+            }
+        }
+
+        // Admin rolü atama kontrolü (yeni ekleme)
+        if ($admin_role_id && in_array($admin_role_id, $assigned_role_ids_from_form)) {
+            // Kullanıcıya admin rolü atanmaya çalışılıyor
+            if (!in_array($admin_role_id, $current_role_ids)) {
+                // Yeni admin rolü atama - sadece süper adminler yapabilir
+                if (!$is_super_admin_user) {
+                    // Admin rolünü listeden çıkar - süper admin değilse atayamaz
+                    $final_role_ids = array_diff($final_role_ids, [$admin_role_id]);
+                    
+                    // Uyarı mesajı ekle
+                    $admin_role_warning_messages[] = "Admin rolü sadece süper adminler tarafından atanabilir. Bu rol atanmadı.";
+                    
+                    // Audit log - yetkisiz admin rol atama girişimi
+                    audit_log($pdo, $current_admin_id, 'unauthorized_admin_role_assignment_attempt', 'user_roles_update', $user_id_to_update, null, [
+                        'target_user_id' => $user_id_to_update,
+                        'attempted_by_non_super_admin' => true,
+                        'admin_role_blocked' => true
+                    ]);
+                }
+                // Süper admin ise admin rolünü atayabilir - özel işlem gerekmez
             }
         }
 
@@ -227,7 +267,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id_to_update']))
             // Kullanıcının permission cache'ini temizle
             clear_user_permissions_cache($user_id_to_update);
 
-            $_SESSION['success_message'] = "Kullanıcının rolleri başarıyla güncellendi.";
+            // Başarı mesajı oluştur
+            $success_message = "Kullanıcının rolleri başarıyla güncellendi.";
+            
+            // Admin rolü uyarı mesajlarını ekle
+            if (!empty($admin_role_warning_messages)) {
+                $_SESSION['warning_message'] = implode(' ', $admin_role_warning_messages);
+            }
+            
+            $_SESSION['success_message'] = $success_message;
 
             // Yeni yetkiler için audit log
             $new_roles_query = "
@@ -253,7 +301,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id_to_update']))
                     'new_role_ids' => $final_role_ids,
                     'protected_roles_count' => count($protected_roles),
                     'manageable_roles_assigned' => count($assigned_role_ids_from_form),
-                    'admin_hierarchy_level' => $admin_highest_priority
+                    'admin_hierarchy_level' => $admin_highest_priority,
+                    'admin_role_warnings' => $admin_role_warning_messages
                 ]
             );
 

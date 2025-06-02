@@ -1,5 +1,5 @@
 <?php
-// src/api/get_role_data.php
+// src/api/get_role_data.php - Düzeltilmiş Hiyerarşi Kontrolü
 
 header('Content-Type: application/json');
 
@@ -103,15 +103,10 @@ try {
         }
     }
     
-    // Rol bilgilerini güvenli şekilde çek
+    // ⚠️ DÜZELTME: Rol bilgilerini basit sorgu ile çek
     $role_query = "
         SELECT r.*, 
-               COUNT(DISTINCT ur.user_id) as user_count,
-               CASE 
-                   WHEN r.priority <= :user_priority AND :is_super_admin_1 = 0 THEN 0
-                   WHEN r.name IN ('admin', 'member', 'dis_uye') AND :is_super_admin_2 = 0 THEN 0
-                   ELSE 1
-               END as can_manage
+               COUNT(DISTINCT ur.user_id) as user_count
         FROM roles r
         LEFT JOIN user_roles ur ON r.id = ur.user_id
         WHERE r.id = :role_id
@@ -119,13 +114,7 @@ try {
     ";
     
     $stmt = $pdo->prepare($role_query);
-    $stmt->execute([
-        ':role_id' => $role_id,
-        ':user_priority' => $user_highest_priority,
-        ':is_super_admin_1' => $is_super_admin_user ? 1 : 0,
-        ':is_super_admin_2' => $is_super_admin_user ? 1 : 0
-    ]);
-    
+    $stmt->execute([':role_id' => $role_id]);
     $role = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$role) {
@@ -137,12 +126,38 @@ try {
         exit;
     }
     
+    // ⚠️ DÜZELTME: Hiyerarşi kontrolü - PHP tarafında yapılacak
+    $can_manage = false;
+    
+    if ($is_super_admin_user) {
+        // Süper admin her rolü yönetebilir
+        $can_manage = true;
+    } else {
+        // Normal admin: sadece daha düşük öncelikli rolleri yönetebilir
+        // DÜŞÜK SAYI = YÜKSEK ÖNCELİK, bu yüzden hedef rolün priority'si büyük olmalı
+        if ($role['priority'] > $user_highest_priority) {
+            $can_manage = true;
+        }
+        
+        // Admin rolü özel kontrolü - sadece süper adminler yönetebilir
+        if ($role['name'] === 'admin' && !$is_super_admin_user) {
+            $can_manage = false;
+        }
+    }
+    
     // Hiyerarşi kontrolü - Kullanıcı bu rolü yönetebilir mi?
-    if ($role['can_manage'] == 0 && !$is_super_admin_user) {
+    if (!$can_manage) {
         http_response_code(403);
         echo json_encode([
             'success' => false,
-            'message' => 'Bu rolü düzenleme yetkiniz bulunmamaktadır (hiyerarşi kısıtlaması)'
+            'message' => 'Bu rolü düzenleme yetkiniz bulunmamaktadır (hiyerarşi kısıtlaması)',
+            'debug' => [
+                'user_priority' => $user_highest_priority,
+                'role_priority' => $role['priority'], 
+                'role_name' => $role['name'],
+                'is_super_admin' => $is_super_admin_user,
+                'can_manage_logic' => "Rol priority ({$role['priority']}) > User priority ({$user_highest_priority}) = " . ($role['priority'] > $user_highest_priority ? 'true' : 'false')
+            ]
         ]);
         exit;
     }
@@ -180,7 +195,7 @@ try {
         'color' => $role['color'],
         'priority' => (int)$role['priority'],
         'user_count' => (int)$role['user_count'],
-        'can_manage' => (bool)$role['can_manage'],
+        'can_manage' => $can_manage,
         'permissions' => $permissions,
         'is_protected' => $is_protected,
         'is_name_editable' => $is_name_editable,
@@ -193,7 +208,8 @@ try {
         if (function_exists('audit_log')) {
             audit_log($pdo, $current_user_id, 'role_data_accessed', 'role', $role_id, null, [
                 'role_name' => $role['name'],
-                'access_method' => 'api'
+                'access_method' => 'api',
+                'can_manage' => $can_manage
             ]);
         }
     } catch (Exception $e) {
@@ -207,7 +223,11 @@ try {
         'user_hierarchy' => [
             'user_priority' => $user_highest_priority,
             'is_super_admin' => $is_super_admin_user,
-            'can_manage_this_role' => (bool)$role['can_manage'] || $is_super_admin_user
+            'can_manage_this_role' => $can_manage
+        ],
+        'debug' => [
+            'hierarchy_logic' => "User priority: {$user_highest_priority}, Role priority: {$role['priority']}, Can manage: " . ($can_manage ? 'YES' : 'NO'),
+            'role_name' => $role['name']
         ]
     ]);
 

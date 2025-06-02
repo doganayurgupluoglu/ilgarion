@@ -351,8 +351,8 @@ function get_role_hierarchy(PDO $pdo): array {
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     } catch (Exception $e) {
         error_log("Rol hiyerarşisi getirme hatası: " . $e->getMessage());
-        // Fallback to static hierarchy
-        return ['admin', 'ilgarion_turanis', 'scg_uye', 'member', 'dis_uye'];
+        // Fallback to static hierarchy - SADECE ADMIN KORUNACAK
+        return ['admin'];
     }
 }
 
@@ -597,7 +597,8 @@ function audit_log(PDO $pdo, ?int $user_id, string $action, string $target_type,
  * @return bool Silinebilirse true, silinmemesi gerekiyorsa false
  */
 function is_role_deletable(string $role_name): bool {
-    $protected_roles = ['admin', 'member', 'dis_uye', 'super_admin'];
+    // SADECE ADMIN ROL KORUNACAK - diğer roller kaldırıldı
+    $protected_roles = ['admin']; // member, dis_uye, super_admin kaldırıldı
     return !in_array($role_name, $protected_roles);
 }
 
@@ -607,7 +608,8 @@ function is_role_deletable(string $role_name): bool {
  * @return bool Düzenlenebilirse true, düzenlenmemesi gerekiyorsa false
  */
 function is_role_name_editable(string $role_name): bool {
-    $protected_roles = ['admin', 'member', 'dis_uye', 'super_admin'];
+    // SADECE ADMIN ROL KORUNACAK - diğer roller kaldırıldı
+    $protected_roles = ['admin']; // member, dis_uye, super_admin kaldırıldı
     return !in_array($role_name, $protected_roles);
 }
 

@@ -1,8 +1,11 @@
 <?php
 // public/profile.php
 
-require_once '../src/config/database.php';
+require_once '../src/config/database.php'; // $pdo ve BASE_PATH
 require_once BASE_PATH . '/src/functions/auth_functions.php';
+require_once BASE_PATH . '/src/functions/role_functions.php';
+require_once BASE_PATH . '/src/functions/enhanced_role_functions.php';
+require_once BASE_PATH . '/src/functions/formatting_functions.php';
 
 // Bu sayfa sadece giriş yapmış ve onaylanmış kullanıcıların kendi profilini görmesi için
 require_approved_user(); 

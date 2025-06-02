@@ -21,7 +21,7 @@ function can_user_manage_role(PDO $pdo, int $target_role_id, ?int $user_id = nul
     }
 
     // Süper admin her rolü yönetebilir
-    if (is_super_admin($pdo, $user_id)) {
+if (is_super_admin($pdo, $user_id)) {
         return true;
     }
 
@@ -45,8 +45,8 @@ function can_user_manage_role(PDO $pdo, int $target_role_id, ?int $user_id = nul
             }
         }
 
-        // Süper admin korumalı rolleri kontrol et
-        $super_admin_protected_roles = ['admin'];
+        // Süper admin korumalı rolleri kontrol et - SADECE ADMIN
+        $super_admin_protected_roles = ['admin']; // member, dis_uye kaldırıldı
         if (in_array($target_role['name'], $super_admin_protected_roles)) {
             return false; // Sadece süper adminler yönetebilir
         }
@@ -59,6 +59,7 @@ function can_user_manage_role(PDO $pdo, int $target_role_id, ?int $user_id = nul
         return false;
     }
 }
+
 
 /**
  * Kullanıcının belirli bir kullanıcının rollerini yönetip yönetemeyeceğini kontrol eder
@@ -198,8 +199,8 @@ function get_role_hierarchy_data(PDO $pdo, ?int $user_id = null): array {
                 'hierarchy_level' => $role['priority']
             ];
             
-            // Süper admin korumalı rolleri işaretle
-            $super_admin_protected = ['admin'];
+            // Süper admin korumalı rolleri işaretle - SADECE ADMIN
+            $super_admin_protected = ['admin']; // member, dis_uye kaldırıldı
             $role_data['is_super_admin_only'] = in_array($role['name'], $super_admin_protected);
             
             $hierarchy[] = $role_data;
@@ -367,8 +368,8 @@ function generate_role_security_report(PDO $pdo): array {
         $stmt = execute_safe_query($pdo, $total_roles_query);
         $report['total_roles'] = $stmt->fetchColumn();
         
-        // Korumalı rol sayısı
-        $protected_roles = ['admin', 'member', 'dis_uye'];
+        // Korumalı rol sayısı - SADECE ADMIN
+        $protected_roles = ['admin']; // member, dis_uye kaldırıldı
         $report['protected_roles'] = count($protected_roles);
         
         // Süper admin sayısı
