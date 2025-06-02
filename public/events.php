@@ -266,7 +266,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 }
 
 .event-card {
-    background-color: var(--charcoal);
+    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
     border: 1px solid var(--darker-gold-2);
     border-radius: 8px;
     overflow: hidden;
