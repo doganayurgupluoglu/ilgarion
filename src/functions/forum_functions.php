@@ -615,4 +615,262 @@ function get_forum_category_details_by_id(PDO $pdo, int $category_id, ?int $user
         return null;
     }
 }
+/**
+ * Forum konu detaylarını ID ile getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $topic_id Konu ID'si
+ * @param int|null $user_id Kullanıcı ID'si
+ * @return array|null Konu detayları
+ */
+function get_forum_topic_details(PDO $pdo, int $topic_id, ?int $user_id = null): ?array {
+    try {
+        $query = "
+            SELECT ft.*, fc.name as category_name, fc.slug as category_slug, fc.color as category_color,
+                   u.username as author_username, u.id as author_user_id,
+                   ur_role.color as author_role_color, ur_role.name as author_role_name
+            FROM forum_topics ft
+            JOIN forum_categories fc ON ft.category_id = fc.id
+            JOIN users u ON ft.user_id = u.id
+            LEFT JOIN (
+                SELECT ur.user_id, r.color, r.name
+                FROM user_roles ur 
+                JOIN roles r ON ur.role_id = r.id 
+                WHERE r.priority = (
+                    SELECT MIN(r2.priority) 
+                    FROM user_roles ur2 
+                    JOIN roles r2 ON ur2.role_id = r2.id 
+                    WHERE ur2.user_id = ur.user_id
+                )
+            ) ur_role ON u.id = ur_role.user_id
+            WHERE ft.id = :topic_id AND fc.is_active = 1
+        ";
+        
+        $stmt = execute_safe_query($pdo, $query, [':topic_id' => $topic_id]);
+        $topic = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$topic) {
+            return null;
+        }
+        
+        // Erişim kontrolü
+        $category = [
+            'id' => $topic['category_id'],
+            'visibility' => $topic['visibility'] ?? 'public'
+        ];
+        
+        if (!can_user_access_forum_category($pdo, $category, $user_id)) {
+            return null;
+        }
+        
+        return $topic;
+        
+    } catch (Exception $e) {
+        error_log("Forum topic details error: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Belirli bir konudaki gönderileri sayfalı olarak getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $topic_id Konu ID'si
+ * @param int|null $user_id Kullanıcı ID'si
+ * @param int $limit Sayfa başına gönderi sayısı
+ * @param int $offset Başlangıç noktası
+ * @return array Gönderiler ve toplam sayı
+ */
+function get_forum_posts_in_topic(PDO $pdo, int $topic_id, ?int $user_id = null, int $limit = 20, int $offset = 0): array {
+    try {
+        // Toplam gönderi sayısı
+        $count_query = "SELECT COUNT(*) FROM forum_posts WHERE topic_id = :topic_id";
+        $stmt = execute_safe_query($pdo, $count_query, [':topic_id' => $topic_id]);
+        $total = (int)$stmt->fetchColumn();
+        
+        // Gönderileri getir
+        $safe_limit = create_safe_limit($limit, $offset, 100);
+        
+        $posts_query = "
+            SELECT fp.*, u.username, u.id as user_id, u.avatar_path,
+                   ur_role.color as user_role_color, ur_role.name as user_role_name,
+                   (SELECT COUNT(*) FROM forum_post_likes fpl WHERE fpl.post_id = fp.id) as like_count,
+                   " . ($user_id ? "(SELECT COUNT(*) FROM forum_post_likes fpl WHERE fpl.post_id = fp.id AND fpl.user_id = $user_id) as user_liked" : "0 as user_liked") . "
+            FROM forum_posts fp
+            JOIN users u ON fp.user_id = u.id
+            LEFT JOIN (
+                SELECT ur.user_id, r.color, r.name
+                FROM user_roles ur 
+                JOIN roles r ON ur.role_id = r.id 
+                WHERE r.priority = (
+                    SELECT MIN(r2.priority) 
+                    FROM user_roles ur2 
+                    JOIN roles r2 ON ur2.role_id = r2.id 
+                    WHERE ur2.user_id = ur.user_id
+                )
+            ) ur_role ON u.id = ur_role.user_id
+            WHERE fp.topic_id = :topic_id
+            ORDER BY fp.created_at ASC
+            " . $safe_limit;
+        
+        $stmt = execute_safe_query($pdo, $posts_query, [':topic_id' => $topic_id]);
+        $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        return [
+            'posts' => $posts,
+            'total' => $total
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Forum posts error: " . $e->getMessage());
+        return ['posts' => [], 'total' => 0];
+    }
+}
+
+/**
+ * Forum gönderisi beğenilerini detaylı olarak getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param array $post_ids Gönderi ID'leri
+ * @return array Gönderi ID'sine göre gruplandırılmış beğeniler
+ */
+function get_forum_post_likes_detailed(PDO $pdo, array $post_ids): array {
+    if (empty($post_ids)) {
+        return [];
+    }
+    
+    try {
+        $in_clause = create_safe_in_clause($pdo, $post_ids, 'int');
+        
+        $likes_query = "
+            SELECT fpl.post_id, u.username, u.id as user_id, 
+                   ur_role.color as role_color, fpl.liked_at
+            FROM forum_post_likes fpl
+            JOIN users u ON fpl.user_id = u.id
+            LEFT JOIN (
+                SELECT ur.user_id, r.color
+                FROM user_roles ur 
+                JOIN roles r ON ur.role_id = r.id 
+                WHERE r.priority = (
+                    SELECT MIN(r2.priority) 
+                    FROM user_roles ur2 
+                    JOIN roles r2 ON ur2.role_id = r2.id 
+                    WHERE ur2.user_id = ur.user_id
+                )
+            ) ur_role ON u.id = ur_role.user_id
+            WHERE fpl.post_id " . $in_clause['placeholders'] . "
+            ORDER BY fpl.liked_at ASC
+        ";
+        
+        $stmt = execute_safe_query($pdo, $likes_query, $in_clause['params']);
+        $all_likes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Gönderi ID'sine göre gruplandır
+        $grouped_likes = [];
+        foreach ($all_likes as $like) {
+            if (!isset($grouped_likes[$like['post_id']])) {
+                $grouped_likes[$like['post_id']] = [];
+            }
+            $grouped_likes[$like['post_id']][] = $like;
+        }
+        
+        return $grouped_likes;
+        
+    } catch (Exception $e) {
+        error_log("Forum post likes detailed error: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Kullanıcının bir konuya yanıt verip veremeyeceğini kontrol eder
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $topic_id Konu ID'si
+ * @param int|null $user_id Kullanıcı ID'si
+ * @return bool
+ */
+function can_user_reply_to_topic(PDO $pdo, int $topic_id, ?int $user_id = null): bool {
+    if (!$user_id || !is_user_approved()) {
+        return false;
+    }
+    
+    // Konu kilitli mi kontrol et
+    $topic_query = "SELECT is_locked FROM forum_topics WHERE id = :topic_id";
+    $stmt = execute_safe_query($pdo, $topic_query, [':topic_id' => $topic_id]);
+    $topic = $stmt->fetch();
+    
+    if (!$topic || $topic['is_locked']) {
+        return false;
+    }
+    
+    // Forum yanıt verme yetkisi kontrolü
+    return has_permission($pdo, 'forum.topic.reply', $user_id);
+}
+
+/**
+ * SEO dostu URL slug oluşturur
+ * @param string $text Dönüştürülecek metin
+ * @param int $max_length Maksimum uzunluk
+ * @return string Slug
+ */
+function create_forum_slug(string $text, int $max_length = 100): string {
+    // Türkçe karakterleri dönüştür
+    $turkish_chars = [
+        'ç' => 'c', 'Ç' => 'C',
+        'ğ' => 'g', 'Ğ' => 'G',
+        'ı' => 'i', 'I' => 'I',
+        'İ' => 'i', 'ş' => 's',
+        'Ş' => 'S', 'ü' => 'u',
+        'Ü' => 'U', 'ö' => 'o',
+        'Ö' => 'O'
+    ];
+    
+    $text = strtr($text, $turkish_chars);
+    
+    // Küçük harfe çevir
+    $text = strtolower($text);
+    
+    // Sadece harf, rakam ve tire bırak
+    $text = preg_replace('/[^a-z0-9-]/', '-', $text);
+    
+    // Çoklu tireleri tek tire yap
+    $text = preg_replace('/-+/', '-', $text);
+    
+    // Başındaki ve sonundaki tireleri kaldır
+    $text = trim($text, '-');
+    
+    // Maksimum uzunluğu kontrol et
+    if (strlen($text) > $max_length) {
+        $text = substr($text, 0, $max_length);
+        $text = rtrim($text, '-');
+    }
+    
+    return $text ?: 'forum-konusu';
+}
+
+/**
+ * Forum kategorisi slug'ından ID'yi getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param string $slug Kategori slug'ı
+ * @return int|null Kategori ID'si
+ */
+function get_category_id_by_slug(PDO $pdo, string $slug): ?int {
+    try {
+        $query = "SELECT id FROM forum_categories WHERE slug = :slug AND is_active = 1";
+        $stmt = execute_safe_query($pdo, $query, [':slug' => $slug]);
+        $result = $stmt->fetchColumn();
+        
+        return $result ? (int)$result : null;
+        
+    } catch (Exception $e) {
+        error_log("Get category ID by slug error: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Forum etiketlerini işler ve veritabanına kaydeder
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $topic_id Konu ID'si
+ * @param string $tags_string Virgülle ayrılmış etiketler
+ * @return bool
+ */
+
 ?>
