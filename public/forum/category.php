@@ -1,5 +1,5 @@
 <?php
-// public/forum/category.php
+// public/forum/category.php - Basitleştirilmiş Rol Kontrolü
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -29,6 +29,7 @@ if (empty($category_slug)) {
 // Kategori detaylarını çek
 $category = get_forum_category_details_by_slug($pdo, $category_slug, $current_user_id);
 if (!$category) {
+    $_SESSION['error_message'] = "Kategori bulunamadı veya erişim yetkiniz bulunmuyor.";
     header('Location: /public/forum/');
     exit;
 }
@@ -38,23 +39,17 @@ $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 20;
 $offset = ($page - 1) * $per_page;
 
-// Basit sıralama (şimdilik)
-$sort = 'updated';
-$order = 'desc';
+// Basit sıralama
+$sort = $_GET['sort'] ?? 'updated';
+$order = $_GET['order'] ?? 'desc';
 
-// Tag filtresi (şimdilik boş)
-$tag_filter = '';
-
-// Konuları çek - mevcut fonksiyonu kullan
-$topics_data = get_forum_topics_in_category($pdo, $category['id'], $current_user_id, $per_page, $offset);
+// Konuları çek
+$topics_data = get_forum_topics_in_category($pdo, $category['id'], $current_user_id, $per_page, $offset, $sort, $order);
 $topics = $topics_data['topics'];
 $total_topics = $topics_data['total'];
 
 // Sayfa sayısını hesapla
 $total_pages = ceil($total_topics / $per_page);
-
-// Kategorinin etiketlerini çek (boş array için şimdilik)
-$category_tags = [];
 
 // Sayfa başlığı
 $page_title = $category['name'] . " - Forum - Ilgarion Turanis";
@@ -109,16 +104,6 @@ include BASE_PATH . '/src/includes/navbar.php';
                         <i class="fas fa-comment-dots"></i>
                         <?= number_format($category['post_count']) ?> Gönderi
                     </span>
-                    <span class="meta-item visibility-indicator">
-                        <?php
-                        $visibility_icons = [
-                            'public' => '<i class="fas fa-globe" title="Herkese Açık"></i> Herkese Açık',
-                            'members_only' => '<i class="fas fa-users" title="Sadece Üyeler"></i> Sadece Üyeler',
-                            'faction_only' => '<i class="fas fa-shield-alt" title="Fraksiyona Özel"></i> Fraksiyona Özel'
-                        ];
-                        echo $visibility_icons[$category['visibility']] ?? '';
-                        ?>
-                    </span>
                 </div>
             </div>
         </div>
@@ -132,31 +117,8 @@ include BASE_PATH . '/src/includes/navbar.php';
         </div>
     </div>
 
-    <!-- Filtreler ve Sıralama -->
+    <!-- Sıralama Toolbar -->
     <div class="topics-toolbar">
-        <div class="topics-filters">
-            <!-- Tag Filtreleri -->
-            <?php if (!empty($category_tags)): ?>
-                <div class="tag-filters">
-                    <span class="filter-label">Etiketler:</span>
-                    <div class="tag-list">
-                        <a href="?slug=<?= urlencode($category_slug) ?>" 
-                           class="tag-filter <?= empty($tag_filter) ? 'active' : '' ?>">
-                            <i class="fas fa-tags"></i> Tümü
-                        </a>
-                        <?php foreach ($category_tags as $tag): ?>
-                            <a href="?slug=<?= urlencode($category_slug) ?>&tag=<?= urlencode($tag['slug']) ?>" 
-                               class="tag-filter <?= $tag_filter === $tag['slug'] ? 'active' : '' ?>"
-                               style="--tag-color: <?= htmlspecialchars($tag['color']) ?>">
-                                <i class="fas fa-tag"></i> <?= htmlspecialchars($tag['name']) ?>
-                                <span class="tag-count"><?= $tag['usage_count'] ?></span>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-        </div>
-
         <div class="topics-sorting">
             <div class="sort-options">
                 <span class="sort-label">Sırala:</span>
@@ -207,14 +169,6 @@ include BASE_PATH . '/src/includes/navbar.php';
             <div class="topics-header">
                 <div class="topics-count">
                     <?= number_format($total_topics) ?> konu bulundu
-                    <?php if (!empty($tag_filter)): ?>
-                        <span class="filter-active">
-                            "<?= htmlspecialchars($tag_filter) ?>" etiketi için
-                            <a href="?slug=<?= urlencode($category_slug) ?>" class="clear-filter">
-                                <i class="fas fa-times"></i> Filtreyi Temizle
-                            </a>
-                        </span>
-                    <?php endif; ?>
                 </div>
             </div>
 
@@ -270,18 +224,6 @@ include BASE_PATH . '/src/includes/navbar.php';
                             <span class="topic-date">
                                 <?= format_time_ago($topic['created_at']) ?>
                             </span>
-                            
-                            <?php if ($topic['visibility'] !== 'public'): ?>
-                                <span class="topic-visibility">
-                                    <?php
-                                    $visibility_badges = [
-                                        'members_only' => '<i class="fas fa-users"></i> Üyeler',
-                                        'faction_only' => '<i class="fas fa-shield-alt"></i> Fraksiyon'
-                                    ];
-                                    echo $visibility_badges[$topic['visibility']] ?? '';
-                                    ?>
-                                </span>
-                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -335,11 +277,11 @@ include BASE_PATH . '/src/includes/navbar.php';
             
             <nav class="pagination-nav">
                 <?php if ($page > 1): ?>
-                    <a href="?slug=<?= urlencode($category_slug) ?>&page=1<?= !empty($tag_filter) ? '&tag=' . urlencode($tag_filter) : '' ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
+                    <a href="?slug=<?= urlencode($category_slug) ?>&page=1&sort=<?= $sort ?>&order=<?= $order ?>" 
                        class="page-btn">
                         <i class="fas fa-angle-double-left"></i>
                     </a>
-                    <a href="?slug=<?= urlencode($category_slug) ?>&page=<?= $page - 1 ?><?= !empty($tag_filter) ? '&tag=' . urlencode($tag_filter) : '' ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
+                    <a href="?slug=<?= urlencode($category_slug) ?>&page=<?= $page - 1 ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
                        class="page-btn">
                         <i class="fas fa-angle-left"></i>
                     </a>
@@ -351,18 +293,18 @@ include BASE_PATH . '/src/includes/navbar.php';
                 
                 for ($i = $start_page; $i <= $end_page; $i++):
                 ?>
-                    <a href="?slug=<?= urlencode($category_slug) ?>&page=<?= $i ?><?= !empty($tag_filter) ? '&tag=' . urlencode($tag_filter) : '' ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
+                    <a href="?slug=<?= urlencode($category_slug) ?>&page=<?= $i ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
                        class="page-btn <?= $i === $page ? 'active' : '' ?>">
                         <?= $i ?>
                     </a>
                 <?php endfor; ?>
 
                 <?php if ($page < $total_pages): ?>
-                    <a href="?slug=<?= urlencode($category_slug) ?>&page=<?= $page + 1 ?><?= !empty($tag_filter) ? '&tag=' . urlencode($tag_filter) : '' ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
+                    <a href="?slug=<?= urlencode($category_slug) ?>&page=<?= $page + 1 ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
                        class="page-btn">
                         <i class="fas fa-angle-right"></i>
                     </a>
-                    <a href="?slug=<?= urlencode($category_slug) ?>&page=<?= $total_pages ?><?= !empty($tag_filter) ? '&tag=' . urlencode($tag_filter) : '' ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
+                    <a href="?slug=<?= urlencode($category_slug) ?>&page=<?= $total_pages ?>&sort=<?= $sort ?>&order=<?= $order ?>" 
                        class="page-btn">
                         <i class="fas fa-angle-double-right"></i>
                     </a>

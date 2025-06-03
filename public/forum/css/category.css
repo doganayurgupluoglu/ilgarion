@@ -158,11 +158,14 @@
 }
 
 .topics-sorting {
+    min-width: 100%;
     display: flex;
     align-items: center;
     gap: 0.75rem;
 }
-
+.sort-options {
+    margin-left: auto;
+}
 .sort-label {
     color: var(--lighter-grey);
     font-weight: 500;

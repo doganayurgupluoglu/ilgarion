@@ -1,5 +1,5 @@
 <?php
-// public/forum/index.php
+// public/forum/index.php - Basitleştirilmiş Rol Kontrolü
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -22,7 +22,7 @@ $is_approved = is_user_approved();
 // Sayfa başlığı
 $page_title = "Forum - Ilgarion Turanis";
 
-// Kategorileri çek
+// Kategorileri çek (sadece erişilebilir olanlar)
 $categories = get_accessible_forum_categories($pdo, $current_user_id);
 
 // Forum istatistikleri
@@ -79,7 +79,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                 </div>
             </form>
             
-            <?php if ($is_approved && can_user_create_forum_topic($pdo, 1, $current_user_id)): ?>
+            <?php if ($is_approved && !empty($categories)): ?>
                 <a href="/public/forum/create_topic.php" class="btn-new-topic">
                     <i class="fas fa-plus"></i> Yeni Konu Aç
                 </a>
@@ -130,8 +130,22 @@ include BASE_PATH . '/src/includes/navbar.php';
             <?php if (empty($categories)): ?>
                 <div class="no-categories">
                     <i class="fas fa-exclamation-circle"></i>
-                    <h3>Henüz kategori bulunmuyor</h3>
-                    <p>Forum kategorileri henüz oluşturulmamış veya görüntüleme yetkiniz bulunmuyor.</p>
+                    <h3>Erişilebilir kategori bulunmuyor</h3>
+                    <?php if (!$is_logged_in): ?>
+                        <p>Forum kategorilerini görüntülemek için giriş yapmanız gerekebilir.</p>
+                        <div class="login-actions">
+                            <a href="/public/register.php?mode=login" class="btn-primary">
+                                <i class="fas fa-sign-in-alt"></i> Giriş Yap
+                            </a>
+                            <a href="/public/register.php" class="btn-secondary">
+                                <i class="fas fa-user-plus"></i> Kayıt Ol
+                            </a>
+                        </div>
+                    <?php elseif (!$is_approved): ?>
+                        <p>Forum kategorilerini görüntülemek için hesabınızın onaylanması gerekmektedir.</p>
+                    <?php else: ?>
+                        <p>Size uygun forum kategorisi henüz bulunmuyor.</p>
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <?php foreach ($categories as $category): ?>
@@ -148,16 +162,6 @@ include BASE_PATH . '/src/includes/navbar.php';
                                         <?= htmlspecialchars($category['name']) ?>
                                     </a>
                                 </h3>
-                                <div class="category-visibility">
-                                    <?php
-                                    $visibility_icons = [
-                                        'public' => '<i class="fas fa-globe" title="Herkese Açık"></i>',
-                                        'members_only' => '<i class="fas fa-users" title="Sadece Üyeler"></i>',
-                                        'faction_only' => '<i class="fas fa-shield-alt" title="Fraksiyona Özel"></i>'
-                                    ];
-                                    echo $visibility_icons[$category['visibility']] ?? '';
-                                    ?>
-                                </div>
                             </div>
                             
                             <p class="category-description">

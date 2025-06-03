@@ -1,8 +1,8 @@
 <?php
-// src/functions/forum_functions.php
+// src/functions/forum_functions.php - Güncellenmiş Rol Kontrolü
 
 /**
- * Forum sistemi için temel fonksiyonlar
+ * Forum sistemi için temel fonksiyonlar - Rol bazlı görünürlük
  */
 
 /**
@@ -73,37 +73,33 @@ function can_user_access_forum_category(PDO $pdo, array $category, ?int $user_id
         return true;
     }
     
-    switch ($category['visibility']) {
-        case 'public':
+    try {
+        // Kategoriye atanmış rolleri kontrol et
+        $roles_query = "
+            SELECT role_id FROM forum_category_visibility_roles 
+            WHERE category_id = :category_id
+        ";
+        $stmt = execute_safe_query($pdo, $roles_query, [':category_id' => $category['id']]);
+        $required_role_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Eğer kategoriye rol atanmamışsa herkese açık
+        if (empty($required_role_ids)) {
             return true;
-            
-        case 'members_only':
-            return $user_id && is_user_approved();
-            
-        case 'faction_only':
-            if (!$user_id || !is_user_approved()) {
-                return false;
-            }
-            
-            // Kategoriye atanmış rolleri kontrol et
-            $roles_query = "
-                SELECT role_id FROM forum_category_visibility_roles 
-                WHERE category_id = :category_id
-            ";
-            $stmt = execute_safe_query($pdo, $roles_query, [':category_id' => $category['id']]);
-            $required_role_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            if (empty($required_role_ids)) {
-                return true; // Rol atanmamışsa tüm üyeler görebilir
-            }
-            
-            $user_roles = get_user_roles($pdo, $user_id);
-            $user_role_ids = array_column($user_roles, 'id');
-            
-            return !empty(array_intersect($user_role_ids, $required_role_ids));
-            
-        default:
+        }
+        
+        // Rol atanmışsa kullanıcının o rollere sahip olması gerekiyor
+        if (!$user_id || !is_user_approved()) {
             return false;
+        }
+        
+        $user_roles = get_user_roles($pdo, $user_id);
+        $user_role_ids = array_column($user_roles, 'id');
+        
+        return !empty(array_intersect($user_role_ids, $required_role_ids));
+        
+    } catch (Exception $e) {
+        error_log("Forum kategori erişim kontrolü hatası: " . $e->getMessage());
+        return false;
     }
 }
 
@@ -191,8 +187,16 @@ function can_user_create_forum_topic(PDO $pdo, int $category_id, ?int $user_id =
  */
 function get_forum_topics_in_category(PDO $pdo, int $category_id, ?int $user_id = null, int $limit = 20, int $offset = 0, string $sort = 'updated', string $order = 'desc'): array {
     try {
+        // Önce kategori erişim kontrolü
+        $category_query = "SELECT * FROM forum_categories WHERE id = :id AND is_active = 1";
+        $stmt = execute_safe_query($pdo, $category_query, [':id' => $category_id]);
+        $category = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$category || !can_user_access_forum_category($pdo, $category, $user_id)) {
+            return ['topics' => [], 'total' => 0];
+        }
+        
         // Sıralama güvenlik kontrolü
-        $allowed_sort_columns = ['updated_at', 'created_at', 'title', 'reply_count', 'view_count'];
         $sort_column = in_array($sort, ['updated', 'created', 'title', 'replies', 'views']) 
             ? str_replace(['updated', 'created', 'replies', 'views'], ['updated_at', 'created_at', 'reply_count', 'view_count'], $sort)
             : 'updated_at';
@@ -203,8 +207,7 @@ function get_forum_topics_in_category(PDO $pdo, int $category_id, ?int $user_id 
         $count_query = "
             SELECT COUNT(*) 
             FROM forum_topics ft
-            JOIN forum_categories fc ON ft.category_id = fc.id
-            WHERE ft.category_id = :category_id AND fc.is_active = 1
+            WHERE ft.category_id = :category_id
         ";
         $stmt = execute_safe_query($pdo, $count_query, [':category_id' => $category_id]);
         $total = (int)$stmt->fetchColumn();
@@ -218,7 +221,6 @@ function get_forum_topics_in_category(PDO $pdo, int $category_id, ?int $user_id 
                    lpu.id as last_post_user_id,
                    lpur.color as last_post_role_color
             FROM forum_topics ft
-            JOIN forum_categories fc ON ft.category_id = fc.id
             JOIN users u ON ft.user_id = u.id
             LEFT JOIN user_roles uur ON u.id = uur.user_id
             LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
@@ -233,7 +235,7 @@ function get_forum_topics_in_category(PDO $pdo, int $category_id, ?int $user_id 
                 JOIN roles r3 ON ur3.role_id = r3.id
                 WHERE ur3.user_id = lpu.id
             )
-            WHERE ft.category_id = :category_id AND fc.is_active = 1
+            WHERE ft.category_id = :category_id
             ORDER BY ft.is_pinned DESC, ft.{$sort_column} {$order_direction}
             LIMIT :limit OFFSET :offset
         ";
@@ -271,7 +273,7 @@ function get_forum_topic_by_id(PDO $pdo, int $topic_id, ?int $user_id = null) {
                    fc.name as category_name,
                    fc.slug as category_slug,
                    fc.color as category_color,
-                   fc.visibility as category_visibility,
+                   fc.icon as category_icon,
                    u.username as author_username,
                    u.avatar_path as author_avatar,
                    ur.color as author_role_color,
@@ -297,8 +299,7 @@ function get_forum_topic_by_id(PDO $pdo, int $topic_id, ?int $user_id = null) {
         
         // Kategori erişim kontrolü
         $category = [
-            'id' => $topic['category_id'],
-            'visibility' => $topic['category_visibility']
+            'id' => $topic['category_id']
         ];
         
         if (!can_user_access_forum_category($pdo, $category, $user_id)) {
@@ -339,6 +340,19 @@ function get_forum_topic_by_id(PDO $pdo, int $topic_id, ?int $user_id = null) {
  */
 function get_forum_topic_posts(PDO $pdo, int $topic_id, ?int $user_id = null, int $limit = 10, int $offset = 0): array {
     try {
+        // Önce konunun kategori erişim kontrolünü yap
+        $topic_category_query = "
+            SELECT fc.id FROM forum_topics ft 
+            JOIN forum_categories fc ON ft.category_id = fc.id 
+            WHERE ft.id = :topic_id AND fc.is_active = 1
+        ";
+        $stmt = execute_safe_query($pdo, $topic_category_query, [':topic_id' => $topic_id]);
+        $category_data = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$category_data || !can_user_access_forum_category($pdo, $category_data, $user_id)) {
+            return ['posts' => [], 'total' => 0];
+        }
+        
         // Toplam gönderi sayısını al
         $count_query = "SELECT COUNT(*) FROM forum_posts WHERE topic_id = :topic_id";
         $stmt = execute_safe_query($pdo, $count_query, [':topic_id' => $topic_id]);
@@ -581,8 +595,7 @@ function get_recent_forum_topics(PDO $pdo, int $limit = 5, ?int $user_id = null)
         $accessible_topics = [];
         foreach ($topics as $topic) {
             $category = [
-                'id' => $topic['category_id'],
-                'visibility' => $topic['visibility'] ?? 'public'
+                'id' => $topic['category_id']
             ];
             
             if (can_user_access_forum_category($pdo, $category, $user_id)) {
@@ -624,8 +637,7 @@ function get_forum_statistics(PDO $pdo, ?int $user_id = null): array {
         // Toplam konu sayısı
         $topics_query = "
             SELECT COUNT(*) FROM forum_topics ft
-            JOIN forum_categories fc ON ft.category_id = fc.id
-            WHERE ft.category_id IN ($category_ids_placeholder) AND fc.is_active = 1
+            WHERE ft.category_id IN ($category_ids_placeholder)
         ";
         $stmt = $pdo->prepare($topics_query);
         $stmt->execute($accessible_category_ids);
@@ -635,8 +647,7 @@ function get_forum_statistics(PDO $pdo, ?int $user_id = null): array {
         $posts_query = "
             SELECT COUNT(*) FROM forum_posts fp
             JOIN forum_topics ft ON fp.topic_id = ft.id
-            JOIN forum_categories fc ON ft.category_id = fc.id
-            WHERE ft.category_id IN ($category_ids_placeholder) AND fc.is_active = 1
+            WHERE ft.category_id IN ($category_ids_placeholder)
         ";
         $stmt = $pdo->prepare($posts_query);
         $stmt->execute($accessible_category_ids);
@@ -692,24 +703,34 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
         $search_term = '%' . $search_query . '%';
         $results = [];
         
+        // Önce erişilebilir kategorileri al
+        $accessible_categories = get_accessible_forum_categories($pdo, $user_id);
+        $accessible_category_ids = array_column($accessible_categories, 'id');
+        
+        if (empty($accessible_category_ids)) {
+            return [];
+        }
+        
+        $category_ids_placeholder = implode(',', array_fill(0, count($accessible_category_ids), '?'));
+        
         // Kategorilerde ara
         $category_query = "
             SELECT 'category' as type, 'Kategori' as type_label,
                    id, name as title, description as content,
                    CONCAT('/public/forum/category.php?slug=', slug) as url
             FROM forum_categories
-            WHERE is_active = 1 AND (name LIKE :search OR description LIKE :search)
+            WHERE is_active = 1 AND id IN ($category_ids_placeholder) 
+            AND (name LIKE ? OR description LIKE ?)
             ORDER BY name ASC
             LIMIT 5
         ";
-        $stmt = execute_safe_query($pdo, $category_query, [':search' => $search_term]);
+        $category_params = array_merge($accessible_category_ids, [$search_term, $search_term]);
+        $stmt = $pdo->prepare($category_query);
+        $stmt->execute($category_params);
         $category_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($category_results as $result) {
-            $category = ['id' => $result['id'], 'visibility' => 'public']; // Basit kontrol
-            if (can_user_access_forum_category($pdo, $category, $user_id)) {
-                $results[] = $result;
-            }
+            $results[] = $result;
         }
         
         // Konularda ara
@@ -719,7 +740,6 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
                    CONCAT('/public/forum/topic.php?id=', ft.id) as url,
                    u.username, ur.color as user_role_color, ft.user_id, ft.created_at
             FROM forum_topics ft
-            JOIN forum_categories fc ON ft.category_id = fc.id
             JOIN users u ON ft.user_id = u.id
             LEFT JOIN user_roles uur ON u.id = uur.user_id
             LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
@@ -727,11 +747,14 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
                 JOIN roles r2 ON ur2.role_id = r2.id 
                 WHERE ur2.user_id = u.id
             )
-            WHERE fc.is_active = 1 AND (ft.title LIKE :search OR ft.content LIKE :search)
+            WHERE ft.category_id IN ($category_ids_placeholder) 
+            AND (ft.title LIKE ? OR ft.content LIKE ?)
             ORDER BY ft.updated_at DESC
             LIMIT 10
         ";
-        $stmt = execute_safe_query($pdo, $topic_query, [':search' => $search_term]);
+        $topic_params = array_merge($accessible_category_ids, [$search_term, $search_term]);
+        $stmt = $pdo->prepare($topic_query);
+        $stmt->execute($topic_params);
         $topic_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($topic_results as $result) {
@@ -746,7 +769,6 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
                    u.username, ur.color as user_role_color, fp.user_id, fp.created_at
             FROM forum_posts fp
             JOIN forum_topics ft ON fp.topic_id = ft.id
-            JOIN forum_categories fc ON ft.category_id = fc.id
             JOIN users u ON fp.user_id = u.id
             LEFT JOIN user_roles uur ON u.id = uur.user_id
             LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
@@ -754,30 +776,34 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
                 JOIN roles r2 ON ur2.role_id = r2.id 
                 WHERE ur2.user_id = u.id
             )
-            WHERE fc.is_active = 1 AND fp.content LIKE :search
+            WHERE ft.category_id IN ($category_ids_placeholder) 
+            AND fp.content LIKE ?
             ORDER BY fp.created_at DESC
             LIMIT 10
         ";
-        $stmt = execute_safe_query($pdo, $post_query, [':search' => $search_term]);
+        $post_params = array_merge($accessible_category_ids, [$search_term]);
+        $stmt = $pdo->prepare($post_query);
+        $stmt->execute($post_params);
         $post_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($post_results as $result) {
             $results[] = $result;
         }
         
-        // Kullanıcılarda ara
-        if ($user_id) { // Sadece giriş yapmış kullanıcılar kullanıcı arayabilir
+        // Kullanıcılarda ara (sadece giriş yapmış kullanıcılar için)
+        if ($user_id) {
             $user_query = "
                 SELECT 'user' as type, 'Kullanıcı' as type_label,
                        id, username as title, '' as content,
                        CONCAT('/public/view_profile.php?user_id=', id) as url,
                        username, '#bd912a' as user_role_color, id as user_id, created_at
                 FROM users
-                WHERE status = 'approved' AND (username LIKE :search OR ingame_name LIKE :search)
+                WHERE status = 'approved' AND (username LIKE ? OR ingame_name LIKE ?)
                 ORDER BY username ASC
                 LIMIT 5
             ";
-            $stmt = execute_safe_query($pdo, $user_query, [':search' => $search_term]);
+            $stmt = $pdo->prepare($user_query);
+            $stmt->execute([$search_term, $search_term]);
             $user_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             foreach ($user_results as $result) {
@@ -819,20 +845,14 @@ function create_forum_topic(PDO $pdo, array $topic_data, int $user_id) {
         // Slug oluştur
         $slug = create_topic_slug($pdo, $topic_data['title']);
         
-        // Visibility ayarla
-        $visibility = $topic_data['visibility'] ?? 'public';
-        if (!in_array($visibility, ['public', 'members_only', 'faction_only'])) {
-            $visibility = 'public';
-        }
-        
-        // Transaction başlat
+        // Basit konu oluşturma - visibility ayarlarını kaldırıyoruz
         $pdo->beginTransaction();
         
         try {
             // Konuyu oluştur
             $insert_query = "
-                INSERT INTO forum_topics (category_id, user_id, title, slug, content, visibility, created_at, updated_at)
-                VALUES (:category_id, :user_id, :title, :slug, :content, :visibility, NOW(), NOW())
+                INSERT INTO forum_topics (category_id, user_id, title, slug, content, created_at, updated_at)
+                VALUES (:category_id, :user_id, :title, :slug, :content, NOW(), NOW())
             ";
             
             $insert_params = [
@@ -840,28 +860,18 @@ function create_forum_topic(PDO $pdo, array $topic_data, int $user_id) {
                 ':user_id' => $user_id,
                 ':title' => $topic_data['title'],
                 ':slug' => $slug,
-                ':content' => $topic_data['content'],
-                ':visibility' => $visibility
+                ':content' => $topic_data['content']
             ];
             
             $stmt = execute_safe_query($pdo, $insert_query, $insert_params);
             $topic_id = $pdo->lastInsertId();
-            
-            // Visibility rolleri ata (eğer faction_only ise)
-            if ($visibility === 'faction_only' && !empty($topic_data['visible_roles'])) {
-                foreach ($topic_data['visible_roles'] as $role_id) {
-                    $role_query = "INSERT INTO forum_topic_visibility_roles (topic_id, role_id) VALUES (:topic_id, :role_id)";
-                    execute_safe_query($pdo, $role_query, [':topic_id' => $topic_id, ':role_id' => $role_id]);
-                }
-            }
             
             $pdo->commit();
             
             // Audit log
             audit_log($pdo, $user_id, 'forum_topic_created', 'forum_topic', $topic_id, null, [
                 'category_id' => $topic_data['category_id'],
-                'title' => $topic_data['title'],
-                'visibility' => $visibility
+                'title' => $topic_data['title']
             ]);
             
             return $topic_id;

@@ -1,5 +1,5 @@
 <?php
-// public/forum/create_topic.php
+// public/forum/create_topic.php - Basitleştirilmiş Görünürlük
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -40,7 +40,7 @@ $current_user_id = $_SESSION['user_id'];
 $category_id = (int)($_GET['category_id'] ?? 0);
 $selected_category = null;
 
-// Kategorileri çek
+// Erişilebilir kategorileri çek
 $categories = get_accessible_forum_categories($pdo, $current_user_id);
 
 // Belirli kategori seçilmişse kontrol et
@@ -79,8 +79,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
     $content = trim($_POST['content'] ?? '');
     $form_category_id = (int)($_POST['category_id'] ?? 0);
-    $visibility = $_POST['visibility'] ?? 'public';
-    $visible_roles = $_POST['visible_roles'] ?? [];
     
     $errors = [];
     
@@ -118,24 +116,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Visibility kontrolü
-    if (!in_array($visibility, ['public', 'members_only', 'faction_only'])) {
-        $visibility = 'public';
-    }
-    
-    // Eğer faction_only seçilmişse ve roller seçilmemişse hata
-    if ($visibility === 'faction_only' && empty($visible_roles)) {
-        $errors[] = "Fraksiyona özel görünürlük için en az bir rol seçmelisiniz.";
-    }
-    
     // Hata yoksa konuyu oluştur
     if (empty($errors)) {
         $topic_data = [
             'title' => $title,
             'content' => $content,
-            'category_id' => $form_category_id,
-            'visibility' => $visibility,
-            'visible_roles' => $visible_roles
+            'category_id' => $form_category_id
         ];
         
         try {
@@ -160,9 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['form_data'] = [
             'title' => $title,
             'content' => $content,
-            'category_id' => $form_category_id,
-            'visibility' => $visibility,
-            'visible_roles' => $visible_roles
+            'category_id' => $form_category_id
         ];
     }
 }
@@ -170,9 +154,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Form verilerini al (hata durumunda)
 $form_data = $_SESSION['form_data'] ?? [];
 unset($_SESSION['form_data']);
-
-// Kullanıcının rollerini al (faction_only visibility için)
-$user_roles = get_user_roles($pdo, $current_user_id);
 
 // Sayfa başlığı
 $page_title = "Yeni Konu Oluştur - Forum - Ilgarion Turanis";
@@ -220,18 +201,8 @@ include BASE_PATH . '/src/includes/navbar.php';
                     <?php foreach ($categories as $category): ?>
                         <?php if (can_user_create_forum_topic($pdo, $category['id'], $current_user_id)): ?>
                             <option value="<?= $category['id'] ?>" 
-                                    <?= ($form_data['category_id'] ?? $category_id) == $category['id'] ? 'selected' : '' ?>
-                                    data-visibility="<?= $category['visibility'] ?>">
+                                    <?= ($form_data['category_id'] ?? $category_id) == $category['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($category['name']) ?>
-                                <?php if ($category['visibility'] !== 'public'): ?>
-                                    <?php
-                                    $visibility_labels = [
-                                        'members_only' => '(Sadece Üyeler)',
-                                        'faction_only' => '(Fraksiyona Özel)'
-                                    ];
-                                    echo ' ' . ($visibility_labels[$category['visibility']] ?? '');
-                                    ?>
-                                <?php endif; ?>
                             </option>
                         <?php endif; ?>
                     <?php endforeach; ?>
@@ -250,60 +221,6 @@ include BASE_PATH . '/src/includes/navbar.php';
                     <span id="title-count">0</span> / 255 karakter
                 </div>
                 <small class="form-help">Konunuzu en iyi şekilde açıklayan bir başlık yazın.</small>
-            </div>
-            
-            <!-- Visibility Settings -->
-            <div class="form-group">
-                <label>Görünürlük Ayarları</label>
-                <div class="visibility-options">
-                    <div class="visibility-option">
-                        <input type="radio" name="visibility" value="public" id="visibility_public" 
-                               <?= ($form_data['visibility'] ?? 'public') === 'public' ? 'checked' : '' ?>>
-                        <label for="visibility_public">
-                            <i class="fas fa-globe"></i>
-                            <strong>Herkese Açık</strong>
-                            <small>Tüm ziyaretçiler görebilir</small>
-                        </label>
-                    </div>
-                    
-                    <div class="visibility-option">
-                        <input type="radio" name="visibility" value="members_only" id="visibility_members" 
-                               <?= ($form_data['visibility'] ?? '') === 'members_only' ? 'checked' : '' ?>>
-                        <label for="visibility_members">
-                            <i class="fas fa-users"></i>
-                            <strong>Sadece Üyeler</strong>
-                            <small>Onaylı üyeler görebilir</small>
-                        </label>
-                    </div>
-                    
-                    <div class="visibility-option">
-                        <input type="radio" name="visibility" value="faction_only" id="visibility_faction" 
-                               <?= ($form_data['visibility'] ?? '') === 'faction_only' ? 'checked' : '' ?>>
-                        <label for="visibility_faction">
-                            <i class="fas fa-shield-alt"></i>
-                            <strong>Fraksiyona Özel</strong>
-                            <small>Seçilen rollerdeki üyeler görebilir</small>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Role Selection (for faction_only) -->
-            <div class="form-group" id="role-selection" style="display: none;">
-                <label>Erişebilecek Roller <span class="required">*</span></label>
-                <div class="role-checkboxes">
-                    <?php foreach ($user_roles as $role): ?>
-                        <div class="role-checkbox">
-                            <input type="checkbox" name="visible_roles[]" value="<?= $role['id'] ?>" 
-                                   id="role_<?= $role['id'] ?>"
-                                   <?= in_array($role['id'], $form_data['visible_roles'] ?? []) ? 'checked' : '' ?>>
-                            <label for="role_<?= $role['id'] ?>" style="color: <?= $role['color'] ?>">
-                                <?= htmlspecialchars($role['name']) ?>
-                            </label>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-                <small class="form-help">Konuyu görebilecek rolleri seçin.</small>
             </div>
             
             <!-- Content Editor -->
@@ -421,8 +338,8 @@ include BASE_PATH . '/src/includes/navbar.php';
         </ul>
     </div>
 </div>
+
 <script src="/public/forum/js/forum.js"></script>
 <script src="/public/forum/js/create_topic.js"></script>
 
 <?php include BASE_PATH . '/src/includes/footer.php'; ?>
-                        

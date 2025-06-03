@@ -1,12 +1,9 @@
-// Create topic functionality
+// Create topic functionality - Basitleştirilmiş
 let csrfToken = '<?= generate_csrf_token() ?>';
 
 document.addEventListener('DOMContentLoaded', function() {
     // Character counters
     setupCharacterCounters();
-    
-    // Visibility change handler
-    setupVisibilityHandler();
     
     // Form validation
     setupFormValidation();
@@ -56,50 +53,30 @@ function setupCharacterCounters() {
     }
 }
 
-function setupVisibilityHandler() {
-    const visibilityInputs = document.querySelectorAll('input[name="visibility"]');
-    const roleSelection = document.getElementById('role-selection');
-    
-    visibilityInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            if (this.value === 'faction_only') {
-                roleSelection.style.display = 'block';
-                
-                // Mark role checkboxes as required
-                const roleCheckboxes = roleSelection.querySelectorAll('input[type="checkbox"]');
-                roleCheckboxes.forEach(checkbox => {
-                    checkbox.setAttribute('required', '');
-                });
-            } else {
-                roleSelection.style.display = 'none';
-                
-                // Remove required from role checkboxes
-                const roleCheckboxes = roleSelection.querySelectorAll('input[type="checkbox"]');
-                roleCheckboxes.forEach(checkbox => {
-                    checkbox.removeAttribute('required');
-                    checkbox.checked = false;
-                });
-            }
-        });
-    });
-    
-    // Initial check
-    const checkedVisibility = document.querySelector('input[name="visibility"]:checked');
-    if (checkedVisibility && checkedVisibility.value === 'faction_only') {
-        roleSelection.style.display = 'block';
-    }
-}
-
 function setupFormValidation() {
     const form = document.getElementById('createTopicForm');
     
     form.addEventListener('submit', function(e) {
-        const visibilityFaction = document.querySelector('input[name="visibility"][value="faction_only"]');
-        const roleCheckboxes = document.querySelectorAll('input[name="visible_roles[]"]:checked');
+        // Temel validasyon
+        const title = document.getElementById('title').value.trim();
+        const content = document.getElementById('content').value.trim();
+        const categoryId = document.getElementById('category_id').value;
         
-        if (visibilityFaction && visibilityFaction.checked && roleCheckboxes.length === 0) {
+        if (!title || title.length < 3) {
             e.preventDefault();
-            alert('Fraksiyona özel görünürlük için en az bir rol seçmelisiniz.');
+            alert('Konu başlığı en az 3 karakter olmalıdır.');
+            return false;
+        }
+        
+        if (!content || content.length < 10) {
+            e.preventDefault();
+            alert('Konu içeriği en az 10 karakter olmalıdır.');
+            return false;
+        }
+        
+        if (!categoryId) {
+            e.preventDefault();
+            alert('Lütfen bir kategori seçin.');
             return false;
         }
         
@@ -126,7 +103,6 @@ function setupAutoSave() {
             title: titleInput.value,
             content: contentInput.value,
             category_id: document.getElementById('category_id').value,
-            visibility: document.querySelector('input[name="visibility"]:checked')?.value,
             timestamp: Date.now()
         };
         
@@ -171,14 +147,6 @@ function loadDraft() {
                     document.getElementById('category_id').value = draftData.category_id;
                 }
                 
-                if (draftData.visibility) {
-                    const visibilityInput = document.querySelector(`input[name="visibility"][value="${draftData.visibility}"]`);
-                    if (visibilityInput) {
-                        visibilityInput.checked = true;
-                        visibilityInput.dispatchEvent(new Event('change'));
-                    }
-                }
-                
                 // Update character counters
                 titleInput.dispatchEvent(new Event('input'));
                 contentInput.dispatchEvent(new Event('input'));
@@ -203,7 +171,6 @@ function saveDraft() {
         title: titleInput.value,
         content: contentInput.value,
         category_id: document.getElementById('category_id').value,
-        visibility: document.querySelector('input[name="visibility"]:checked')?.value,
         timestamp: Date.now()
     };
     
