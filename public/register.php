@@ -1364,7 +1364,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 </main>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
     // Form Elements
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
@@ -1387,9 +1387,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmPasswordInput = document.getElementById('confirm_password');
     const passwordStrengthMeter = document.getElementById('passwordStrength');
     const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
+    const ingameNameInput = document.getElementById('ingame_name');
     
     // Current mode
-    let currentMode = document.querySelector('.auth-form.active').id === 'loginForm' ? 'login' : 'register';
+    let currentMode = '<?php echo $auth_mode; ?>';
     
     // Content data
     const contentData = {
@@ -1429,7 +1431,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             currentForm.classList.remove('active');
             targetForm.classList.add('active');
-            targetForm.style.transform = 'translateX(-100%)';
+            targetForm.style.transform = 'translateX(100%)';
             targetForm.style.opacity = '0';
             
             setTimeout(() => {
@@ -1452,11 +1454,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 cardSubtitle.textContent = data.cardSubtitle;
                 authLinkText.innerHTML = data.linkText;
                 
-                // Re-bind auth link event - DÜZELTME: Event delegation kullandığımız için gerek yok
+                // Re-bind auth link event
                 const newAuthLink = authLinkText.querySelector('[data-switch]');
                 if (newAuthLink) {
-                    console.log('New auth link found:', newAuthLink.dataset.switch);
-                    // Event delegation sayesinde otomatik olarak çalışacak
+                    newAuthLink.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        switchForm(this.dataset.switch);
+                    });
                 }
                 
                 welcomeText.style.opacity = '1';
@@ -1471,46 +1475,21 @@ document.addEventListener('DOMContentLoaded', function() {
         window.history.pushState({mode: targetMode}, '', `?mode=${targetMode}`);
     }
     
-    // Event Listeners - DÜZELTME: Event delegation kullan
-    document.addEventListener('click', function(e) {
-        // Navigation butonları için
-        if (e.target.classList.contains('nav-btn')) {
-            e.preventDefault();
-            const targetForm = e.target.dataset.form;
-            if (targetForm) {
-                console.log('Nav button clicked:', targetForm);
-                switchForm(targetForm);
-            }
-        }
-        
-        // Auth link'ler için
-        if (e.target.classList.contains('auth-link') && e.target.dataset.switch) {
-            e.preventDefault();
-            const targetForm = e.target.dataset.switch;
-            console.log('Auth link clicked:', targetForm);
-            switchForm(targetForm);
-        }
-    });
-    
-    // Fallback - direkt event listener'lar da ekle
+    // Event Listeners
     navBtns.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('Direct nav button clicked:', this.dataset.form);
+        btn.addEventListener('click', function() {
             switchForm(this.dataset.form);
         });
     });
     
-    // İlk yüklemede mevcut auth link'ler için
     authLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Direct auth link clicked:', this.dataset.switch);
             switchForm(this.dataset.switch);
         });
     });
     
-    // Enhanced form validation
+    // DÜZELTME: Enhanced form validation - handle_register.php regex kurallarına uygun
     function validateForm(form) {
         let isValid = true;
         const inputs = form.querySelectorAll('.form-input[required]');
@@ -1527,63 +1506,144 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Specific validations
-            switch(input.type) {
-                case 'email':
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(value)) {
-                        input.classList.add('error');
-                        isValid = false;
-                    } else {
-                        input.classList.add('success');
-                    }
-                    break;
-                    
-                case 'password':
-                    if (value.length < 6) {
-                        input.classList.add('error');
-                        isValid = false;
-                    } else {
-                        input.classList.add('success');
-                    }
-                    break;
-                    
-                default:
-                    if (input.name === 'username' && form.id === 'registerForm') {
+            // Specific validations based on PHP regex patterns
+            switch(input.name) {
+                case 'username':
+                    if (form.id === 'registerForm') {
+                        // Username: 3-50 karakter, sadece harf, rakam ve alt çizgi
                         const usernameRegex = /^[a-zA-Z0-9_]{3,50}$/;
                         if (!usernameRegex.test(value)) {
                             input.classList.add('error');
                             isValid = false;
+                            showFieldError(input, 'Kullanıcı adı 3-50 karakter olmalı ve sadece harf, rakam, alt çizgi içermelidir');
                         } else {
                             input.classList.add('success');
+                            hideFieldError(input);
                         }
                     } else {
+                        // Login form - username veya email olabilir
                         input.classList.add('success');
+                    }
+                    break;
+                    
+                case 'email':
+                    // Email validation - PHP filter_var(FILTER_VALIDATE_EMAIL) standardına uygun
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(value)) {
+                        input.classList.add('error');
+                        isValid = false;
+                        showFieldError(input, 'Geçerli bir e-posta adresi girin');
+                    } else {
+                        input.classList.add('success');
+                        hideFieldError(input);
+                    }
+                    break;
+                    
+                case 'ingame_name':
+                    // Ingame name: 1-100 karakter, boş olamaz
+                    if (value.length < 1 || value.length > 100) {
+                        input.classList.add('error');
+                        isValid = false;
+                        showFieldError(input, 'Oyun içi isim 1-100 karakter arasında olmalıdır');
+                    } else {
+                        input.classList.add('success');
+                        hideFieldError(input);
+                    }
+                    break;
+                    
+                case 'password':
+                    // Password: En az 6 karakter + büyük harf, küçük harf kontrolü
+                    if (value.length < 6) {
+                        input.classList.add('error');
+                        isValid = false;
+                        showFieldError(input, 'Şifre en az 6 karakter olmalıdır');
+                    } else {
+                        // Şifre gücü kontrolü ve önerileri
+                        const hasLowerCase = /[a-z]/.test(value);
+                        const hasUpperCase = /[A-Z]/.test(value);
+                        const hasNumbers = /\d/.test(value);
+                        const hasSpecialChar = /[^A-Za-z0-9]/.test(value);
+                        
+                        const strengthChecks = [hasLowerCase, hasUpperCase, hasNumbers, hasSpecialChar];
+                        const strengthCount = strengthChecks.filter(Boolean).length;
+                        
+                        if (strengthCount >= 3) {
+                            input.classList.add('success');
+                            hideFieldError(input);
+                        } else {
+                            input.classList.add('error');
+                            isValid = false;
+                            let suggestions = [];
+                            if (!hasLowerCase) suggestions.push('küçük harf');
+                            if (!hasUpperCase) suggestions.push('büyük harf');
+                            if (!hasNumbers) suggestions.push('rakam');
+                            if (!hasSpecialChar) suggestions.push('özel karakter');
+                            
+                            showFieldError(input, `Güçlü şifre için ekleyin: ${suggestions.slice(0, 2).join(', ')}`);
+                        }
+                    }
+                    break;
+                    
+                case 'confirm_password':
+                    // Password confirmation
+                    const passwordField = form.querySelector('[name="password"]');
+                    if (!passwordField || value !== passwordField.value) {
+                        input.classList.add('error');
+                        isValid = false;
+                        showFieldError(input, 'Şifreler uyuşmuyor');
+                    } else if (value.length >= 6) {
+                        input.classList.add('success');
+                        hideFieldError(input);
+                    }
+                    break;
+                    
+                default:
+                    // Default validation for other fields
+                    if (value.trim()) {
+                        input.classList.add('success');
+                        hideFieldError(input);
                     }
             }
         });
         
-        // Password confirmation check (only for register form)
-        if (form.id === 'registerForm') {
-            const password = form.querySelector('#password');
-            const confirmPassword = form.querySelector('#confirm_password');
-            
-            if (password && confirmPassword && password.value && confirmPassword.value) {
-                if (password.value !== confirmPassword.value) {
-                    confirmPassword.classList.remove('success');
-                    confirmPassword.classList.add('error');
-                    isValid = false;
-                } else if (password.value.length >= 6) {
-                    confirmPassword.classList.remove('error');
-                    confirmPassword.classList.add('success');
-                }
-            }
-        }
-        
         return isValid;
     }
     
-    // Password strength indicator
+    // DÜZELTME: Field error messaging functions
+    function showFieldError(input, message) {
+        // Remove existing error message
+        hideFieldError(input);
+        
+        // Create error message element
+        const errorElement = document.createElement('div');
+        errorElement.className = 'field-error-message';
+        errorElement.style.cssText = `
+            color: #e74c3c;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            padding-left: 0.25rem;
+            animation: slideInDown 0.3s ease;
+        `;
+        errorElement.textContent = message;
+        
+        // Insert after input wrapper
+        const inputWrapper = input.closest('.form-input-wrapper');
+        if (inputWrapper) {
+            inputWrapper.parentNode.insertBefore(errorElement, inputWrapper.nextSibling);
+        }
+    }
+    
+    function hideFieldError(input) {
+        const inputWrapper = input.closest('.form-input-wrapper');
+        if (inputWrapper && inputWrapper.parentNode) {
+            const errorElement = inputWrapper.parentNode.querySelector('.field-error-message');
+            if (errorElement) {
+                errorElement.remove();
+            }
+        }
+    }
+    
+    // DÜZELTME: Password strength indicator - doğru element ile
     function checkPasswordStrength(password) {
         if (!passwordStrengthMeter) return;
         
@@ -1622,190 +1682,319 @@ document.addEventListener('DOMContentLoaded', function() {
                 validationTimeout = setTimeout(() => {
                     if (this.value.trim()) {
                         validateForm(form);
+                    } else {
+                        // Clear validation states when empty
+                        this.classList.remove('error', 'success');
+                        hideFieldError(this);
                     }
                 }, 300);
             });
             
             input.addEventListener('blur', function() {
-                if (this.value.trim()) {
-                    validateForm(form);
-                }
+                validateForm(form);
             });
             
             // Enhanced focus effects
             input.addEventListener('focus', function() {
-                this.closest('.form-group').querySelector('.form-label').style.color = 'var(--gold)';
+                const label = this.closest('.form-group').querySelector('.form-label');
+                if (label) {
+                    label.style.color = 'var(--gold)';
+                }
+                // Clear error on focus
+                hideFieldError(this);
             });
             
             input.addEventListener('blur', function() {
-                this.closest('.form-group').querySelector('.form-label').style.color = 'var(--lighter-grey)';
+                const label = this.closest('.form-group').querySelector('.form-label');
+                if (label) {
+                    label.style.color = 'var(--lighter-grey)';
+                }
             });
         });
     });
     
-    // Password strength checking
+    // DÜZELTME: Password strength checking - doğru element + aZ görsel geri bildirimi
     if (passwordInput) {
         passwordInput.addEventListener('input', function() {
             const password = this.value;
             checkPasswordStrength(password);
             
+            // Şifre gücü ve aZ kontrolleri için görsel geri bildirim
             if (password.length >= 6) {
-                this.classList.remove('error');
-                this.classList.add('success');
+                const hasLowerCase = /[a-z]/.test(password);
+                const hasUpperCase = /[A-Z]/.test(password);
+                const hasNumbers = /\d/.test(password);
+                const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
+                
+                // Label'ı güncelle - şifre gücü göstergesi
+                const label = this.closest('.form-group').querySelector('.form-label');
+                if (label) {
+                    const checks = [];
+                    if (hasLowerCase) checks.push('<span style="color: #2abd8a;">a</span>');
+                    else checks.push('<span style="color: #e74c3c;">a</span>');
+                    
+                    if (hasUpperCase) checks.push('<span style="color: #2abd8a;">A</span>');
+                    else checks.push('<span style="color: #e74c3c;">A</span>');
+                    
+                    if (hasNumbers) checks.push('<span style="color: #2abd8a;">9</span>');
+                    else checks.push('<span style="color: #e74c3c;">9</span>');
+                    
+                    if (hasSpecialChar) checks.push('<span style="color: #2abd8a;">@</span>');
+                    else checks.push('<span style="color: #e74c3c;">@</span>');
+                    
+                    label.innerHTML = `Şifre * [${checks.join('')}]`;
+                }
+                
+                // Güçlü şifre kontrolü
+                const strengthCount = [hasLowerCase, hasUpperCase, hasNumbers, hasSpecialChar].filter(Boolean).length;
+                
+                if (strengthCount >= 3) {
+                    this.classList.remove('error');
+                    this.classList.add('success');
+                    hideFieldError(this);
+                } else {
+                    this.classList.remove('success');
+                    this.classList.add('error');
+                }
             } else {
                 this.classList.remove('success');
                 if (password.length > 0) {
                     this.classList.add('error');
                 }
+                // Label'ı sıfırla
+                const label = this.closest('.form-group').querySelector('.form-label');
+                if (label) {
+                    label.textContent = 'Şifre *';
+                }
             }
+            
+            // Trigger validation for this field specifically
+            setTimeout(() => {
+                validateForm(registerForm);
+            }, 100);
             
             // Also validate confirm password if it has a value
             if (confirmPasswordInput && confirmPasswordInput.value) {
-                validateForm(registerForm);
+                setTimeout(() => {
+                    validateForm(registerForm);
+                }, 100);
+            }
+        });
+        
+        // Password blur event - label'ı sıfırla
+        passwordInput.addEventListener('blur', function() {
+            const label = this.closest('.form-group').querySelector('.form-label');
+            if (label && this.value.length === 0) {
+                label.textContent = 'Şifre *';
             }
         });
     }
     
-    // Username input filter
+    // DÜZELTME: Username input filter - doğru element
     if (usernameInput) {
         usernameInput.addEventListener('input', function() {
             const original = this.value;
+            // Remove invalid characters in real-time
             this.value = this.value.replace(/[^a-zA-Z0-9_]/g, '');
             
             if (original !== this.value) {
                 this.style.borderColor = '#f39c12';
+                showFieldError(this, 'Sadece harf, rakam ve alt çizgi (_) kullanabilirsiniz');
                 setTimeout(() => {
                     this.style.borderColor = '';
-                }, 1000);
+                    hideFieldError(this);
+                }, 2000);
+            }
+        });
+        
+        // Character counter for username
+        usernameInput.addEventListener('input', function() {
+            const label = this.closest('.form-group').querySelector('.form-label');
+            const length = this.value.length;
+            if (label && length > 0) {
+                label.textContent = `Kullanıcı Adı * (${length}/50)`;
+            } else if (label) {
+                label.textContent = 'Kullanıcı Adı *';
             }
         });
     }
     
-    // DÜZELTME: Form Submit Event Listeners - TEK VE BASIT YAKLAŞIM
+    // DÜZELTME: Email validation enhancement
+    if (emailInput) {
+        emailInput.addEventListener('input', function() {
+            // Remove spaces automatically
+            this.value = this.value.replace(/\s/g, '');
+        });
+    }
     
-    // Register Form Submit Handler
-    if (registerForm) {
-        registerForm.addEventListener('submit', function(e) {
+    // DÜZELTME: Ingame name character counter
+    if (ingameNameInput) {
+        ingameNameInput.addEventListener('input', function() {
+            const label = this.closest('.form-group').querySelector('.form-label');
+            const length = this.value.length;
+            if (label && length > 0) {
+                label.textContent = `Oyun İçi İsim * (${length}/100)`;
+            } else if (label) {
+                label.textContent = 'Oyun İçi İsim *';
+            }
+        });
+    }
+    
+    // DÜZELTME: Form submissions - doğru element ID'leri
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.id === 'registerBtn') {
             e.preventDefault();
             
-            console.log('Register form submitted!');
+            const form = document.getElementById('registerForm');
             
-            // Form verilerini al
-            const formData = new FormData(this);
-            const username = formData.get('username')?.trim();
-            const email = formData.get('email')?.trim();
-            const ingame_name = formData.get('ingame_name')?.trim();
-            const password = formData.get('password');
-            const confirm_password = formData.get('confirm_password');
-            const csrf_token = formData.get('csrf_token');
+            // Get form data with correct IDs
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const ingame_name = document.getElementById('ingame_name').value.trim();
+            const password = document.getElementById('password').value;
+            const confirm_password = document.getElementById('confirm_password').value;
+            const csrf_token = form.querySelector('input[name="csrf_token"]').value;
             
-            console.log('Form data:', {username, email, ingame_name, password, confirm_password, csrf_token});
+            // Validate form before submission
+            if (!validateForm(form)) {
+                // Show general error
+                showFormAlert('Lütfen tüm alanları doğru şekilde doldurun!', 'error');
+                return;
+            }
             
-            // Basit validasyon
+            // Additional validation checks
             if (!username || !email || !ingame_name || !password || !confirm_password) {
-                alert('Lütfen tüm alanları doldurun!');
+                showFormAlert('Lütfen tüm zorunlu alanları doldurun!', 'error');
                 return;
             }
             
             if (password !== confirm_password) {
-                alert('Şifreler uyuşmuyor!');
+                showFormAlert('Şifreler uyuşmuyor!', 'error');
                 return;
             }
             
             if (password.length < 6) {
-                alert('Şifre en az 6 karakter olmalıdır!');
+                showFormAlert('Şifre en az 6 karakter olmalıdır!', 'error');
                 return;
             }
             
-            // Email validasyonu
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                alert('Geçerli bir e-posta adresi girin!');
-                return;
-            }
-            
-            // Username validasyonu
-            const usernameRegex = /^[a-zA-Z0-9_]{3,50}$/;
-            if (!usernameRegex.test(username)) {
-                alert('Kullanıcı adı 3-50 karakter olmalı ve sadece harf, rakam, alt çizgi içermeli!');
-                return;
-            }
-            
-            // Submit butonunu disable et
+            // Show loading state
+            registerBtn.classList.add('loading');
             registerBtn.disabled = true;
-            registerBtn.textContent = 'Gönderiliyor...';
+            registerBtn.textContent = 'Kayıt Oluşturuluyor...';
             
-            // Form'u gerçekten submit et
-            console.log('Submitting to:', this.action);
-            this.submit();
-        });
-    }
-    
-    // Login Form Submit Handler
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
+            // Create and submit form manually
+            const submitForm = document.createElement('form');
+            submitForm.method = 'POST';
+            submitForm.action = '../src/actions/handle_register.php';
+            submitForm.style.display = 'none';
+            
+            // Add all fields
+            const fields = {
+                'csrf_token': csrf_token,
+                'username': username,
+                'email': email,
+                'ingame_name': ingame_name,
+                'password': password,
+                'confirm_password': confirm_password
+            };
+            
+            for (const [name, value] of Object.entries(fields)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                submitForm.appendChild(input);
+            }
+            
+            document.body.appendChild(submitForm);
+            submitForm.submit();
+        }
+        
+        if (e.target && e.target.id === 'loginBtn') {
             e.preventDefault();
             
-            console.log('Login form submitted!');
-            
-            const formData = new FormData(this);
-            const username = formData.get('username')?.trim();
-            const password = formData.get('password');
+            const form = document.getElementById('loginForm');
+            const username = document.getElementById('login_username').value.trim();
+            const password = document.getElementById('login_password').value;
+            const csrf_token = form.querySelector('input[name="csrf_token"]').value;
+            const remember_me = document.getElementById('remember_me').checked ? '1' : '';
             
             if (!username || !password) {
-                alert('Kullanıcı adı ve şifre gerekli!');
+                showFormAlert('Kullanıcı adı ve şifre gerekli!', 'error');
                 return;
             }
             
-            // Submit butonunu disable et
+            // Show loading state
+            loginBtn.classList.add('loading');
             loginBtn.disabled = true;
-            loginBtn.textContent = 'Giriş yapılıyor...';
+            loginBtn.textContent = 'Giriş Yapılıyor...';
             
-            // Form'u gerçekten submit et
-            this.submit();
+            const submitForm = document.createElement('form');
+            submitForm.method = 'POST';
+            submitForm.action = '../src/actions/handle_login.php';
+            submitForm.style.display = 'none';
+            
+            const fields = {
+                'csrf_token': csrf_token,
+                'username': username,
+                'password': password,
+                'remember_me': remember_me
+            };
+            
+            for (const [name, value] of Object.entries(fields)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                submitForm.appendChild(input);
+            }
+            
+            document.body.appendChild(submitForm);
+            submitForm.submit();
+        }
+    });
+    
+    // DÜZELTME: Form alert function
+    function showFormAlert(message, type = 'error') {
+        // Remove existing alerts
+        const existingAlerts = document.querySelectorAll('.dynamic-alert');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        // Create alert element
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type === 'error' ? 'danger' : type} dynamic-alert`;
+        alert.textContent = message;
+        alert.style.marginBottom = '1.5rem';
+        alert.style.animation = 'slideInDown 0.4s ease';
+        
+        // Insert at top of forms container
+        const formsContainer = document.querySelector('.auth-forms-container');
+        if (formsContainer) {
+            formsContainer.insertBefore(alert, formsContainer.firstChild);
+        }
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.style.animation = 'slideOutUp 0.4s ease';
+                setTimeout(() => alert.remove(), 400);
+            }
+        }, 5000);
+    }
+    
+    // Form event listeners - prevent default submission
+    if (registerForm) {
+        registerForm.addEventListener('submit', function(e) {
+            e.preventDefault();
         });
     }
     
-    // DÜZELTME: Enter tuşu desteği
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            const activeForm = document.querySelector('.auth-form.active');
-            if (activeForm) {
-                const focusedElement = document.activeElement;
-                
-                // Eğer form içindeki bir input'ta enter'a basıldıysa
-                if (activeForm.contains(focusedElement) && focusedElement.tagName === 'INPUT') {
-                    e.preventDefault();
-                    
-                    // Form submit event'ini tetikle
-                    const submitEvent = new Event('submit', {
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    activeForm.dispatchEvent(submitEvent);
-                }
-            }
-        }
-        
-        // Ctrl+Enter ile hızlı submit
-        if (e.ctrlKey && e.key === 'Enter') {
-            e.preventDefault();
-            const activeForm = document.querySelector('.auth-form.active');
-            if (activeForm) {
-                const submitEvent = new Event('submit', {
-                    bubbles: true,
-                    cancelable: true
-                });
-                activeForm.dispatchEvent(submitEvent);
-            }
-        }
-        
-        // Switch forms with Ctrl+Tab
-        if (e.ctrlKey && e.key === 'Tab') {
-            e.preventDefault();
-            switchForm(currentMode === 'login' ? 'register' : 'login');
-        }
-    });
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault(); 
+        });
+    }
     
     // Handle browser back/forward buttons
     window.addEventListener('popstate', function(e) {
@@ -1816,43 +2005,56 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Auto-focus first empty field
-    const activeForm = document.querySelector('.auth-form.active');
-    if (activeForm) {
-        const firstEmptyField = activeForm.querySelector('.form-input[required]:not([value])');
-        if (firstEmptyField && !firstEmptyField.value) {
-            setTimeout(() => firstEmptyField.focus(), 500);
+    setTimeout(() => {
+        const activeForm = document.querySelector('.auth-form.active');
+        if (activeForm) {
+            const firstEmptyField = activeForm.querySelector('.form-input[required]:not([value])');
+            if (firstEmptyField && !firstEmptyField.value) {
+                firstEmptyField.focus();
+            }
         }
-    }
+    }, 500);
     
     // Prevent form resubmission on page refresh
     if (window.history.replaceState) {
         window.history.replaceState({mode: currentMode}, '', `?mode=${currentMode}`);
     }
     
-    console.log('Form handlers initialized successfully!');
-    
-    // DEBUG: Element'leri kontrol et
-    console.log('Navigation buttons found:', navBtns.length);
-    console.log('Auth links found:', authLinks.length);
-    console.log('Current mode:', currentMode);
-    
-    // DEBUG: Butonlara click event test et
-    navBtns.forEach((btn, index) => {
-        console.log(`Nav button ${index}:`, btn.dataset.form, btn.classList.contains('active'));
+    // Enhanced accessibility
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            const activeForm = document.querySelector('.auth-form.active');
+            if (activeForm) {
+                const submitBtn = activeForm.querySelector('.btn-auth');
+                if (submitBtn && !submitBtn.disabled) {
+                    submitBtn.click();
+                }
+            }
+        }
+        
+        // Switch forms with Ctrl+Tab
+        if (e.ctrlKey && e.key === 'Tab') {
+            e.preventDefault();
+            switchForm(currentMode === 'login' ? 'register' : 'login');
+        }
     });
     
-    // DEBUG: Manual test fonksiyonu
-    window.testFormSwitch = function(mode) {
-        console.log('Manual test - switching to:', mode);
-        switchForm(mode);
-    };
-    
-    // DEBUG: Butonlara manual click test
-    window.testNavClick = function() {
-        const registerBtn = document.querySelector('[data-form="register"]');
-        if (registerBtn) {
-            console.log('Testing register button click');
-            registerBtn.click();
-        }
-    };
-}); </script>
+    // Real-time password confirmation check
+    if (confirmPasswordInput && passwordInput) {
+        confirmPasswordInput.addEventListener('input', function() {
+            if (this.value && passwordInput.value) {
+                if (this.value === passwordInput.value) {
+                    this.classList.remove('error');
+                    this.classList.add('success');
+                    hideFieldError(this);
+                } else {
+                    this.classList.remove('success');
+                    this.classList.add('error');
+                    showFieldError(this, 'Şifreler uyuşmuyor');
+                }
+            }
+        });
+    }
+});
+</script>
