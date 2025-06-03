@@ -22,7 +22,6 @@ $is_logged_in = is_user_logged_in();
 if (!function_exists('is_user_admin')) {
     function is_user_admin() {
         global $pdo;
-        return ($is_logged_in && is_admin($pdo));
     }
 }
 $is_admin = $is_logged_in && is_user_admin();
@@ -65,10 +64,10 @@ $nav_links_config_navbar = [
     ],
     [
         'title' => 'Tartışmalar',
-        'url' => 'discussions.php',
+        'url' => '/forum/',
         'icon' => 'fa-comments',
         'permission' => 'discussion.view_public',
-        'show_to_guests' => false // Sadece üyeler
+        'show_to_guests' => true // Sadece üyeler
     ],
     [
         'title' => 'Rehberler',
@@ -1320,10 +1319,10 @@ $logo_path_navbar = '/assets/logo.png';
             </div>
         <?php else: ?>
             <div class="nav-action-item desktop-only">
-                <a href="<?php echo htmlspecialchars($baseUrl); ?>/login.php" class="nav-text-btn login-btn"><span>Giriş Yap</span></a>
+                <a href="<?php echo htmlspecialchars($baseUrl); ?>/register.php?mode=login" class="nav-text-btn login-btn"><span>Giriş Yap</span></a>
             </div>
             <div class="nav-action-item desktop-only">
-                <a href="<?php echo htmlspecialchars($baseUrl); ?>/register.php" class="nav-text-btn"><span>Kayıt Ol</span></a>
+                <a href="<?php echo htmlspecialchars($baseUrl); ?>/register.php?mode=register" class="nav-text-btn"><span>Kayıt Ol</span></a>
             </div>
         <?php endif; ?>
 

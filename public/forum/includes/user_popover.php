@@ -1,4 +1,4 @@
-<!-- User Popover Component -->
+<!-- User Popover Component - public/forum/includes/user_popover.php -->
 <div id="userPopover" class="user-popover" style="display: none;">
     <div class="popover-content">
         <div class="popover-loading">
@@ -364,16 +364,50 @@
 </style>
 
 <script>
+// ✅ DÜZELTEN JAVASCRIPT KODU - BURAYA YAPIŞTIRILACAK
 let userPopoverTimeout;
 let currentPopoverUserId = null;
 let popoverVisible = false;
 
-// User popover functionality
+// Düzeltilmiş tarih formatlama fonksiyonu
+function formatDate(dateString) {
+    try {
+        // MySQL datetime formatını parse et: "2025-06-03 17:32:08"
+        let date;
+        
+        if (dateString.includes(' ')) {
+            // MySQL datetime format: "2025-06-03 17:32:08"
+            date = new Date(dateString.replace(' ', 'T')); // ISO formatına çevir
+        } else {
+            // Zaten ISO format
+            date = new Date(dateString);
+        }
+        
+        // Geçerli tarih kontrolü
+        if (isNaN(date.getTime())) {
+            console.warn('Invalid date:', dateString);
+            return 'Geçersiz tarih';
+        }
+        
+        const options = { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        };
+        
+        return date.toLocaleDateString('tr-TR', options);
+    } catch (error) {
+        console.error('Date formatting error:', error, 'for date:', dateString);
+        return 'Tarih formatı hatası';
+    }
+}
+
+// User popover gösterme - sadece tıklama ile
 function showUserPopover(element, userId) {
     clearTimeout(userPopoverTimeout);
     
     if (currentPopoverUserId === userId && popoverVisible) {
-        return; // Already showing this user's popover
+        return; // Zaten açık
     }
     
     const popover = document.getElementById('userPopover');
@@ -402,7 +436,9 @@ function showUserPopover(element, userId) {
     fetchUserPopoverData(userId);
 }
 
+// Popover kapatma
 function closeUserPopover() {
+    clearTimeout(userPopoverTimeout);
     const popover = document.getElementById('userPopover');
     popover.classList.remove('show');
     
@@ -413,25 +449,25 @@ function closeUserPopover() {
     }, 200);
 }
 
+// Popover konumlandırma
 function positionPopover(element, popover) {
     const rect = element.getBoundingClientRect();
-    const popoverRect = popover.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
     let top, left;
     
-    // Calculate horizontal position
-    left = rect.left + (rect.width / 2) - 175; // Center popover (350px / 2 = 175)
+    // Horizontal position - merkez
+    left = rect.left + (rect.width / 2) - 175; // 350px width / 2 = 175
     
-    // Ensure popover doesn't go off screen horizontally
+    // Ekrandan taşma kontrolü
     if (left < 10) {
         left = 10;
     } else if (left + 350 > viewportWidth - 10) {
         left = viewportWidth - 360;
     }
     
-    // Calculate vertical position
+    // Vertical position
     const spaceBelow = viewportHeight - rect.bottom;
     const spaceAbove = rect.top;
     
@@ -450,6 +486,7 @@ function positionPopover(element, popover) {
     popover.style.top = top + 'px';
 }
 
+// User data getirme
 async function fetchUserPopoverData(userId) {
     try {
         const response = await fetch(`/src/api/get_user_popover_data.php?user_id=${userId}`);
@@ -458,24 +495,26 @@ async function fetchUserPopoverData(userId) {
         if (data.success) {
             populateUserPopover(data.user);
         } else {
-            showPopoverError();
+            showPopoverError(data.message || 'Kullanıcı bilgileri yüklenemedi');
         }
     } catch (error) {
         console.error('Error fetching user data:', error);
-        showPopoverError();
+        showPopoverError('Ağ hatası oluştu');
     }
 }
 
+// Popover doldurma
 function populateUserPopover(userData) {
     const popover = document.getElementById('userPopover');
     const loadingDiv = popover.querySelector('.popover-loading');
     const userInfoDiv = popover.querySelector('.popover-user-info');
     
-    // Populate user info
+    // Avatar
     const avatarImg = userInfoDiv.querySelector('.avatar-img');
     avatarImg.src = userData.avatar_path || '/assets/logo.png';
     avatarImg.alt = `${userData.username} Avatarı`;
     
+    // User info
     userInfoDiv.querySelector('.user-name').textContent = userData.username;
     userInfoDiv.querySelector('.user-role').textContent = userData.primary_role_name || 'Üye';
     userInfoDiv.querySelector('.user-role').style.color = userData.primary_role_color || '#bd912a';
@@ -494,6 +533,8 @@ function populateUserPopover(userData) {
     // User details
     userInfoDiv.querySelector('.ingame-name').textContent = userData.ingame_name || 'Belirtilmemiş';
     userInfoDiv.querySelector('.discord-username').textContent = userData.discord_username || 'Belirtilmemiş';
+    
+    // ✅ Düzeltilmiş tarih formatı
     userInfoDiv.querySelector('.join-date').textContent = formatDate(userData.created_at);
     
     // Forum stats
@@ -508,7 +549,6 @@ function populateUserPopover(userData) {
     const messageBtn = userInfoDiv.querySelector('.btn-send-message');
     if (userData.can_message) {
         messageBtn.style.display = 'flex';
-        // messageBtn.onclick = () => openMessageDialog(userData.id, userData.username);
     } else {
         messageBtn.style.display = 'none';
     }
@@ -518,28 +558,24 @@ function populateUserPopover(userData) {
     userInfoDiv.style.display = 'block';
 }
 
-function showPopoverError() {
+// Hata gösterme
+function showPopoverError(message = 'Kullanıcı bilgileri yüklenemedi.') {
     const popover = document.getElementById('userPopover');
     const loadingDiv = popover.querySelector('.popover-loading');
     const errorDiv = popover.querySelector('.popover-error');
     
     loadingDiv.style.display = 'none';
     errorDiv.style.display = 'block';
+    
+    const errorSpan = errorDiv.querySelector('span');
+    if (errorSpan) {
+        errorSpan.textContent = message;
+    }
 }
 
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    const options = { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    };
-    return date.toLocaleDateString('tr-TR', options);
-}
-
-// Event listeners
+// ✅ Düzeltilmiş Event Listeners - Sadece tıklama ve dışına tıklama
 document.addEventListener('DOMContentLoaded', function() {
-    // User link click handlers
+    // User link click handlers - sadece tıklama ile aç
     document.addEventListener('click', function(e) {
         const userLink = e.target.closest('.user-link');
         if (userLink) {
@@ -551,66 +587,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Close popover when clicking outside
+    // ✅ Dışına tıklama ile kapat
     document.addEventListener('click', function(e) {
         const popover = document.getElementById('userPopover');
         const userLink = e.target.closest('.user-link');
+        const closeBtn = e.target.closest('.popover-close');
         
+        // Close button'a tıklandıysa kapat
+        if (closeBtn) {
+            closeUserPopover();
+            return;
+        }
+        
+        // Popover dışına tıklandıysa ve user link değilse kapat
         if (!popover.contains(e.target) && !userLink && popoverVisible) {
             closeUserPopover();
         }
     });
     
-    // Close popover on escape key
+    // ✅ Escape tuşu ile kapat
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && popoverVisible) {
             closeUserPopover();
         }
     });
-    
-    // Handle hover events for user links
-    document.addEventListener('mouseenter', function(e) {
-        const userLink = e.target.closest('.user-link');
-        if (userLink) {
-            clearTimeout(userPopoverTimeout);
-            
-            userPopoverTimeout = setTimeout(() => {
-                const userId = userLink.getAttribute('data-user-id');
-                if (userId && !popoverVisible) {
-                    showUserPopover(userLink, userId);
-                }
-            }, 500); // Show after 500ms hover
-        }
-    }, true);
-    
-    document.addEventListener('mouseleave', function(e) {
-        const userLink = e.target.closest('.user-link');
-        if (userLink) {
-            clearTimeout(userPopoverTimeout);
-            
-            // Don't auto-hide if mouse is over popover
-            userPopoverTimeout = setTimeout(() => {
-                const popover = document.getElementById('userPopover');
-                if (!popover.matches(':hover') && popoverVisible) {
-                    closeUserPopover();
-                }
-            }, 300);
-        }
-    }, true);
-    
-    // Keep popover open when hovering over it
-    document.addEventListener('mouseenter', function(e) {
-        if (e.target.closest('#userPopover')) {
-            clearTimeout(userPopoverTimeout);
-        }
-    }, true);
-    
-    document.addEventListener('mouseleave', function(e) {
-        if (e.target.closest('#userPopover')) {
-            userPopoverTimeout = setTimeout(() => {
-                closeUserPopover();
-            }, 300);
-        }
-    }, true);
 });
+
+// Global fonksiyonlar
+window.closeUserPopover = closeUserPopover;
 </script>

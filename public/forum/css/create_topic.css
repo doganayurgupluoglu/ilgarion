@@ -1,0 +1,434 @@
+/* Create Topic Page Styles */
+.create-topic-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
+    border: 1px solid var(--darker-gold-2);
+    border-radius: 8px;
+}
+
+.create-topic-header h1 {
+    color: var(--gold);
+    margin: 0 0 1rem 0;
+    font-size: 2.2rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.create-topic-header p {
+    color: var(--light-grey);
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.create-topic-form {
+    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
+    border: 1px solid var(--darker-gold-2);
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 2rem;
+}
+
+.form-group label {
+    display: block;
+    color: var(--lighter-grey);
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.required {
+    color: var(--red);
+    margin-left: 0.25rem;
+}
+
+.form-group input[type="text"],
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    background: var(--charcoal);
+    border: 2px solid var(--darker-gold-2);
+    color: var(--lighter-grey);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.form-group input[type="text"]:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(189, 145, 42, 0.1);
+}
+
+.title-counter, .char-counter {
+    text-align: right;
+    color: var(--light-grey);
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+.form-help {
+    color: var(--light-grey);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    display: block;
+}
+
+/* Visibility Options */
+.visibility-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 0.75rem;
+}
+
+.visibility-option {
+    position: relative;
+}
+
+.visibility-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.visibility-option label {
+    display: block;
+    padding: 1rem;
+    border: 2px solid var(--darker-gold-2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(189, 145, 42, 0.05);
+}
+
+.visibility-option label:hover {
+    border-color: var(--gold);
+}
+
+.visibility-option input[type="radio"]:checked + label {
+    border-color: var(--gold);
+    background: rgba(189, 145, 42, 0.15);
+}
+
+.visibility-option label i {
+    color: var(--gold);
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.visibility-option label strong {
+    color: var(--lighter-grey);
+    font-size: 1rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.visibility-option label small {
+    color: var(--light-grey);
+    font-size: 0.8rem;
+    display: block;
+}
+
+/* Role Selection */
+.role-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.role-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.role-checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.role-checkbox label {
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* Editor Toolbar */
+.editor-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(189, 145, 42, 0.05);
+    border: 1px solid var(--darker-gold-2);
+    border-radius: 6px 6px 0 0;
+    flex-wrap: wrap;
+}
+
+.toolbar-group {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.editor-btn {
+    background: var(--darker-gold-2);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.editor-btn:hover {
+    background: var(--gold);
+    color: var(--charcoal);
+}
+
+#colorSelect, #sizeSelect {
+    width: auto;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--darker-gold-2);
+    background: var(--charcoal);
+    color: var(--lighter-grey);
+}
+
+.content-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.btn-preview {
+    background: transparent;
+    border: 1px solid var(--turquase);
+    color: var(--turquase);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-preview:hover {
+    background: var(--turquase);
+    color: var(--charcoal);
+}
+
+/* Content Preview */
+.content-preview {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid var(--darker-gold-2);
+    border-radius: 6px;
+    background: rgba(189, 145, 42, 0.05);
+}
+
+.content-preview h4 {
+    color: var(--gold);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.preview-content {
+    color: var(--lighter-grey);
+    line-height: 1.6;
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--darker-gold-2);
+    flex-wrap: wrap;
+}
+
+.btn-submit, .btn-draft, .btn-cancel {
+    padding: 0.875rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font);
+    border: none;
+}
+
+.btn-submit {
+    background: var(--turquase);
+    color: var(--charcoal);
+    min-width: 180px;
+    justify-content: center;
+}
+
+.btn-submit:hover {
+    background: var(--light-turquase);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(61, 166, 162, 0.3);
+}
+
+.btn-draft {
+    background: var(--gold);
+    color: var(--charcoal);
+}
+
+.btn-draft:hover {
+    background: var(--light-gold);
+    transform: translateY(-2px);
+}
+
+.btn-cancel {
+    background: transparent;
+    color: var(--light-grey);
+    border: 2px solid var(--darker-gold-2);
+}
+
+.btn-cancel:hover {
+    background: var(--darker-gold-2);
+    color: var(--lighter-grey);
+    text-decoration: none;
+    transform: translateY(-2px);
+}
+
+/* Guidelines */
+.forum-guidelines {
+    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
+    border: 1px solid var(--turquase);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.forum-guidelines h3 {
+    color: var(--turquase);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.forum-guidelines ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.forum-guidelines li {
+    color: var(--light-grey);
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+    position: relative;
+    line-height: 1.5;
+}
+
+.forum-guidelines li::before {
+    content: '•';
+    color: var(--turquase);
+    font-weight: bold;
+    position: absolute;
+    left: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .create-topic-header {
+        padding: 1.5rem;
+    }
+    
+    .create-topic-header h1 {
+        font-size: 1.8rem;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .create-topic-form {
+        padding: 1.5rem;
+    }
+    
+    .visibility-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .role-checkboxes {
+        grid-template-columns: 1fr;
+    }
+    
+    .editor-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .toolbar-group {
+        justify-content: center;
+    }
+    
+    .content-info {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .btn-submit, .btn-draft, .btn-cancel {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Loading States */
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.btn-submit.loading {
+    background: var(--light-grey);
+    color: var(--charcoal);
+}

@@ -64,7 +64,7 @@ include BASE_PATH . '/src/includes/navbar.php';
 ?>
 
 <link rel="stylesheet" href="/public/forum/css/forum.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/public/forum/css/category.css">
 
 <div class="forum-page-container">
     <!-- Breadcrumb -->
