@@ -1432,7 +1432,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                     </div>
                     <div class="file-upload-text">
                         Fotoğraf yüklemek için tıklayın veya sürükleyip bırakın<br>
-                        <small>JPG, PNG, GIF (Max: 5MB)</small>
+                        <small>JPG, PNG, GIF (Max: 10MB)</small>
                     </div>
                 </div>
                 <input type="file" 
@@ -2171,8 +2171,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Validate file size (5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Dosya boyutu 5MB\'dan küçük olmalıdır.');
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Dosya boyutu 10MB\'dan küçük olmalıdır.');
             return;
         }
 

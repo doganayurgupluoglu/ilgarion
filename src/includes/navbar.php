@@ -180,7 +180,7 @@ if ($is_logged_in && isset($pdo) && function_exists('has_permission')) {
     if (has_permission($pdo, 'guide.create')) {
         $user_nav_items[] = [
             'title' => 'Rehber Yaz',
-            'url' => 'create_guide.php',
+            'url' => 'new_guide.php',
             'icon' => 'fa-pen',
             'permission' => 'guide.create'
         ];
@@ -189,7 +189,7 @@ if ($is_logged_in && isset($pdo) && function_exists('has_permission')) {
     if (has_permission($pdo, 'gallery.upload')) {
         $user_nav_items[] = [
             'title' => 'Fotoğraf Yükle',
-            'url' => 'upload_photo.php',
+            'url' => 'gallery.php',
             'icon' => 'fa-camera',
             'permission' => 'gallery.upload'
         ];

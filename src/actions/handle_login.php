@@ -1,11 +1,12 @@
 <?php
-// src/actions/handle_login.php
+// src/actions/handle_login.php - Register.php yönlendirme ile güncellenmiş
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
 require_once dirname(__DIR__) . '/config/database.php'; // $pdo ve BASE_PATH
+require_once BASE_PATH . '/src/functions/auth_functions.php';
 
 $baseUrl = '/public';
 
@@ -15,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($usernameOrEmail) || empty($password)) {
         $_SESSION['error_message'] = "Kullanıcı adı/e-posta ve şifre boş bırakılamaz.";
-        header('Location: ' . $baseUrl . '/login.php');
+        header('Location: ' . $baseUrl . '/register.php?mode=login');
         exit;
     }
 
@@ -30,7 +31,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($user['status'] === 'approved') {
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
-                    // $_SESSION['user_role'] artık kullanılmayacak, yerine $_SESSION['user_roles'] dizisi gelecek
                     $_SESSION['user_status'] = $user['status'];
 
                     // AVATAR YOLUNU SESSION'A EKLEME
@@ -48,49 +48,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         WHERE ur.user_id = ?
                     ");
                     $stmt_roles->execute([$user['id']]);
-                    $roles_data = $stmt_roles->fetchAll(PDO::FETCH_COLUMN); // Sadece rol isimlerini al
+                    $roles_data = $stmt_roles->fetchAll(PDO::FETCH_COLUMN);
                     
-                    $_SESSION['user_roles'] = $roles_data; // Kullanıcının rollerini bir dizi olarak session'a ata
-                    // Örneğin: $_SESSION['user_roles'] = ['admin', 'scg_uye']; veya ['dis_uye'];
+                    $_SESSION['user_roles'] = $roles_data;
 
-                    // Eski $_SESSION['user_role'] değişkenini (eğer hala kullanılıyorsa diye)
-                    // geçici olarak ilk role veya admin ise 'admin'e ayarlayabiliriz,
-                    // ama ideal olan tüm rol kontrollerini $_SESSION['user_roles'] üzerinden yapmaktır.
-                    // Şimdilik, 'admin' rolü varsa onu önceliklendirelim, yoksa ilk rolü alalım (veya 'member' gibi bir varsayılan).
+                    // Eski $_SESSION['user_role'] değişkenini geçici uyumluluk için
                     if (in_array('admin', $roles_data)) {
-                        $_SESSION['user_role_legacy_compatibility'] = 'admin'; // Geçici uyumluluk için
+                        $_SESSION['user_role_legacy_compatibility'] = 'admin';
                     } elseif (!empty($roles_data)) {
-                        $_SESSION['user_role_legacy_compatibility'] = $roles_data[0]; // İlk rolü al
+                        $_SESSION['user_role_legacy_compatibility'] = $roles_data[0];
                     } else {
-                        $_SESSION['user_role_legacy_compatibility'] = 'member'; // Varsayılan (rolü yoksa)
+                        $_SESSION['user_role_legacy_compatibility'] = 'member';
                     }
                     // === ROLLERİ EKLEME SONU ===
 
                     header('Location: ' . $baseUrl . '/index.php');
                     exit;
+                    
                 } elseif ($user['status'] === 'pending') {
-                    $_SESSION['error_message'] = "Hesabınız henüz admin tarafından onaylanmamış.";
-                    header('Location: ' . $baseUrl . '/login.php?status=pending_approval');
+                    // DEĞIŞIKLIK: Register.php'e yönlendir ve özel status ile
+                    $_SESSION['info_message'] = "Hesabınız henüz admin tarafından onaylanmamış. Onaylandıktan sonra giriş yapabilirsiniz.";
+                    header('Location: ' . $baseUrl . '/register.php?mode=login&status=pending_approval');
                     exit;
-                } elseif ($user['status'] === 'rejected' || $user['status'] === 'suspended') {
-                    $_SESSION['error_message'] = "Hesabınız reddedilmiş veya askıya alınmıştır. Giriş yapamazsınız.";
-                    header('Location: ' . $baseUrl . '/login.php');
+                    
+                } elseif ($user['status'] === 'rejected') {
+                    // DEĞIŞIKLIK: Register.php'e yönlendir
+                    $_SESSION['error_message'] = "Hesabınız reddedilmiştir. Giriş yapamazsınız. Yeni bir hesap oluşturabilir veya yönetici ile iletişime geçebilirsiniz.";
+                    header('Location: ' . $baseUrl . '/register.php?mode=login&status=account_rejected');
+                    exit;
+                    
+                } elseif ($user['status'] === 'suspended') {
+                    // DEĞIŞIKLIK: Register.php'e yönlendir
+                    $_SESSION['error_message'] = "Hesabınız askıya alınmıştır. Giriş yapamazsınız. Yönetici ile iletişime geçin.";
+                    header('Location: ' . $baseUrl . '/register.php?mode=login&status=account_suspended');
                     exit;
                 }
             } else {
                 $_SESSION['error_message'] = "Kullanıcı adı veya şifre hatalı.";
-                header('Location: ' . $baseUrl . '/login.php');
+                header('Location: ' . $baseUrl . '/register.php?mode=login');
                 exit;
             }
         } else {
             $_SESSION['error_message'] = "Kullanıcı adı veya şifre hatalı.";
-            header('Location: ' . $baseUrl . '/login.php');
+            header('Location: ' . $baseUrl . '/register.php?mode=login');
             exit;
         }
     } catch (PDOException $e) {
         error_log("Giriş Veritabanı Hatası: " . $e->getMessage());
         $_SESSION['error_message'] = "Giriş sırasında bir sorun oluştu. Lütfen daha sonra tekrar deneyin.";
-        header('Location: ' . $baseUrl . '/login.php');
+        header('Location: ' . $baseUrl . '/register.php?mode=login');
         exit;
     }
 } else {

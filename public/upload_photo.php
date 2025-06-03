@@ -130,7 +130,7 @@ $current_user_id = $_SESSION['user_id'];
 try {
     // Dosya güvenlik kontrolleri
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    $max_file_size = 5 * 1024 * 1024; // 5MB
+    $max_file_size = 10 * 1024 * 1024; // 5MB
 
     // MIME type kontrolü
     $finfo = finfo_open(FILEINFO_MIME_TYPE);

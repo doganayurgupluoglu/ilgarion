@@ -376,8 +376,22 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.8);
+    padding: 0;
+}
+.modal-content::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
 }
 
+/* Firefox için */
+.modal-content {
+    scrollbar-width: none; /* Firefox */
+}
+
+/* scrollbar tamamen devre dışı */
+.modal-content {
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+}
 .modal-content {
     background-color: var(--charcoal);
     margin: 2% auto;
@@ -385,10 +399,11 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     border: 1px solid var(--darker-gold-1);
     border-radius: 8px;
     width: 90%;
-    max-width: 800px;
+    max-width: 1600px;
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
+    scrollbar-width: 0px;
 }
 
 .modal-header {
