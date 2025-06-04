@@ -719,3 +719,478 @@ function showNotification(message, type = 'info') {
         }, 300);
     }
 }
+// ============= TOPIC.JS'E EKLENECEK KODLAR =============
+// Bu kodları mevcut topic.js dosyanızın sonuna ekleyin
+
+// Edit modal HTML'ini oluştur
+function createEditModal() {
+    const modalHtml = `
+        <div id="editModal" class="forum-modal" style="display: none;">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="editModalTitle">Gönderiyi Düzenle</h3>
+                    <button type="button" class="modal-close" onclick="closeEditModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="editPostId" name="post_id">
+                        <input type="hidden" id="editType" name="type">
+                        <input type="hidden" id="editTopicId" name="topic_id">
+                        
+                        <div class="form-group">
+                            <label for="editContent">İçerik:</label>
+                            <div class="editor-toolbar">
+                                <button type="button" class="editor-btn" onclick="insertBBCodeEdit('b')" title="Kalın">
+                                    <i class="fas fa-bold"></i>
+                                </button>
+                                <button type="button" class="editor-btn" onclick="insertBBCodeEdit('i')" title="İtalik">
+                                    <i class="fas fa-italic"></i>
+                                </button>
+                                <button type="button" class="editor-btn" onclick="insertBBCodeEdit('u')" title="Altı Çizili">
+                                    <i class="fas fa-underline"></i>
+                                </button>
+                                <button type="button" class="editor-btn" onclick="insertBBCodeEdit('url')" title="Link">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                                <button type="button" class="editor-btn" onclick="insertBBCodeEdit('img')" title="Resim">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button type="button" class="editor-btn" onclick="insertBBCodeEdit('quote')" title="Alıntı">
+                                    <i class="fas fa-quote-left"></i>
+                                </button>
+                                <button type="button" class="editor-btn" onclick="insertBBCodeEdit('code')" title="Kod">
+                                    <i class="fas fa-code"></i>
+                                </button>
+                            </div>
+                            <textarea id="editContent" name="content" rows="10" required 
+                                      minlength="5" maxlength="10000"></textarea>
+                            <div class="char-counter">
+                                <span id="edit-char-count">0</span> / 10000 karakter
+                            </div>
+                        </div>
+                        
+                        <div class="modal-actions">
+                            <button type="submit" class="btn-submit" id="editSubmitBtn">
+                                <i class="fas fa-save"></i> Kaydet
+                            </button>
+                            <button type="button" class="btn-cancel" onclick="closeEditModal()">
+                                <i class="fas fa-times"></i> İptal
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Edit form event listener
+    const editForm = document.getElementById('editForm');
+    if (editForm) {
+        editForm.addEventListener('submit', handleEditSubmit);
+    }
+    
+    // Edit content karakter sayacı
+    const editContent = document.getElementById('editContent');
+    const editCharCount = document.getElementById('edit-char-count');
+    
+    if (editContent && editCharCount) {
+        editContent.addEventListener('input', function() {
+            editCharCount.textContent = this.value.length;
+            
+            if (this.value.length > 9500) {
+                editCharCount.style.color = 'var(--red)';
+            } else if (this.value.length > 8000) {
+                editCharCount.style.color = 'var(--gold)';
+            } else {
+                editCharCount.style.color = 'var(--light-grey)';
+            }
+        });
+    }
+}
+
+// Edit modal için BBCode fonksiyonları
+function insertBBCodeEdit(tag, value = null) {
+    const textarea = document.getElementById('editContent');
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    
+    let replacement;
+    
+    switch(tag) {
+        case 'url':
+            const url = prompt('URL girin:');
+            if (url) {
+                replacement = selectedText ? `[url=${url}]${selectedText}[/url]` : `[url=${url}][/url]`;
+            } else {
+                return;
+            }
+            break;
+        case 'img':
+            const imgUrl = prompt('Resim URL\'sini girin:');
+            if (imgUrl) {
+                replacement = `[img]${imgUrl}[/img]`;
+            } else {
+                return;
+            }
+            break;
+        default:
+            replacement = selectedText ? `[${tag}]${selectedText}[/${tag}]` : `[${tag}][/${tag}]`;
+    }
+    
+    textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+    
+    let newPos;
+    if (selectedText) {
+        newPos = start + replacement.length;
+    } else {
+        const closingTag = tag === 'img' ? '' : `[/${tag}]`;
+        newPos = start + replacement.length - closingTag.length;
+    }
+    
+    textarea.setSelectionRange(newPos, newPos);
+    textarea.focus();
+    
+    // Karakter sayısını güncelle
+    const event = new Event('input');
+    textarea.dispatchEvent(event);
+}
+
+// Edit modalını aç - DÜZELTİLMİŞ VERSİYON
+async function editPost(postId, type) {
+    try {
+        let url;
+        
+        if (type === 'topic') {
+            // Topic düzenleme için topic ID'yi al
+            const topicId = getTopicIdFromUrl();
+            if (!topicId) {
+                showNotification('Topic ID bulunamadı.', 'error');
+                return;
+            }
+            url = `/public/forum/actions/get_post_content.php?type=topic&topic_id=${topicId}`;
+        } else {
+            // Normal post düzenleme
+            url = `/public/forum/actions/get_post_content.php?post_id=${postId}&type=post`;
+        }
+        
+        console.log('Fetching from URL:', url); // Debug için
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        console.log('Response data:', data); // Debug için
+        
+        if (data.success) {
+            // Modal verilerini set et
+            document.getElementById('editPostId').value = postId || 0;
+            document.getElementById('editType').value = type;
+            document.getElementById('editTopicId').value = getTopicIdFromUrl() || 0;
+            document.getElementById('editContent').value = data.content;
+            document.getElementById('editModalTitle').textContent = type === 'topic' ? 'Konuyu Düzenle' : 'Gönderiyi Düzenle';
+            
+            // Karakter sayısını güncelle
+            const editCharCount = document.getElementById('edit-char-count');
+            if (editCharCount) {
+                editCharCount.textContent = data.content.length;
+            }
+            
+            // Modalı göster
+            document.getElementById('editModal').style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Scroll'u kapat
+            
+            // Textarea'ya focus
+            setTimeout(() => {
+                document.getElementById('editContent').focus();
+            }, 100);
+        } else {
+            showNotification(data.message || 'İçerik yüklenemedi.', 'error');
+        }
+    } catch (error) {
+        console.error('Edit post error:', error);
+        showNotification('İçerik yüklenirken hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Edit modalını kapat
+function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = ''; // Scroll'u aç
+        
+        // Form'u temizle
+        document.getElementById('editForm').reset();
+    }
+}
+
+// Edit form submit handler
+async function handleEditSubmit(e) {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('editSubmitBtn');
+    const originalText = submitBtn.innerHTML;
+    
+    // Button'u devre dışı bırak
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
+    
+    try {
+        const formData = new FormData(e.target);
+        formData.append('csrf_token', csrfToken);
+        
+        const response = await fetch('/public/forum/actions/edit_post.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const type = formData.get('type');
+            const postId = formData.get('post_id');
+            
+            // İçeriği güncelle
+            if (type === 'topic') {
+                // İlk post (konu içeriği)
+                const topicPost = document.querySelector('.topic-first-post .post-body');
+                if (topicPost) {
+                    topicPost.innerHTML = data.content_html;
+                }
+            } else {
+                // Normal post
+                const postBody = document.querySelector(`#post-${postId} .post-body`);
+                if (postBody) {
+                    // Mevcut edited info'yu koru veya ekle
+                    let editedInfo = postBody.querySelector('.post-edited-info');
+                    if (!editedInfo) {
+                        editedInfo = document.createElement('div');
+                        editedInfo.className = 'post-edited-info';
+                        postBody.appendChild(editedInfo);
+                    }
+                    
+                    // İçeriği güncelle
+                    postBody.innerHTML = data.content_html;
+                    
+                    // Edited info'yu güncelle
+                    editedInfo.innerHTML = `
+                        <i class="fas fa-edit"></i>
+                        <em>Son düzenleme: Az önce</em>
+                    `;
+                    postBody.appendChild(editedInfo);
+                }
+            }
+            
+            showNotification(data.message, 'success');
+            closeEditModal();
+            
+        } else {
+            showNotification(data.message || 'Düzenleme başarısız oldu.', 'error');
+        }
+    } catch (error) {
+        console.error('Edit submit error:', error);
+        showNotification('Düzenleme sırasında hata oluştu.', 'error');
+    } finally {
+        // Button'u tekrar aktif et
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+// Gelişmiş silme onay modalı
+function showDeleteConfirmation(title, message, onConfirm) {
+    // Mevcut onay modalını kaldır
+    const existingModal = document.querySelector('.delete-confirmation');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const confirmHtml = `
+        <div class="delete-confirmation">
+            <h4><i class="fas fa-exclamation-triangle"></i> ${title}</h4>
+            <p>${message}</p>
+            <div class="delete-confirmation-actions">
+                <button class="btn-confirm-delete" onclick="handleDeleteConfirm()">
+                    <i class="fas fa-trash"></i> Evet, Sil
+                </button>
+                <button class="btn-cancel-delete" onclick="closeDeleteConfirmation()">
+                    <i class="fas fa-times"></i> İptal
+                </button>
+            </div>
+        </div>
+        <div class="modal-overlay" onclick="closeDeleteConfirmation()"></div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', confirmHtml);
+    
+    // Confirm callback'i sakla
+    window.deleteConfirmCallback = onConfirm;
+}
+
+function handleDeleteConfirm() {
+    if (window.deleteConfirmCallback) {
+        window.deleteConfirmCallback();
+        closeDeleteConfirmation();
+    }
+}
+
+function closeDeleteConfirmation() {
+    const modal = document.querySelector('.delete-confirmation');
+    const overlay = document.querySelector('.modal-overlay:not(#editModal .modal-overlay)');
+    
+    if (modal) modal.remove();
+    if (overlay) overlay.remove();
+    
+    window.deleteConfirmCallback = null;
+}
+
+// Yanıt sayısını güncelle
+function updateReplyCount(change) {
+    // Header'daki sayıyı güncelle
+    const replyCountElement = document.querySelector('.topic-stats .stat-number');
+    if (replyCountElement) {
+        const currentCount = parseInt(replyCountElement.textContent.replace(/,/g, ''));
+        const newCount = Math.max(0, currentCount + change);
+        replyCountElement.textContent = newCount.toLocaleString('tr-TR');
+    }
+    
+    // Posts header'daki sayıyı güncelle
+    const postsCount = document.querySelector('.posts-count');
+    if (postsCount) {
+        const currentCount = parseInt(postsCount.textContent.match(/\d+/)[0]);
+        const newCount = Math.max(0, currentCount + change);
+        postsCount.textContent = `${newCount} yanıt`;
+    }
+}
+
+// DOMContentLoaded'da edit modal'ı oluştur
+document.addEventListener('DOMContentLoaded', function() {
+    // Edit modal'ı oluştur
+    createEditModal();
+});
+
+// Modal dışına tıklayınca kapat
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('editModal');
+    if (modal && e.target.classList.contains('modal-overlay')) {
+        closeEditModal();
+    }
+});
+
+// ESC tuşu ile modal'ı kapat
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('editModal');
+        if (modal && modal.style.display !== 'none') {
+            closeEditModal();
+        }
+    }
+});
+
+// ============= SİLME FONKSİYONLARINI DEĞİŞTİR =============
+// Mevcut confirmTopicDelete ve confirmPostDelete fonksiyonlarını bu versiyonlarla değiştirin
+
+// Silme fonksiyonları - Gelişmiş implementasyon
+function confirmTopicDelete(topicId) {
+    showDeleteConfirmation(
+        'Konuyu Sil',
+        'Bu konuyu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm yanıtlar da silinecektir.',
+        () => deleteTopicAction(topicId)
+    );
+}
+
+function confirmPostDelete(postId) {
+    showDeleteConfirmation(
+        'Gönderiyi Sil',
+        'Bu gönderiyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+        () => deletePostAction(postId)
+    );
+}
+
+// Yorum silme action - Gelişmiş versiyon
+async function deletePostAction(postId) {
+    if (!csrfToken) {
+        showNotification('CSRF token bulunamadı. Sayfayı yenileyin.', 'error');
+        return;
+    }
+
+    const postElement = document.getElementById(`post-${postId}`);
+    
+    // Loading overlay ekle
+    if (postElement) {
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'post-loading-overlay';
+        loadingOverlay.innerHTML = '<i class="fas fa-spinner fa-spin spinner"></i>';
+        postElement.style.position = 'relative';
+        postElement.appendChild(loadingOverlay);
+    }
+    
+    try {
+        const response = await fetch('/public/forum/actions/delete_post.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `csrf_token=${encodeURIComponent(csrfToken)}&post_id=${postId}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(data.message, 'success');
+            
+            // Gönderiyi animasyonlu şekilde kaldır
+            if (postElement) {
+                postElement.classList.add('deleting');
+                
+                setTimeout(() => {
+                    postElement.remove();
+                    
+                    // Yanıt sayısını güncelle
+                    updateReplyCount(-1);
+                    
+                    // Eğer son yorum silindiyse
+                    const remainingPosts = document.querySelectorAll('.post-item');
+                    if (remainingPosts.length === 0) {
+                        const postsList = document.querySelector('.posts-list');
+                        if (postsList) {
+                            postsList.innerHTML = `
+                                <div class="no-posts-message" style="text-align: center; padding: 3rem; color: var(--light-grey);">
+                                    <i class="fas fa-comments" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                                    <p>Henüz yanıt yok. İlk yanıtı siz yazın!</p>
+                                </div>
+                            `;
+                        }
+                    }
+                }, 500);
+            }
+        } else {
+            showNotification(data.message, 'error');
+            // Loading overlay'i kaldır
+            if (postElement) {
+                const overlay = postElement.querySelector('.post-loading-overlay');
+                if (overlay) overlay.remove();
+            }
+        }
+    } catch (error) {
+        console.error('Post delete error:', error);
+        showNotification('Gönderi silinirken bir hata oluştu.', 'error');
+        // Loading overlay'i kaldır
+        if (postElement) {
+            const overlay = postElement.querySelector('.post-loading-overlay');
+            if (overlay) overlay.remove();
+        }
+    }
+}

@@ -848,53 +848,6 @@
     line-height: 1.5;
 }
 
-.welcome-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.btn-primary,
-.btn-secondary {
-    padding: 10px 20px;
-    border-radius: 6px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    border: none;
-    cursor: pointer;
-    font-family: var(--font);
-}
-
-.btn-primary {
-    background: var(--gold);
-    color: var(--black);
-}
-
-.btn-primary:hover {
-    background: var(--light-gold);
-    transform: translateY(-2px);
-    text-decoration: none;
-    color: var(--black);
-}
-
-.btn-secondary {
-    background: transparent;
-    color: var(--gold);
-    border: 1px solid var(--gold);
-}
-
-.btn-secondary:hover {
-    background: var(--gold);
-    color: var(--black);
-    transform: translateY(-2px);
-    text-decoration: none;
-}
-
 /* Kategori Yok Durumu */
 .no-categories {
     text-align: center;

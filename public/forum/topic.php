@@ -122,27 +122,6 @@ include BASE_PATH . '/src/includes/navbar.php';
                     <?= htmlspecialchars($topic['title']) ?>
                 </h1>
                 
-                <div class="topic-meta">
-                    <span class="topic-author">
-                        <span class="user-link" data-user-id="<?= $topic['user_id'] ?>"
-                              style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
-                            <?= htmlspecialchars($topic['author_username']) ?>
-                        </span>
-                    </span>
-                    <span class="topic-date"><?= format_time_ago($topic['created_at']) ?></span>
-                    
-                    <?php if ($topic['visibility'] !== 'public'): ?>
-                        <span class="topic-visibility">
-                            <?php
-                            $visibility_badges = [
-                                'members_only' => '<i class="fas fa-users"></i> Sadece Üyeler',
-                                'faction_only' => '<i class="fas fa-shield-alt"></i> Fraksiyona Özel'
-                            ];
-                            echo $visibility_badges[$topic['visibility']] ?? '';
-                            ?>
-                        </span>
-                    <?php endif; ?>
-                </div>
             </div>
             
             <div class="topic-stats">

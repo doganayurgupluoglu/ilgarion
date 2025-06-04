@@ -600,12 +600,11 @@
     display: flex;
     gap: 0.75rem;
     justify-content: center;
-    flex-wrap: wrap;
+    align-items: center;
 }
 
 .btn-primary,
 .btn-secondary {
-    padding: 0.75rem 1.25rem;
     border-radius: 6px;
     text-decoration: none;
     font-weight: 500;
@@ -617,9 +616,12 @@
     cursor: pointer;
     font-family: var(--font);
     font-size: 0.9rem;
+    height: 50px;
 }
 
 .btn-primary {
+    
+    padding: 0rem 1.5rem !important;
     background: var(--gold);
     color: var(--charcoal);
 }
@@ -631,7 +633,7 @@
 }
 
 .btn-secondary {
-    margin-top: 1.5rem;
+    padding: 0.75rem 1.5rem;
     background: transparent;
     color: var(--light-grey);
     border: 1px solid var(--border-1);
