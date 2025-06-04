@@ -20,7 +20,7 @@ $is_logged_in = is_user_logged_in();
 $is_approved = is_user_approved();
 
 // Konu ID'sini al
-$topic_id = (int)($_GET['id'] ?? 0);
+$topic_id = (int) ($_GET['id'] ?? 0);
 if (!$topic_id) {
     header('Location: /public/forum/');
     exit;
@@ -35,7 +35,7 @@ if (!$topic) {
 }
 
 // Sayfalama parametreleri
-$page = max(1, (int)($_GET['page'] ?? 1));
+$page = max(1, (int) ($_GET['page'] ?? 1));
 $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
@@ -59,26 +59,27 @@ if (isset($_GET['page']) && $_GET['page'] === 'last') {
 }
 
 // Avatar path düzeltme fonksiyonu
-function fix_avatar_path($avatar_path) {
+function fix_avatar_path($avatar_path)
+{
     if (empty($avatar_path)) {
         return '/assets/logo.png';
     }
-    
+
     // ../assets/ -> /assets/
     if (strpos($avatar_path, '../assets/') === 0) {
         return str_replace('../assets/', '/assets/', $avatar_path);
     }
-    
+
     // uploads/ -> /public/uploads/
     if (strpos($avatar_path, 'uploads/') === 0) {
         return '/public/' . $avatar_path;
     }
-    
+
     // /assets/ veya /public/ ile başlıyorsa dokunma
     if (strpos($avatar_path, '/assets/') === 0 || strpos($avatar_path, '/public/') === 0) {
         return $avatar_path;
     }
-    
+
     // Varsayılan
     return '/assets/logo.png';
 }
@@ -114,16 +115,16 @@ include BASE_PATH . '/src/includes/navbar.php';
                     <?php if ($topic['is_pinned']): ?>
                         <i class="fas fa-thumbtack pinned-icon" title="Sabitlenmiş Konu"></i>
                     <?php endif; ?>
-                    
+
                     <?php if ($topic['is_locked']): ?>
                         <i class="fas fa-lock locked-icon" title="Kilitli Konu"></i>
                     <?php endif; ?>
-                    
+
                     <?= htmlspecialchars($topic['title']) ?>
                 </h1>
-                
+
             </div>
-            
+
             <div class="topic-stats">
                 <div class="stat-item">
                     <div class="stat-number"><?= number_format($topic['reply_count']) ?></div>
@@ -135,38 +136,38 @@ include BASE_PATH . '/src/includes/navbar.php';
                 </div>
             </div>
         </div>
-        
+
         <div class="topic-actions">
             <?php if ($topic['can_reply']): ?>
                 <a href="#reply-form" class="btn-reply">
                     <i class="fas fa-reply"></i> Yanıtla
                 </a>
             <?php endif; ?>
-            
+
             <?php if ($topic['can_edit']): ?>
                 <a href="/public/forum/edit_topic.php?id=<?= $topic_id ?>" class="btn-edit">
                     <i class="fas fa-edit"></i> Düzenle
                 </a>
             <?php endif; ?>
-            
+
             <?php if ($topic['can_pin']): ?>
-                <button class="btn-pin <?= $topic['is_pinned'] ? 'active' : '' ?>" 
-                        onclick="toggleTopicPin(<?= $topic_id ?>, <?= $topic['is_pinned'] ? 'false' : 'true' ?>)"
-                        data-topic-id="<?= $topic_id ?>">
+                <button class="btn-pin <?= $topic['is_pinned'] ? 'active' : '' ?>"
+                    onclick="toggleTopicPin(<?= $topic_id ?>, <?= $topic['is_pinned'] ? 'false' : 'true' ?>)"
+                    data-topic-id="<?= $topic_id ?>">
                     <i class="fas fa-thumbtack"></i>
                     <?= $topic['is_pinned'] ? 'Sabitlemeyi Kaldır' : 'Sabitle' ?>
                 </button>
             <?php endif; ?>
-            
+
             <?php if ($topic['can_lock']): ?>
-                <button class="btn-lock <?= $topic['is_locked'] ? 'active' : '' ?>" 
-                        onclick="toggleTopicLock(<?= $topic_id ?>, <?= $topic['is_locked'] ? 'false' : 'true' ?>)"
-                        data-topic-id="<?= $topic_id ?>">
+                <button class="btn-lock <?= $topic['is_locked'] ? 'active' : '' ?>"
+                    onclick="toggleTopicLock(<?= $topic_id ?>, <?= $topic['is_locked'] ? 'false' : 'true' ?>)"
+                    data-topic-id="<?= $topic_id ?>">
                     <i class="fas fa-lock"></i>
                     <?= $topic['is_locked'] ? 'Kilidi Aç' : 'Kilitle' ?>
                 </button>
             <?php endif; ?>
-            
+
             <?php if ($topic['can_delete']): ?>
                 <button class="btn-delete" onclick="confirmTopicDelete(<?= $topic_id ?>)">
                     <i class="fas fa-trash"></i> Sil
@@ -180,14 +181,13 @@ include BASE_PATH . '/src/includes/navbar.php';
         <div class="topic-first-post post-item" id="post-0">
             <div class="post-author">
                 <div class="author-avatar">
-                    <img src="<?= fix_avatar_path($topic['author_avatar']) ?>" 
-                         alt="<?= htmlspecialchars($topic['author_username']) ?> Avatarı" 
-                         class="avatar-img">
+                    <img src="<?= fix_avatar_path($topic['author_avatar']) ?>"
+                        alt="<?= htmlspecialchars($topic['author_username']) ?> Avatarı" class="avatar-img">
                 </div>
                 <div class="author-info">
                     <div class="author-name">
                         <span class="user-link" data-user-id="<?= $topic['user_id'] ?>"
-                              style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
+                            style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
                             <?= htmlspecialchars($topic['author_username']) ?>
                         </span>
                     </div>
@@ -199,27 +199,37 @@ include BASE_PATH . '/src/includes/navbar.php';
                     </div>
                 </div>
             </div>
-            
+
             <div class="post-content">
+
                 <div class="post-body">
                     <?= parse_bbcode($topic['content']) ?>
+
                 </div>
-                
+
                 <div class="post-footer">
                     <div class="post-date">
                         <i class="fas fa-clock"></i>
                         <?= format_time_ago($topic['created_at']) ?>
+                                        <?php 
+    // Topic düzenleme bilgisi için veritabanından kontrol et
+    if (isset($topic['updated_at']) && $topic['created_at'] !== $topic['updated_at']): 
+    ?>
+            <i class="fas fa-edit"></i>
+            <em>Son düzenleme: <?= format_time_ago($topic['updated_at']) ?></em>
+    <?php endif; ?>
                     </div>
-                    
+
                     <div class="post-actions">
                         <?php if ($topic['can_edit']): ?>
                             <button class="post-action-btn" onclick="editPost(0, 'topic')">
                                 <i class="fas fa-edit"></i> Düzenle
                             </button>
                         <?php endif; ?>
-                        
+
                         <?php if ($is_approved): ?>
-                            <button class="post-action-btn" onclick="quotePost('<?= htmlspecialchars($topic['author_username']) ?>', '<?= htmlspecialchars(strip_tags($topic['content'])) ?>', this)">
+                            <button class="post-action-btn"
+                                onclick="quotePost('<?= htmlspecialchars($topic['author_username']) ?>', '<?= htmlspecialchars(strip_tags($topic['content'])) ?>', this)">
                                 <i class="fas fa-quote-left"></i> Alıntıla
                             </button>
                         <?php endif; ?>
@@ -238,19 +248,18 @@ include BASE_PATH . '/src/includes/navbar.php';
                     <?= number_format($total_posts) ?> yanıt
                 </div>
             </div>
-            
+
             <?php foreach ($posts as $index => $post): ?>
                 <div class="post-item" id="post-<?= $post['id'] ?>">
                     <div class="post-author">
                         <div class="author-avatar">
-                            <img src="<?= fix_avatar_path($post['avatar_path']) ?>" 
-                                 alt="<?= htmlspecialchars($post['username']) ?> Avatarı" 
-                                 class="avatar-img">
+                            <img src="<?= fix_avatar_path($post['avatar_path']) ?>"
+                                alt="<?= htmlspecialchars($post['username']) ?> Avatarı" class="avatar-img">
                         </div>
                         <div class="author-info">
                             <div class="author-name">
                                 <span class="user-link" data-user-id="<?= $post['user_id'] ?>"
-                                      style="color: <?= $post['user_role_color'] ?? '#bd912a' ?>">
+                                    style="color: <?= $post['user_role_color'] ?? '#bd912a' ?>">
                                     <?= htmlspecialchars($post['username']) ?>
                                 </span>
                             </div>
@@ -262,11 +271,11 @@ include BASE_PATH . '/src/includes/navbar.php';
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="post-content">
                         <div class="post-body">
                             <?= parse_bbcode($post['content']) ?>
-                            
+
                             <?php if ($post['is_edited']): ?>
                                 <div class="post-edited-info">
                                     <i class="fas fa-edit"></i>
@@ -274,43 +283,43 @@ include BASE_PATH . '/src/includes/navbar.php';
                                 </div>
                             <?php endif; ?>
                         </div>
-                        
+
                         <div class="post-footer">
                             <div class="post-date">
                                 <i class="fas fa-clock"></i>
                                 <?= format_time_ago($post['created_at']) ?>
                             </div>
-                            
-                            
-                            
+
+
+
                             <div class="post-actions">
                                 <div class="post-reactions">
-                                <?php if ($post['can_like']): ?>
-                                    <button class="post-like-btn <?= $post['user_liked'] ? 'liked' : '' ?>" 
-                                            onclick="togglePostLike(<?= $post['id'] ?>)"
-                                            data-post-id="<?= $post['id'] ?>">
-                                        <i class="fas fa-heart"></i>
-                                        <span class="like-count"><?= $post['like_count'] ?></span>
-                                    </button>
-                                <?php elseif ($post['like_count'] > 0): ?>
-                                    <span class="post-like-display">
-                                        <i class="fas fa-heart"></i>
-                                        <span class="like-count"><?= $post['like_count'] ?></span>
-                                    </span>
-                                <?php endif; ?>
-                            </div>
+                                    <?php if ($post['can_like']): ?>
+                                        <button class="post-like-btn <?= $post['user_liked'] ? 'liked' : '' ?>"
+                                            onclick="togglePostLike(<?= $post['id'] ?>)" data-post-id="<?= $post['id'] ?>">
+                                            <i class="fas fa-heart"></i>
+                                            <span class="like-count"><?= $post['like_count'] ?></span>
+                                        </button>
+                                    <?php elseif ($post['like_count'] > 0): ?>
+                                        <span class="post-like-display">
+                                            <i class="fas fa-heart"></i>
+                                            <span class="like-count"><?= $post['like_count'] ?></span>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
                                 <?php if ($post['can_edit']): ?>
                                     <button class="post-action-btn" onclick="editPost(<?= $post['id'] ?>, 'post')">
                                         <i class="fas fa-edit"></i> Düzenle
                                     </button>
                                 <?php endif; ?>
-                                
+
                                 <?php if ($is_approved): ?>
-                                    <button class="post-action-btn" onclick="quotePost('<?= htmlspecialchars($post['username']) ?>', '<?= htmlspecialchars(strip_tags($post['content'])) ?>', this)">
+                                    <button class="post-action-btn"
+                                        onclick="quotePost('<?= htmlspecialchars($post['username']) ?>', '<?= htmlspecialchars(strip_tags($post['content'])) ?>', this)">
                                         <i class="fas fa-quote-left"></i> Alıntıla
                                     </button>
                                 <?php endif; ?>
-                                
+
                                 <?php if ($post['can_delete']): ?>
                                     <button class="post-action-btn delete" onclick="confirmPostDelete(<?= $post['id'] ?>)">
                                         <i class="fas fa-trash"></i> Sil
@@ -328,10 +337,10 @@ include BASE_PATH . '/src/includes/navbar.php';
     <?php if ($total_pages > 1): ?>
         <div class="forum-pagination">
             <div class="pagination-info">
-                Sayfa <?= $page ?> / <?= $total_pages ?> 
+                Sayfa <?= $page ?> / <?= $total_pages ?>
                 (Toplam <?= number_format($total_posts) ?> yanıt)
             </div>
-            
+
             <nav class="pagination-nav">
                 <?php if ($page > 1): ?>
                     <a href="?id=<?= $topic_id ?>&page=1" class="page-btn">
@@ -345,11 +354,10 @@ include BASE_PATH . '/src/includes/navbar.php';
                 <?php
                 $start_page = max(1, $page - 2);
                 $end_page = min($total_pages, $page + 2);
-                
+
                 for ($i = $start_page; $i <= $end_page; $i++):
-                ?>
-                    <a href="?id=<?= $topic_id ?>&page=<?= $i ?>" 
-                       class="page-btn <?= $i === $page ? 'active' : '' ?>">
+                    ?>
+                    <a href="?id=<?= $topic_id ?>&page=<?= $i ?>" class="page-btn <?= $i === $page ? 'active' : '' ?>">
                         <?= $i ?>
                     </a>
                 <?php endfor; ?>
@@ -370,11 +378,11 @@ include BASE_PATH . '/src/includes/navbar.php';
     <?php if ($topic['can_reply']): ?>
         <div class="reply-form-section" id="reply-form">
             <h3><i class="fas fa-reply"></i> Yanıt Yaz</h3>
-            
+
             <form id="replyForm" action="/public/forum/actions/submit_reply.php" method="POST">
                 <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                 <input type="hidden" name="topic_id" value="<?= $topic_id ?>">
-                
+
                 <div class="form-group">
                     <label for="reply_content">Yanıt İçeriği:</label>
                     <div class="editor-toolbar">
@@ -403,14 +411,14 @@ include BASE_PATH . '/src/includes/navbar.php';
                             <i class="fas fa-palette"></i>
                         </button>
                     </div>
-                    <textarea name="content" id="reply_content" rows="8" required 
-                              placeholder="Yanıtınızı buraya yazın... BBCode kullanabilirsiniz."
-                              minlength="5" maxlength="10000"></textarea>
+                    <textarea name="content" id="reply_content" rows="8" required
+                        placeholder="Yanıtınızı buraya yazın... BBCode kullanabilirsiniz." minlength="5"
+                        maxlength="10000"></textarea>
                     <div class="char-counter">
                         <span id="char-count">0</span> / 10000 karakter
                     </div>
                 </div>
-                
+
                 <div class="form-actions">
                     <button type="submit" class="btn-submit">
                         <i class="fas fa-paper-plane"></i> Yanıtı Gönder
@@ -420,7 +428,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                     </button>
                 </div>
             </form>
-            
+
             <div id="reply-preview" class="reply-preview" style="display: none;">
                 <h4><i class="fas fa-eye"></i> Önizleme</h4>
                 <div class="preview-content"></div>
@@ -469,15 +477,21 @@ include BASE_PATH . '/src/includes/navbar.php';
 
 <?php
 // Time formatting function for this page
-function format_time_ago($datetime) {
+function format_time_ago($datetime)
+{
     $time = time() - strtotime($datetime);
-    
-    if ($time < 60) return 'Az önce';
-    if ($time < 3600) return floor($time/60) . ' dakika önce';
-    if ($time < 86400) return floor($time/3600) . ' saat önce';
-    if ($time < 604800) return floor($time/86400) . ' gün önce';
-    if ($time < 2592000) return floor($time/604800) . ' hafta önce';
-    
+
+    if ($time < 60)
+        return 'Az önce';
+    if ($time < 3600)
+        return floor($time / 60) . ' dakika önce';
+    if ($time < 86400)
+        return floor($time / 3600) . ' saat önce';
+    if ($time < 604800)
+        return floor($time / 86400) . ' gün önce';
+    if ($time < 2592000)
+        return floor($time / 604800) . ' hafta önce';
+
     return date('d.m.Y H:i', strtotime($datetime));
 }
 

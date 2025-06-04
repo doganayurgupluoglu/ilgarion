@@ -266,6 +266,7 @@ function get_forum_topic_by_id(PDO $pdo, int $topic_id, ?int $user_id = null) {
     try {
         $query = "
             SELECT ft.*,
+            
                    fc.name as category_name,
                    fc.slug as category_slug,
                    fc.color as category_color,

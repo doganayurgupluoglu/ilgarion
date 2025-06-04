@@ -227,10 +227,10 @@ $logo_path_navbar = '/assets/logo.png';
     }
 
     .dynamic-navbar {
-        background-color: rgba(0,0,0,96); 
+        background-color: var(--darker-gold) !important; 
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        border-bottom: 1px solid var(--dark-gold-green-border);
+        border-bottom: 1px solid var(--border-1) !important;
         padding: 0 20px;
         height: var(--navbar-height);
         display: flex;
@@ -245,7 +245,7 @@ $logo_path_navbar = '/assets/logo.png';
     }
 
     .dynamic-navbar.scrolled {
-        background-color: transparent; 
+        background-color: transparent !important; 
         border-bottom: 1px solid var(--border-color);
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     }
@@ -315,13 +315,13 @@ $logo_path_navbar = '/assets/logo.png';
         box-shadow: 0 2px 6px rgba(0,0,0,0.1); 
     }
     
-    .navbar-center-links ul li a.active-nav-link { 
+    /* .navbar-center-links ul li a.active-nav-link { 
         color: var(--secondary-color, #45D0C1);
         font-weight: 600; 
         background-color: rgba(var(--secondary-color-rgb, 69, 208, 193), 0.15); 
-    }
+    } */
     
-    .navbar-center-links ul li a.active-nav-link::after {
+    /* .navbar-center-links ul li a.active-nav-link::after {
         content: '';
         position: absolute;
         bottom: 4px; 
@@ -332,7 +332,7 @@ $logo_path_navbar = '/assets/logo.png';
         background-color: var(--secondary-color, #45D0C1);
         border-radius: 2px;
     }
-    
+     */
     .navbar-center-links ul li a .fas { 
         font-size: 0.9em; 
         opacity: 0.8;
@@ -663,7 +663,7 @@ $logo_path_navbar = '/assets/logo.png';
         transform: translateY(-1px); 
         box-shadow: 0 2px 6px rgba(0,0,0,0.1); 
     }
-    .navbar-center-links ul li a.active-nav-link { 
+    /* .navbar-center-links ul li a.active-nav-link { 
         color: var(--secondary-color, #45D0C1);
         font-weight: 600; 
         background-color: rgba(var(--secondary-color-rgb, 69, 208, 193), 0.15); 
@@ -678,7 +678,7 @@ $logo_path_navbar = '/assets/logo.png';
         height: 2.5px; 
         background-color: var(--secondary-color, #45D0C1);
         border-radius: 2px;
-    }
+    } */
     .navbar-center-links ul li a .fas { 
         font-size: 0.9em; 
         opacity: 0.8;

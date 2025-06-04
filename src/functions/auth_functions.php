@@ -678,7 +678,7 @@ function set_security_headers(): void {
     header('Referrer-Policy: strict-origin-when-cross-origin');
     
     // Content Security Policy (sitenize göre ayarlayın)
-    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com fonts.googleapis.com; img-src 'self' data:; font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com; connect-src 'self';");
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com fonts.googleapis.com; img-src *; font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com; connect-src 'self';");
 }
 
 /**
