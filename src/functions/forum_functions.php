@@ -953,28 +953,99 @@ function parse_bbcode(string $text): string {
     // Güvenlik için önce HTML'i temizle
     $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
     
-    // BBCode dönüşümleri
+    // BBCode dönüşümleri - Sıralama önemli!
     $bbcode_patterns = [
+        // Basit formatlar
         '/\[b\](.*?)\[\/b\]/is' => '<strong>$1</strong>',
         '/\[i\](.*?)\[\/i\]/is' => '<em>$1</em>',
         '/\[u\](.*?)\[\/u\]/is' => '<u>$1</u>',
         '/\[s\](.*?)\[\/s\]/is' => '<del>$1</del>',
-        '/\[url=(.*?)\](.*?)\[\/url\]/is' => '<a href="$1" target="_blank" rel="noopener">$2</a>',
-        '/\[url\](.*?)\[\/url\]/is' => '<a href="$1" target="_blank" rel="noopener">$1</a>',
-        '/\[img\](.*?)\[\/img\]/is' => '<img src="$1" alt="User Image" style="max-width: 100%; height: auto;">',
-        '/\[quote\](.*?)\[\/quote\]/is' => '<blockquote class="forum-quote">$1</blockquote>',
-        '/\[quote=(.*?)\](.*?)\[\/quote\]/is' => '<blockquote class="forum-quote"><cite>$1 yazdı:</cite>$2</blockquote>',
+        
+        // Linkler - güvenlik kontrolü ile
+        '/\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/is' => '<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>',
+        '/\[url\](https?:\/\/[^\[]+)\[\/url\]/is' => '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
+        
+        // Resimler - güvenlik kontrolü ile
+        '/\[img\](https?:\/\/[^\[]+\.(jpg|jpeg|png|gif|webp|bmp|svg))\[\/img\]/is' => '<img src="$1" alt="User Image" style="max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0;" loading="lazy">',
+        
+        // Renkler - hex ve CSS isim kontrolü ile
+        '/\[color=(#[a-fA-F0-9]{3,6}|red|blue|green|yellow|orange|purple|pink|black|white|gray|grey|brown|cyan|magenta|lime|navy|olive|maroon|teal|silver|gold|indigo|violet|crimson)\](.*?)\[\/color\]/is' => '<span style="color: $1;">$2</span>',
+        
+        // Boyutlar - güvenli boyut kontrolü ile
+        '/\[size=([1-7]|[0-9]{1,2}px|[0-9]{1,2}pt|[0-9]{1,2}em|small|medium|large|x-large|xx-large)\](.*?)\[\/size\]/is' => '<span style="font-size: $1;">$2</span>',
+        
+        // Kod blokları - quote'dan önce işle
         '/\[code\](.*?)\[\/code\]/is' => '<pre class="forum-code">$1</pre>',
-        '/\[color=(.*?)\](.*?)\[\/color\]/is' => '<span style="color: $1;">$2</span>',
-        '/\[size=(.*?)\](.*?)\[\/size\]/is' => '<span style="font-size: $1;">$2</span>',
     ];
     
+    // İlk geçiş - basit BBCode'ları işle
     foreach ($bbcode_patterns as $pattern => $replacement) {
         $text = preg_replace($pattern, $replacement, $text);
     }
     
+    // Quote'ları özel olarak işle (iç içe destekle)
+    $text = parse_quotes($text);
+    
     // Satır sonlarını <br> ile değiştir
     $text = nl2br($text);
+    
+    return $text;
+}
+
+/**
+ * Quote'ları özel olarak işler (iç içe desteği ile)
+ * @param string $text İşlenecek metin
+ * @return string İşlenmiş metin
+ */
+function parse_quotes(string $text): string {
+    $depth = 0;
+    $max_depth = 5; // Maksimum iç içe quote derinliği
+    
+    // İç içe quote'ları işlemek için recursive function
+    do {
+        $prev_text = $text;
+        
+        // Named quotes
+        $text = preg_replace_callback(
+            '/\[quote=([^\]]+)\](.*?)\[\/quote\]/is',
+            function($matches) use ($depth, $max_depth) {
+                $author = htmlspecialchars($matches[1]);
+                $content = $matches[2];
+                
+                $class = 'forum-quote';
+                if ($depth > 0) {
+                    $class .= ' forum-quote-nested';
+                }
+                if ($depth > $max_depth) {
+                    return $matches[0]; // Max derinlik aşıldı, işleme
+                }
+                
+                return '<blockquote class="' . $class . '"><cite>' . $author . ' yazdı:</cite>' . $content . '</blockquote>';
+            },
+            $text
+        );
+        
+        // Anonymous quotes
+        $text = preg_replace_callback(
+            '/\[quote\](.*?)\[\/quote\]/is',
+            function($matches) use ($depth, $max_depth) {
+                $content = $matches[1];
+                
+                $class = 'forum-quote';
+                if ($depth > 0) {
+                    $class .= ' forum-quote-nested';
+                }
+                if ($depth > $max_depth) {
+                    return $matches[0]; // Max derinlik aşıldı, işleme
+                }
+                
+                return '<blockquote class="' . $class . '">' . $content . '</blockquote>';
+            },
+            $text
+        );
+        
+        $depth++;
+    } while ($prev_text !== $text && $depth < $max_depth);
     
     return $text;
 }

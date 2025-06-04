@@ -1,5 +1,5 @@
 <?php
-// public/forum/actions/submit_reply.php
+// public/forum/actions/submit_reply.php - Dinamik yorum ekleme ile
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -73,6 +73,7 @@ if (!has_permission($pdo, 'forum.topic.reply')) {
 
 $topic_id = (int)($_POST['topic_id'] ?? 0);
 $content = trim($_POST['content'] ?? '');
+$add_dynamic = $_POST['add_dynamic'] ?? 'false'; // JS'den gelen dinamik ekleme isteği
 
 // Input validation
 if (!$topic_id) {
@@ -109,6 +110,29 @@ if (strlen($content) > 10000) {
         'message' => 'Yanıt en fazla 10.000 karakter olabilir.'
     ]);
     exit;
+}
+
+/**
+ * Avatar path'ini düzeltir
+ */
+function fix_avatar_path($avatar_path) {
+    if (empty($avatar_path)) {
+        return '/assets/logo.png';
+    }
+    
+    if (strpos($avatar_path, '../assets/') === 0) {
+        return str_replace('../assets/', '/assets/', $avatar_path);
+    }
+    
+    if (strpos($avatar_path, 'uploads/') === 0) {
+        return '/public/' . $avatar_path;
+    }
+    
+    if (strpos($avatar_path, '/assets/') === 0 || strpos($avatar_path, '/public/') === 0) {
+        return $avatar_path;
+    }
+    
+    return '/assets/logo.png';
 }
 
 try {
@@ -193,6 +217,32 @@ try {
         
         execute_safe_query($pdo, $update_topic_query, $update_params);
         
+        // Toplam gönderi sayısını al (pagination için)
+        $count_query = "SELECT COUNT(*) FROM forum_posts WHERE topic_id = :topic_id";
+        $stmt = execute_safe_query($pdo, $count_query, [':topic_id' => $topic_id]);
+        $total_posts = (int)$stmt->fetchColumn();
+        
+        // Son sayfayı hesapla
+        $per_page = 10;
+        $last_page = ceil($total_posts / $per_page);
+        
+        // Kullanıcı bilgilerini al (dinamik ekleme için)
+        $user_query = "
+            SELECT u.id, u.username, u.avatar_path, u.created_at,
+                   r.name as role_name, r.color as role_color
+            FROM users u
+            LEFT JOIN user_roles ur ON u.id = ur.user_id
+            LEFT JOIN roles r ON ur.role_id = r.id AND r.priority = (
+                SELECT MIN(r2.priority) FROM user_roles ur2 
+                JOIN roles r2 ON ur2.role_id = r2.id 
+                WHERE ur2.user_id = u.id
+            )
+            WHERE u.id = :user_id
+        ";
+        
+        $stmt = execute_safe_query($pdo, $user_query, [':user_id' => $_SESSION['user_id']]);
+        $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
+        
         // Transaction commit
         $pdo->commit();
         
@@ -202,19 +252,31 @@ try {
             'content_length' => strlen($content)
         ]);
         
-        // Başarılı yanıt - normal sayfa yönlendirmesi için
-        if (isset($_POST['redirect']) && $_POST['redirect'] === 'page') {
-            $_SESSION['success_message'] = 'Yanıtınız başarıyla gönderildi.';
-            header('Location: /public/forum/topic.php?id=' . $topic_id . '#post-' . $post_id);
-            exit;
-        }
-        
-        echo json_encode([
+        // Response verisi hazırla
+        $response = [
             'success' => true,
             'message' => 'Yanıtınız başarıyla gönderildi.',
             'post_id' => $post_id,
-            'redirect_url' => '/public/forum/topic.php?id=' . $topic_id . '#post-' . $post_id
-        ]);
+            'redirect_url' => '/public/forum/topic.php?id=' . $topic_id . '&page=' . $last_page . '#post-' . $post_id
+        ];
+        
+        // Dinamik ekleme için ek veriler
+        if ($add_dynamic === 'true' && $user_data) {
+            $response['post_data'] = [
+                'id' => $post_id,
+                'user_id' => $user_data['id'],
+                'username' => htmlspecialchars($user_data['username']),
+                'avatar_path' => fix_avatar_path($user_data['avatar_path']),
+                'role_name' => htmlspecialchars($user_data['role_name'] ?? 'Üye'),
+                'role_color' => $user_data['role_color'] ?? '#bd912a',
+                'join_date' => date('M Y', strtotime($user_data['created_at'])),
+                'content_html' => parse_bbcode($content),
+                'content_text' => htmlspecialchars(strip_tags($content)),
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+        }
+        
+        echo json_encode($response);
         
     } catch (Exception $e) {
         $pdo->rollBack();

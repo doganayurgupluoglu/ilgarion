@@ -1,4 +1,4 @@
-/* Topic Specific Styles */
+/* Topic Specific Styles - Güncellenmiş */
 .topic-header {
     display: flex;
     justify-content: space-between;
@@ -183,7 +183,6 @@
     border-bottom: 1px solid var(--border-1);
 }
 
-
 .posts-header h3 {
     color: var(--gold);
     margin: 0;
@@ -203,7 +202,7 @@
     display: flex;
     gap: 1.5rem;
     padding: 1.5rem;
-    background:  var(--card-bg);
+    background: var(--card-bg);
     border: 1px solid var(--border-1);
     border-radius: 8px;
     margin-bottom: 1.5rem;
@@ -215,6 +214,13 @@
     border: 1px solid var(--border-1-hover);
 }
 
+/* Silme animasyonu için */
+.post-item.deleting {
+    opacity: 0.5;
+    transform: translateX(-20px);
+    transition: all 0.5s ease;
+}
+
 .post-author {
     min-width: 250px;
     text-align: center;
@@ -222,7 +228,6 @@
 
 .author-avatar {
     margin-bottom: 0.75rem;
-    
 }
 
 .avatar-img {
@@ -475,9 +480,15 @@
     color: var(--charcoal);
 }
 
-.btn-submit:hover {
+.btn-submit:hover:not(:disabled) {
     background: var(--light-turquase);
     transform: translateY(-1px);
+}
+
+.btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .btn-preview {
@@ -581,13 +592,14 @@
     text-decoration: none;
 }
 
-/* BBCode Styles */
+/* BBCode Styles - Geliştirilmiş */
 .forum-quote {
     background: rgba(189, 145, 42, 0.1);
     border-left: 3px solid var(--gold);
     padding: 1rem;
     margin: 1rem 0;
     border-radius: 0 6px 6px 0;
+    position: relative;
 }
 
 .forum-quote cite {
@@ -596,6 +608,29 @@
     color: var(--gold);
     margin-bottom: 0.5rem;
     font-style: normal;
+}
+
+/* İç içe quote'lar için - Düzeltilmiş */
+.forum-quote-nested {
+    background: rgba(115, 228, 224, 0.1) !important;
+    border-left: 3px solid var(--turquase) !important;
+    margin: 0.75rem 0 !important;
+    padding: 0.75rem !important;
+}
+
+.forum-quote-nested cite {
+    color: var(--turquase) !important;
+    font-size: 0.9em;
+}
+
+/* Üçüncü seviye iç içe quote'lar için */
+.forum-quote-nested .forum-quote {
+    background: rgba(220, 53, 69, 0.1) !important;
+    border-left: 3px solid var(--red) !important;
+}
+
+.forum-quote-nested .forum-quote cite {
+    color: var(--red) !important;
 }
 
 .forum-code {
@@ -607,6 +642,31 @@
     font-size: 0.85rem;
     overflow-x: auto;
     margin: 1rem 0;
+    color: var(--lighter-grey);
+}
+
+/* Resim BBCode için */
+.post-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+}
+
+/* Notification Styles */
+.notification {
+    border-radius: 6px;
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    font-weight: 500;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.notification:hover {
+    transform: translateX(-5px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
 }
 
 /* Responsive Design */

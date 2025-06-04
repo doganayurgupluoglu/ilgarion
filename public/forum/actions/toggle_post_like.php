@@ -1,5 +1,5 @@
 <?php
-// public/forum/actions/toggle_post_like.php
+// public/forum/actions/toggle_post_like.php - Tamamen düzeltilmiş versiyon
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -8,9 +8,14 @@ if (session_status() == PHP_SESSION_NONE) {
 require_once dirname(dirname(dirname(__DIR__))) . '/src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
+require_once BASE_PATH . '/src/functions/forum_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 
 header('Content-Type: application/json');
+
+// Debug için hata raporlamayı açalım
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // JSON için 0 olmalı ama log'a yazılsın
 
 // Sadece POST isteklerini kabul et
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -85,11 +90,12 @@ if (!$post_id) {
 try {
     // Gönderinin var olup olmadığını kontrol et
     $post_query = "
-        SELECT fp.*, ft.category_id, fc.visibility as category_visibility
+        SELECT fp.*, ft.category_id, fc.visibility as category_visibility,
+               fc.is_active as category_active
         FROM forum_posts fp
         JOIN forum_topics ft ON fp.topic_id = ft.id
         JOIN forum_categories fc ON ft.category_id = fc.id
-        WHERE fp.id = :post_id AND fc.is_active = 1
+        WHERE fp.id = :post_id
     ";
     
     $stmt = execute_safe_query($pdo, $post_query, [':post_id' => $post_id]);
@@ -100,6 +106,16 @@ try {
         echo json_encode([
             'success' => false,
             'message' => 'Gönderi bulunamadı.'
+        ]);
+        exit;
+    }
+    
+    // Kategori aktif mi kontrol et
+    if (!$post['category_active']) {
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Bu kategori aktif değil.'
         ]);
         exit;
     }
@@ -144,7 +160,9 @@ try {
     $liked = false;
     
     // Transaction başlat
-    $pdo->beginTransaction();
+    if (!$pdo->inTransaction()) {
+        $pdo->beginTransaction();
+    }
     
     try {
         if ($existing_like) {
@@ -192,7 +210,9 @@ try {
         $like_count = (int)$stmt->fetchColumn();
         
         // Transaction commit
-        $pdo->commit();
+        if ($pdo->inTransaction()) {
+            $pdo->commit();
+        }
         
         echo json_encode([
             'success' => true,
@@ -202,7 +222,9 @@ try {
         ]);
         
     } catch (Exception $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         throw $e;
     }
     
@@ -220,12 +242,19 @@ try {
         'success' => false,
         'message' => 'Veritabanı hatası oluştu.'
     ]);
+} catch (PDOException $e) {
+    error_log("Forum post like PDO error: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Veritabanı bağlantı hatası oluştu.'
+    ]);
 } catch (Exception $e) {
     error_log("Forum post like general error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Beklenmeyen bir hata oluştu.'
+        'message' => 'Beklenmeyen bir hata oluştu: ' . $e->getMessage()
     ]);
 }
 ?>

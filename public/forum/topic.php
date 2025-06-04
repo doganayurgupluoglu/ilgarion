@@ -1,5 +1,5 @@
 <?php
-// public/forum/topic.php - Tüm kategorileri görme yetkisi ile güncellenmiş
+// public/forum/topic.php - Tüm sorunları çözülmüş versiyon
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -26,7 +26,7 @@ if (!$topic_id) {
     exit;
 }
 
-// Konu detaylarını çek (erişim kontrolü forum_functions.php'de yapılıyor)
+// Konu detaylarını çek
 $topic = get_forum_topic_by_id($pdo, $topic_id, $current_user_id);
 if (!$topic) {
     $_SESSION['error_message'] = "Konu bulunamadı veya erişim yetkiniz bulunmuyor.";
@@ -42,7 +42,7 @@ $offset = ($page - 1) * $per_page;
 // Görüntüleme sayısını artır
 increment_topic_view_count($pdo, $topic_id, $current_user_id);
 
-// Gönderileri çek (erişim kontrolü forum_functions.php'de yapılıyor)
+// Gönderileri çek
 $posts_data = get_forum_topic_posts($pdo, $topic_id, $current_user_id, $per_page, $offset);
 $posts = $posts_data['posts'];
 $total_posts = $posts_data['total'];
@@ -56,6 +56,31 @@ if (isset($_GET['page']) && $_GET['page'] === 'last') {
     $offset = ($page - 1) * $per_page;
     $posts_data = get_forum_topic_posts($pdo, $topic_id, $current_user_id, $per_page, $offset);
     $posts = $posts_data['posts'];
+}
+
+// Avatar path düzeltme fonksiyonu
+function fix_avatar_path($avatar_path) {
+    if (empty($avatar_path)) {
+        return '/assets/logo.png';
+    }
+    
+    // ../assets/ -> /assets/
+    if (strpos($avatar_path, '../assets/') === 0) {
+        return str_replace('../assets/', '/assets/', $avatar_path);
+    }
+    
+    // uploads/ -> /public/uploads/
+    if (strpos($avatar_path, 'uploads/') === 0) {
+        return '/public/' . $avatar_path;
+    }
+    
+    // /assets/ veya /public/ ile başlıyorsa dokunma
+    if (strpos($avatar_path, '/assets/') === 0 || strpos($avatar_path, '/public/') === 0) {
+        return $avatar_path;
+    }
+    
+    // Varsayılan
+    return '/assets/logo.png';
 }
 
 // Sayfa başlığı
@@ -73,9 +98,9 @@ include BASE_PATH . '/src/includes/header.php';
 include BASE_PATH . '/src/includes/navbar.php';
 ?>
 
-<!-- Topic content continues exactly as before... -->
 <link rel="stylesheet" href="/public/forum/css/forum.css">
 <link rel="stylesheet" href="/public/forum/css/topic.css">
+<meta name="csrf-token" content="<?= generate_csrf_token() ?>">
 
 <div class="forum-page-container">
     <!-- Breadcrumb -->
@@ -176,7 +201,7 @@ include BASE_PATH . '/src/includes/navbar.php';
         <div class="topic-first-post post-item" id="post-0">
             <div class="post-author">
                 <div class="author-avatar">
-                    <img src="<?= htmlspecialchars($topic['/public/' . 'author_avatar'] ?? '/assets/logo.png') ?>" 
+                    <img src="<?= fix_avatar_path($topic['author_avatar']) ?>" 
                          alt="<?= htmlspecialchars($topic['author_username']) ?> Avatarı" 
                          class="avatar-img">
                 </div>
@@ -215,7 +240,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                         <?php endif; ?>
                         
                         <?php if ($is_approved): ?>
-                            <button class="post-action-btn" onclick="quotePost('<?= htmlspecialchars($topic['author_username']) ?>', '<?= htmlspecialchars(strip_tags($topic['content'])) ?>')">
+                            <button class="post-action-btn" onclick="quotePost('<?= htmlspecialchars($topic['author_username']) ?>', '<?= htmlspecialchars(strip_tags($topic['content'])) ?>', this)">
                                 <i class="fas fa-quote-left"></i> Alıntıla
                             </button>
                         <?php endif; ?>
@@ -239,7 +264,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                 <div class="post-item" id="post-<?= $post['id'] ?>">
                     <div class="post-author">
                         <div class="author-avatar">
-                            <img src="<?= htmlspecialchars($post['/public/' . 'avatar_path'] ?? '/assets/logo.png') ?>" 
+                            <img src="<?= fix_avatar_path($post['avatar_path']) ?>" 
                                  alt="<?= htmlspecialchars($post['username']) ?> Avatarı" 
                                  class="avatar-img">
                         </div>
@@ -301,7 +326,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                                 <?php endif; ?>
                                 
                                 <?php if ($is_approved): ?>
-                                    <button class="post-action-btn" onclick="quotePost('<?= htmlspecialchars($post['username']) ?>', '<?= htmlspecialchars(strip_tags($post['content'])) ?>')">
+                                    <button class="post-action-btn" onclick="quotePost('<?= htmlspecialchars($post['username']) ?>', '<?= htmlspecialchars(strip_tags($post['content'])) ?>', this)">
                                         <i class="fas fa-quote-left"></i> Alıntıla
                                     </button>
                                 <?php endif; ?>
@@ -385,11 +410,17 @@ include BASE_PATH . '/src/includes/navbar.php';
                         <button type="button" class="editor-btn" onclick="insertBBCode('url')" title="Link">
                             <i class="fas fa-link"></i>
                         </button>
+                        <button type="button" class="editor-btn" onclick="insertBBCode('img')" title="Resim">
+                            <i class="fas fa-image"></i>
+                        </button>
                         <button type="button" class="editor-btn" onclick="insertBBCode('quote')" title="Alıntı">
                             <i class="fas fa-quote-left"></i>
                         </button>
                         <button type="button" class="editor-btn" onclick="insertBBCode('code')" title="Kod">
                             <i class="fas fa-code"></i>
+                        </button>
+                        <button type="button" class="editor-btn" onclick="openColorPicker()" title="Renk">
+                            <i class="fas fa-palette"></i>
                         </button>
                     </div>
                     <textarea name="content" id="reply_content" rows="8" required 
