@@ -77,8 +77,8 @@
     z-index: 9999;
     min-width: 300px;
     max-width: 350px;
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--gold);
+    background: var(--card-bg-4);
+    border: 1px solid var(--border-1-featured);
     border-radius: 8px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     font-family: var(--font);
@@ -116,8 +116,8 @@
     align-items: flex-start;
     gap: 12px;
     padding: 15px;
-    background: rgba(189, 145, 42, 0.1);
-    border-bottom: 1px solid var(--darker-gold-2);
+    background: var(--transparent-gold);
+    border-bottom: 1px solid var(--border-1);
     position: relative;
 }
 
@@ -129,7 +129,7 @@
     width: 70px;
     height: 70px;
     border-radius: 50%;
-    border: 2px solid var(--gold);
+    border: 2px solid var(--light-gold);
     object-fit: cover;
 }
 
@@ -152,7 +152,8 @@
     margin-bottom: 6px;
     padding: 2px 8px;
     border-radius: 12px;
-    background: rgba(189, 145, 42, 0.2);
+    background: var(--card-bg-4);
+    border: 1px solid var(--border-1-featured);
     color: var(--gold);
     display: inline-block;
 }
@@ -183,6 +184,7 @@
     background: none;
     border: none;
     color: var(--light-grey);
+    border: 1px solid var(--border-1);
     cursor: pointer;
     padding: 5px;
     border-radius: 4px;
@@ -190,8 +192,9 @@
 }
 
 .popover-close:hover {
-    background: rgba(235, 0, 0, 0.2);
+    background: var(--transparent-red);
     color: var(--red);
+    border: 1px solid var(--red);
 }
 
 .popover-body {
@@ -226,8 +229,8 @@
     display: flex;
     justify-content: space-around;
     padding: 10px 0;
-    border-top: 1px solid var(--darker-gold-2);
-    border-bottom: 1px solid var(--darker-gold-2);
+    border-top: 1px solid var(--border-1);
+    border-bottom: 1px solid var(--border-1);
 }
 
 .stat-item {
@@ -281,7 +284,6 @@
 
 .btn-view-profile:hover {
     background: var(--light-gold);
-    transform: translateY(-1px);
     text-decoration: none;
     color: var(--charcoal);
 }
@@ -346,20 +348,20 @@
     height: 0;
     border-style: solid;
     border-width: 0 6px 6px 6px;
-    border-color: transparent transparent var(--gold) transparent;
+    border-color: transparent transparent var(--border-1-featured) transparent;
 }
 
 .user-popover.bottom::before {
     top: -6px;
     border-width: 0 6px 6px 6px;
-    border-color: transparent transparent var(--gold) transparent;
+    border-color: transparent transparent var(--border-1-featured) transparent;
 }
 
 .user-popover.top::before {
     top: auto;
     bottom: -6px;
     border-width: 6px 6px 0 6px;
-    border-color: var(--gold) transparent transparent transparent;
+    border-color: var(--border-1-featured) transparent transparent transparent;
 }
 </style>
 

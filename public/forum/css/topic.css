@@ -108,14 +108,13 @@
 
 .btn-reply {
     background: var(--turquase);
-    color: var(--charcoal);
+    color: var(--black);
+
 }
 
 .btn-reply:hover {
     background: var(--turquase-hover);
-    transform: translateY(-1px);
     text-decoration: none;
-    color: var(--white);
 }
 
 .btn-edit {
@@ -125,7 +124,6 @@
 
 .btn-edit:hover {
     background: var(--light-gold);
-    transform: translateY(-1px);
     text-decoration: none;
     color: var(--charcoal);
 }
@@ -139,7 +137,6 @@
 .btn-pin:hover, .btn-lock:hover {
     background: var(--darker-gold-2);
     color: var(--lighter-grey);
-    transform: translateY(-1px);
 }
 
 .btn-pin.active, .btn-lock.active {
@@ -157,7 +154,6 @@
 .btn-delete:hover {
     background: var(--red);
     color: var(--white);
-    transform: translateY(-1px);
 }
 
 /* Post Styles */
@@ -249,7 +245,13 @@
 
 .author-role {
     font-weight: 500;
-    margin-bottom: 0.25rem;
+    margin: auto;
+    margin-bottom: 0.5rem;
+    padding: 2px 15px;
+    width: fit-content;
+    border-radius: 6px;
+    background-color: var(--card-bg-3);
+    border: 1px solid var(--border-1) !important;
 }
 
 .author-join-date {
@@ -376,7 +378,7 @@
     border: 1px solid var(--border-1-featured);
     border-radius: 8px;
     padding: 1.5rem;
-    margin-bottom: 2rem;
+    margin: 2rem 0;
 }
 
 .reply-form-section h3 {
@@ -531,6 +533,12 @@
     padding: 2rem;
     color: var(--light-grey);
 }
+.login-required h3 {
+    display: flex;
+    min-width: 100%;
+    justify-content: center;
+    align-items: center;
+}
 
 .login-required i, .approval-required i, .topic-locked i {
     font-size: 2.5rem;
@@ -553,20 +561,25 @@
 }
 
 .btn-primary, .btn-secondary {
-    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-self: center;
+    padding: 0rem .55rem;
     border-radius: 6px;
     text-decoration: none;
     font-weight: 500;
     transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
     gap: 0.5rem;
     border: none;
     cursor: pointer;
     font-family: var(--font);
     font-size: 0.9rem;
 }
-
+.btn-primary i, .btn-secondary i {
+    margin-top: 15px;
+    font-size: 1.2rem;
+    color: var(--black);
+}
 .btn-primary {
     background: var(--gold);
     color: var(--charcoal);

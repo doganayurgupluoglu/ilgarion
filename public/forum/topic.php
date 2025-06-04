@@ -302,7 +302,10 @@ include BASE_PATH . '/src/includes/navbar.php';
                                 <?= format_time_ago($post['created_at']) ?>
                             </div>
                             
-                            <div class="post-reactions">
+                            
+                            
+                            <div class="post-actions">
+                                <div class="post-reactions">
                                 <?php if ($post['can_like']): ?>
                                     <button class="post-like-btn <?= $post['user_liked'] ? 'liked' : '' ?>" 
                                             onclick="togglePostLike(<?= $post['id'] ?>)"
@@ -317,8 +320,6 @@ include BASE_PATH . '/src/includes/navbar.php';
                                     </span>
                                 <?php endif; ?>
                             </div>
-                            
-                            <div class="post-actions">
                                 <?php if ($post['can_edit']): ?>
                                     <button class="post-action-btn" onclick="editPost(<?= $post['id'] ?>, 'post')">
                                         <i class="fas fa-edit"></i> Düzenle

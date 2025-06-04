@@ -37,7 +37,7 @@ if (!$category) {
 
 // Sayfalama parametreleri
 $page = max(1, (int)($_GET['page'] ?? 1));
-$per_page = 20;
+$per_page = 15;
 $offset = ($page - 1) * $per_page;
 
 // Basit sıralama

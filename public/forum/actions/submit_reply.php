@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Rate limiting kontrolü
-if (!check_rate_limit('forum_reply', 5, 300)) { // 5 dakikada 5 yanıt
+if (!check_rate_limit('forum_reply', 30, 300)) { // 5 dakikada 5 yanıt
     http_response_code(429);
     echo json_encode([
         'success' => false,

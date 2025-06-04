@@ -4,7 +4,7 @@
     /* COLORS */
     --light-gold: #C69653;
     --gold:#b8845c;
-    --transparent-gold: #b8845c27;
+    --transparent-gold: rgba(189, 145, 42, 0.05);
     --red: #EB0000;
     --dark-red: #B81D24;
     --transparent-red: #63020760;

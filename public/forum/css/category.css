@@ -357,17 +357,22 @@
 .stat-replies,
 .stat-views {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin-right: 100px;
 }
 
 .stat-number {
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--gold);
+    min-width: 25px;
+    text-align: center;
 }
 
 .stat-label {
-    font-size: 0.7rem;
+    font-size: .75rem !important;
     color: var(--light-grey);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -435,49 +440,6 @@
     font-weight: 500;
 }
 
-/* Forum Pagination */
-.forum-pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 2rem;
-    padding: 1rem;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-1);
-    border-radius: 6px;
-}
-
-.pagination-info {
-    color: var(--light-grey);
-    font-size: 0.85rem;
-}
-
-.pagination-nav {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.page-btn {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border-1);
-    background: transparent;
-    color: var(--lighter-grey);
-    text-decoration: none;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    transition: all 0.2s ease;
-    min-width: 40px;
-    text-align: center;
-}
-
-.page-btn:hover,
-.page-btn.active {
-    border-color: var(--border-1);
-    background: var(--gold);
-    color: var(--charcoal);
-    text-decoration: none;
-}
 
 /* Responsive Design for Category Page */
 @media (max-width: 768px) {

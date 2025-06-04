@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Rate limiting kontrolü
-    if (!check_rate_limit('forum_topic_create', 3, 3600)) { // 1 saatte 3 konu
+    if (!check_rate_limit('forum_topic_create', 15, 3600)) { // 1 saatte 3 konu
         $_SESSION['error_message'] = "Çok fazla konu oluşturuyorsunuz. Lütfen 1 saat bekleyin.";
         header('Location: /public/forum/create_topic.php' . ($category_id ? '?category_id=' . $category_id : ''));
         exit;

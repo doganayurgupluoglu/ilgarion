@@ -15,8 +15,8 @@
 }
 
 .breadcrumb {
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--darker-gold-2);
+    background-color: var(--card-bg-2);
+    border: 1px solid var(--border-1);
     border-radius: 6px;
     padding: 0.75rem 1rem;
     margin: 0;
@@ -44,10 +44,12 @@
     color: var(--light-gold);
 }
 
-.breadcrumb .breadcrumb-item .active {
-    color: var(--turquase) !important;
+.active {
+    color: var(--light-grey);
 }
-
+.active i {
+    margin-right: 5px;
+}
 
 .breadcrumb-item + .breadcrumb-item::before {
     content: '>';
@@ -62,7 +64,8 @@
     align-items: flex-end;
     margin-bottom: 3rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid var(--darker-gold-2);
+    padding-left: .5rem;
+    border-bottom: 1px solid var(--border-1);
 }
 
 .forum-title h1 {
@@ -98,8 +101,7 @@
 .search-input-group {
     display: flex;
     align-items: center;
-    background: var(--charcoal);
-    border: 1px solid var(--darker-gold-2);
+    border: 1px solid var(--border-1);
     border-radius: 6px;
     overflow: hidden;
     transition: all 0.2s ease;
@@ -128,17 +130,18 @@
 }
 
 .search-btn {
-    background: var(--gold);
+    background: transparent;
     border: none;
-    color: var(--charcoal);
+    color: var(--gold);
     padding: 0.75rem 1rem;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
     font-weight: 500;
 }
 
 .search-btn:hover {
-    background: var(--light-gold);
+    color: var(--light-gold);
+    transform: scale(1.3);
 }
 
 /* Yeni Konu Butonu */
@@ -146,9 +149,8 @@
     padding: 0.75rem 1.5rem;
     font-size: 0.9rem;
     font-weight: 500;
-    border: 1px solid var(--turquase);
-    background-color: transparent;
-    color: var(--turquase);
+    background-color: var(--turquase);
+    color: var(--black);
     border-radius: 6px;
     text-decoration: none;
     display: inline-flex;
@@ -159,8 +161,7 @@
 }
 
 .btn-new-topic:hover {
-    background-color: var(--turquase);
-    color: var(--charcoal);
+    background-color: var(--light-turquase);
     text-decoration: none;
 }
 
@@ -173,8 +174,8 @@
 }
 
 .category-card {
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--darker-gold-2);
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 8px;
     padding: 1.5rem;
     display: flex;
@@ -186,34 +187,17 @@
     overflow: hidden;
 }
 
-.category-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: var(--gold);
-    transition: width 0.2s ease;
-}
-
 .category-card:hover {
-    border-color: var(--gold);
-    transform: translateY(-2px);
-}
-
-.category-card:hover::before {
-    width: 6px;
+    border-color: var(--border-1-hover);
 }
 
 .category-icon {
-    font-size: 2.2rem;
-    width: 60px;
-    height: 60px;
+    font-size: 2.7rem;
+    width: 100px;
+    height: 100px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(189, 145, 42, 0.1);
     border-radius: 8px;
     flex-shrink: 0;
     transition: transform 0.2s ease;
@@ -268,8 +252,8 @@
     flex-direction: column;
     gap: 0.75rem;
     padding: 0 1.5rem;
-    border-left: 1px solid var(--darker-gold-2);
-    border-right: 1px solid var(--darker-gold-2);
+    border-left: 1px solid var(--border-1);
+    border-right: 1px solid var(--border-1);
     min-width: 100px;
     text-align: center;
 }
@@ -345,8 +329,8 @@
 
 /* Arama Sonuçları */
 .search-results {
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--darker-gold-2);
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -378,15 +362,15 @@
 }
 
 .search-result-item {
-    background: rgba(189, 145, 42, 0.05);
-    border: 1px solid var(--darker-gold-1);
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 6px;
     padding: 1rem;
     transition: all 0.2s ease;
 }
 
 .search-result-item:hover {
-    border-color: var(--gold);
+    border-color: var(--border-1-hover);
     transform: translateY(-1px);
 }
 
@@ -439,8 +423,8 @@
 }
 
 .recent-topics {
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--darker-gold-2);
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
@@ -463,16 +447,15 @@
 }
 
 .recent-topic-item {
-    background: rgba(189, 145, 42, 0.05);
-    border: 1px solid var(--darker-gold-1);
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
     border-radius: 6px;
     padding: 1rem;
     transition: all 0.2s ease;
 }
 
 .recent-topic-item:hover {
-    border-color: var(--gold);
-    transform: translateY(-1px);
+    border-color: var(--border-1-hover);
 }
 
 .topic-category {
@@ -482,6 +465,8 @@
     font-size: 0.75rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
+    border: 1px solid var(--border-1);
+    background-color: transparent !important;
 }
 
 .topic-content h4 {
@@ -509,8 +494,8 @@
 
 /* Forum İstatistik Kartı */
 .forum-stats-card {
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--darker-gold-2);
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
@@ -528,13 +513,13 @@
 
 .stats-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 1rem;
 }
 
 .stat-box {
-    background: rgba(189, 145, 42, 0.05);
-    border: 1px solid var(--darker-gold-1);
+    background: var(--card-bg-4);
+    border: 1px solid var(--border-1);
     border-radius: 6px;
     padding: 1rem;
     display: flex;
@@ -544,8 +529,7 @@
 }
 
 .stat-box:hover {
-    border-color: var(--gold);
-    transform: translateY(-2px);
+    border-color: var(--border-1-hover);
 }
 
 .stat-icon {
@@ -587,8 +571,8 @@
 /* Hoş Geldin Kartları */
 .forum-welcome-card,
 .forum-info-card {
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--turquase);
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 8px;
     padding: 1.5rem;
     text-align: center;
@@ -596,7 +580,7 @@
 
 .forum-welcome-card h3,
 .forum-info-card h3 {
-    color: var(--turquase);
+    color: var(--gold);
     margin-bottom: 1rem;
     font-weight: 500;
     display: flex;
@@ -642,21 +626,20 @@
 
 .btn-primary:hover {
     background: var(--light-gold);
-    transform: translateY(-1px);
     text-decoration: none;
     color: var(--charcoal);
 }
 
 .btn-secondary {
+    margin-top: 1.5rem;
     background: transparent;
-    color: var(--gold);
-    border: 1px solid var(--gold);
+    color: var(--light-grey);
+    border: 1px solid var(--border-1);
 }
 
 .btn-secondary:hover {
-    background: var(--gold);
-    color: var(--charcoal);
-    transform: translateY(-1px);
+    color: var(--lighter-grey);
+    border: 1px solid var(--border-1-hover);
     text-decoration: none;
 }
 
@@ -680,6 +663,49 @@
     color: var(--lighter-grey);
     margin-bottom: 0.75rem;
     font-weight: 500;
+}
+/* Forum Pagination */
+.forum-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+}
+
+.pagination-info {
+    color: var(--light-grey);
+    font-size: 0.85rem;
+}
+
+.pagination-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.page-btn {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-1);
+    background: transparent;
+    color: var(--lighter-grey);
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    min-width: 40px;
+    text-align: center;
+}
+
+.page-btn:hover,
+.page-btn.active {
+    border-color: var(--border-1);
+    background: var(--gold);
+    color: var(--charcoal);
+    text-decoration: none;
 }
 
 /* Responsive Design */
