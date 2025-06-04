@@ -315,7 +315,7 @@ include BASE_PATH . '/src/includes/navbar.php';
 </div>
 
 <!-- User Popover Include -->
-<?php include BASE_PATH . '/public/forum/includes/user_popover.php'; ?>
+<?php include BASE_PATH . '/src/includes/user_popover.php'; ?>
 
 <script>
 function changeSorting() {

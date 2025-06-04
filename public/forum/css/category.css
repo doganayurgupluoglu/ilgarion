@@ -29,7 +29,7 @@
     align-items: flex-end;
     margin-bottom: 2rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid var(--darker-gold-2);
+    border-bottom: 1px solid var(--border-1);
 }
 
 .category-info {
@@ -45,7 +45,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(189, 145, 42, 0.1);
+    background: var(--transparent-gold); 
     border-radius: 12px;
     flex-shrink: 0;
 }
@@ -99,8 +99,8 @@
     align-items: center;
     margin-bottom: 2rem;
     padding: 1rem;
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--darker-gold-2);
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 6px;
     flex-wrap: wrap;
     gap: 1rem;
@@ -132,7 +132,7 @@
     text-decoration: none;
     font-size: 0.8rem;
     font-weight: 500;
-    border: 1px solid var(--darker-gold-1);
+    border: 1px solid var(--border-1);
     color: var(--light-grey);
     background: transparent;
     transition: all 0.2s ease;
@@ -143,14 +143,14 @@
 
 .tag-filter:hover,
 .tag-filter.active {
-    border-color: var(--gold);
+    border-color: var(--border-1-featured);
     color: var(--gold);
-    background: rgba(189, 145, 42, 0.1);
+    background: rgba(189, 145, 42, 0.1); 
     text-decoration: none;
 }
 
 .tag-count {
-    background: var(--darker-gold-1);
+    background: var(--card-bg);
     color: var(--lighter-grey);
     padding: 0.1rem 0.4rem;
     border-radius: 3px;
@@ -169,14 +169,15 @@
 .sort-label {
     color: var(--lighter-grey);
     font-weight: 500;
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 #sortSelect {
-    background: var(--charcoal);
-    border: 1px solid var(--darker-gold-2);
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
     color: var(--lighter-grey);
     padding: 0.5rem 0.75rem;
+    margin-left: 20px;
     border-radius: 4px;
     font-size: 0.85rem;
     font-family: var(--font);
@@ -189,16 +190,16 @@
 
 /* Konular Listesi */
 .topics-list {
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--darker-gold-2);
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 8px;
     overflow: hidden;
 }
 
 .topics-header {
     padding: 1rem;
-    border-bottom: 1px solid var(--darker-gold-2);
-    background: rgba(189, 145, 42, 0.05);
+    border-bottom: 1px solid var(--border-1);
+    background: var(--card-bg-4); 
 }
 
 .topics-count {
@@ -227,13 +228,13 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1rem;
-    border-bottom: 1px solid var(--darker-gold-2);
+    padding: .4rem;
+    border-bottom: 1px solid var(--border-1);
     transition: all 0.2s ease;
 }
 
 .topic-item:hover {
-    background: rgba(189, 145, 42, 0.05);
+    background: var(--card-bg-2);
 }
 
 .topic-item:last-child {
@@ -241,8 +242,7 @@
 }
 
 .topic-item.pinned {
-    background: rgba(189, 145, 42, 0.08);
-    border-left: 3px solid var(--gold);
+    border-left: 3px solid var(--border-1-featured);
 }
 
 .topic-item.locked {
@@ -250,14 +250,18 @@
 }
 
 .topic-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     width: 40px;
     text-align: center;
     flex-shrink: 0;
 }
 
 .pinned-icon {
-    color: var(--gold);
-    font-size: 1.1rem;
+    color: var(--light-gold);
+    font-size: 1.1rem; 
 }
 
 .locked-icon {
@@ -266,7 +270,7 @@
 }
 
 .topic-icon {
-    color: var(--turquase);
+    color: var(--gold);
     font-size: 1.1rem;
 }
 
@@ -307,7 +311,7 @@
 }
 
 .topic-tag {
-    background: rgba(189, 145, 42, 0.2);
+    background: var(--transparent-gold);
     color: var(--gold);
     padding: 0.2rem 0.5rem;
     border-radius: 3px;
@@ -397,7 +401,7 @@
 }
 
 .latest-link:hover {
-    color: var(--light-turquase);
+    color: var(--turquase-hover);
 }
 
 .no-replies {
@@ -414,6 +418,9 @@
     text-align: center;
     padding: 4rem 2rem;
     color: var(--light-grey);
+    background-color: var(--card-bg);
+    border: 1px dashed var(--border-1);
+    border-radius: 12px;
 }
 
 .no-topics i {
@@ -435,8 +442,8 @@
     align-items: center;
     margin-top: 2rem;
     padding: 1rem;
-    background: linear-gradient(135deg, var(--charcoal), var(--darker-gold-2));
-    border: 1px solid var(--darker-gold-2);
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 6px;
 }
 
@@ -453,7 +460,7 @@
 
 .page-btn {
     padding: 0.5rem 0.75rem;
-    border: 1px solid var(--darker-gold-2);
+    border: 1px solid var(--border-1);
     background: transparent;
     color: var(--lighter-grey);
     text-decoration: none;
@@ -466,7 +473,7 @@
 
 .page-btn:hover,
 .page-btn.active {
-    border-color: var(--gold);
+    border-color: var(--border-1);
     background: var(--gold);
     color: var(--charcoal);
     text-decoration: none;
@@ -622,8 +629,8 @@
 
 /* Arama Sonuçları */
 .search-results {
-    background: linear-gradient(135deg, var(--darker-gold-2), var(--grey));
-    border: 1px solid var(--gold);
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 12px;
     padding: 25px;
     margin-bottom: 30px;
@@ -654,8 +661,8 @@
 }
 
 .search-result-item {
-    background: var(--transparent-gold);
-    border: 1px solid var(--darker-gold-1);
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
     border-radius: 8px;
     padding: 20px;
     transition: all 0.3s ease;
@@ -713,7 +720,7 @@
 }
 
 .recent-topics {
-    background: linear-gradient(135deg, var(--darker-gold-2), var(--grey));
+    background: linear-gradient(135deg, var(--card-bg), var(--grey));
     border: 1px solid var(--gold);
     border-radius: 12px;
     padding: 25px;
@@ -736,8 +743,8 @@
 }
 
 .recent-topic-item {
-    background: var(--transparent-gold);
-    border: 1px solid var(--darker-gold-1);
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1-featured);
     border-radius: 8px;
     padding: 15px;
     transition: all 0.3s ease;

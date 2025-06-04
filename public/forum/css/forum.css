@@ -44,9 +44,10 @@
     color: var(--light-gold);
 }
 
-.breadcrumb-item.active {
-    color: var(--lighter-grey);
+.breadcrumb .breadcrumb-item .active {
+    color: var(--turquase) !important;
 }
+
 
 .breadcrumb-item + .breadcrumb-item::before {
     content: '>';

@@ -9,7 +9,7 @@
         <div class="popover-user-info" style="display: none;">
             <div class="popover-header">
                 <div class="user-avatar">
-                    <img src="" alt="Kullanıcı Avatarı" class="avatar-img">
+                    <img src="" alt="Kullanıcı Avatarı" class="user-img">
                 </div>
                 <div class="user-basic-info">
                     <h4 class="user-name"></h4>
@@ -125,9 +125,9 @@
     flex-shrink: 0;
 }
 
-.avatar-img {
-    width: 50px;
-    height: 50px;
+.user-img {
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
     border: 2px solid var(--gold);
     object-fit: cover;
@@ -510,7 +510,7 @@ function populateUserPopover(userData) {
     const userInfoDiv = popover.querySelector('.popover-user-info');
     
     // Avatar
-    const avatarImg = userInfoDiv.querySelector('.avatar-img');
+    const avatarImg = userInfoDiv.querySelector('.user-img');
     avatarImg.src = userData.avatar_path || '/assets/logo.png';
     avatarImg.alt = `${userData.username} Avatarı`;
     
