@@ -1,5 +1,5 @@
 <?php
-// public/forum/topic.php
+// public/forum/topic.php - Tüm kategorileri görme yetkisi ile güncellenmiş
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -26,7 +26,7 @@ if (!$topic_id) {
     exit;
 }
 
-// Konu detaylarını çek
+// Konu detaylarını çek (erişim kontrolü forum_functions.php'de yapılıyor)
 $topic = get_forum_topic_by_id($pdo, $topic_id, $current_user_id);
 if (!$topic) {
     $_SESSION['error_message'] = "Konu bulunamadı veya erişim yetkiniz bulunmuyor.";
@@ -42,7 +42,7 @@ $offset = ($page - 1) * $per_page;
 // Görüntüleme sayısını artır
 increment_topic_view_count($pdo, $topic_id, $current_user_id);
 
-// Gönderileri çek
+// Gönderileri çek (erişim kontrolü forum_functions.php'de yapılıyor)
 $posts_data = get_forum_topic_posts($pdo, $topic_id, $current_user_id, $per_page, $offset);
 $posts = $posts_data['posts'];
 $total_posts = $posts_data['total'];
@@ -73,9 +73,9 @@ include BASE_PATH . '/src/includes/header.php';
 include BASE_PATH . '/src/includes/navbar.php';
 ?>
 
+<!-- Topic content continues exactly as before... -->
 <link rel="stylesheet" href="/public/forum/css/forum.css">
 <link rel="stylesheet" href="/public/forum/css/topic.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="forum-page-container">
     <!-- Breadcrumb -->

@@ -1,9 +1,5 @@
 <?php
-// src/functions/forum_functions.php - Güncellenmiş Rol Kontrolü
-
-/**
- * Forum sistemi için temel fonksiyonlar - Rol bazlı görünürlük
- */
+// src/functions/forum_functions.php - Güncellenmiş
 
 /**
  * Kullanıcının erişebileceği forum kategorilerini getirir
@@ -68,8 +64,8 @@ function get_accessible_forum_categories(PDO $pdo, ?int $user_id = null): array 
  * @return bool Erişebilirse true
  */
 function can_user_access_forum_category(PDO $pdo, array $category, ?int $user_id = null): bool {
-    // Admin her şeyi görebilir
-    if ($user_id && has_permission($pdo, 'admin.panel.access', $user_id)) {
+    // Admin veya tüm kategorileri görme yetkisi varsa her şeyi görebilir
+    if ($user_id && (has_permission($pdo, 'admin.panel.access', $user_id) || has_permission($pdo, 'forum.view_all_categories', $user_id))) {
         return true;
     }
     

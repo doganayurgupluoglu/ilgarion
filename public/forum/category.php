@@ -1,5 +1,6 @@
+
 <?php
-// public/forum/category.php - Basitleştirilmiş Rol Kontrolü
+// public/forum/category.php - Tüm kategorileri görme yetkisi ile güncellenmiş
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -26,7 +27,7 @@ if (empty($category_slug)) {
     exit;
 }
 
-// Kategori detaylarını çek
+// Kategori detaylarını çek (erişim kontrolü forum_functions.php'de yapılıyor)
 $category = get_forum_category_details_by_slug($pdo, $category_slug, $current_user_id);
 if (!$category) {
     $_SESSION['error_message'] = "Kategori bulunamadı veya erişim yetkiniz bulunmuyor.";
@@ -43,7 +44,7 @@ $offset = ($page - 1) * $per_page;
 $sort = $_GET['sort'] ?? 'updated';
 $order = $_GET['order'] ?? 'desc';
 
-// Konuları çek
+// Konuları çek (erişim kontrolü forum_functions.php'de yapılıyor)
 $topics_data = get_forum_topics_in_category($pdo, $category['id'], $current_user_id, $per_page, $offset, $sort, $order);
 $topics = $topics_data['topics'];
 $total_topics = $topics_data['total'];
@@ -324,7 +325,7 @@ function changeSorting() {
     const url = new URL(window.location);
     url.searchParams.set('sort', sort);
     url.searchParams.set('order', order);
-    url.searchParams.set('page', '1'); // Reset to first page
+    url.searchParams.set('page', '1');
     window.location.href = url.toString();
 }
 </script>
@@ -332,7 +333,6 @@ function changeSorting() {
 <script src="/public/forum/js/forum.js"></script>
 
 <?php
-// Zaman formatlama fonksiyonu
 function format_time_ago($datetime) {
     $time = time() - strtotime($datetime);
     

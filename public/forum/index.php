@@ -1,5 +1,5 @@
 <?php
-// public/forum/index.php - Basitleştirilmiş Rol Kontrolü
+// public/forum/index.php - Tüm kategorileri görme yetkisi ile güncellenmiş
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -22,7 +22,7 @@ $is_approved = is_user_approved();
 // Sayfa başlığı
 $page_title = "Forum - Ilgarion Turanis";
 
-// Kategorileri çek (sadece erişilebilir olanlar)
+// Kategorileri çek (erişim kontrolü forum_functions.php'de yapılıyor)
 $categories = get_accessible_forum_categories($pdo, $current_user_id);
 
 // Forum istatistikleri
