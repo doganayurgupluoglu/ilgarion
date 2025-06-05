@@ -122,27 +122,7 @@ include BASE_PATH . '/src/includes/navbar.php';
 
                     <?= htmlspecialchars($topic['title']) ?>
                 </h1>
-            
-            <?php if (!empty($topic['tags'])): ?>
-            <div class="topic-tags-section">
-                <div class="topic-tags">
-                    <i class="fas fa-tags"></i>
-                    <div class="tags-list">
-                        <?php 
-                        $tags = array_filter(array_map('trim', explode(',', $topic['tags'])));
-                        foreach ($tags as $tag): 
-                        ?>
-                            <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tag" 
-                               class="topic-tag" 
-                               title="'<?= htmlspecialchars($tag) ?>' etiketini ara">
-                                <?= htmlspecialchars($tag) ?>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
             </div>
-            </div>
-        <?php endif; ?>
             <div class="topic-stats">
                 <div class="stat-item">
                     <div class="stat-number"><?= number_format($topic['reply_count']) ?></div>
@@ -194,7 +174,25 @@ include BASE_PATH . '/src/includes/navbar.php';
         </div>
         <br>
     </div>
-
+<?php if (!empty($topic['tags'])): ?>
+            <div class="topic-tags-section">
+                <div class="topic-tags">
+                    <i class="fas fa-tags"></i>
+                    <div class="tags-list">
+                        <?php 
+                        $tags = array_filter(array_map('trim', explode(',', $topic['tags'])));
+                        foreach ($tags as $tag): 
+                        ?>
+                            <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tag" 
+                               class="topic-tag" 
+                               title="'<?= htmlspecialchars($tag) ?>' etiketini ara">
+                                <?= htmlspecialchars($tag) ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     <!-- Topic Content (First Post) -->
     <div class="topic-content-wrapper">
         <div class="topic-first-post post-item" id="post-0">
@@ -252,6 +250,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                                 <i class="fas fa-quote-left"></i> Alıntıla
                             </button>
                         <?php endif; ?>
+                        
                     </div>
                 </div>
             </div>

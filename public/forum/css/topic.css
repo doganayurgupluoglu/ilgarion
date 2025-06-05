@@ -34,9 +34,12 @@
     gap: 0.75rem;
 }
 .topic-tags-section {
-    margin-top: 1rem;
+    margin-bottom: 2rem;
     padding-top: 1rem;
+    padding-bottom: 1rem;
     border-top: 1px solid var(--border-1);
+    border-bottom: 1px solid var(--border-1);
+
 }
 
 .topic-tags {

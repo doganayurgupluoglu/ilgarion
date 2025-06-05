@@ -1,5 +1,5 @@
 <?php
-// public/forum/search.php - Forum Arama Sayfası
+// public/forum/search.php - Güncellenmiş Layout ve Tag Fix
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -20,7 +20,7 @@ $is_logged_in = is_user_logged_in();
 
 // Arama parametreleri
 $search_query = trim($_GET['q'] ?? '');
-$search_type = $_GET['type'] ?? 'all'; // all, topics, posts, tags, users
+$search_type = $_GET['type'] ?? 'all'; // all, topics, posts, tags, users, tag
 $category_filter = (int)($_GET['category'] ?? 0);
 $sort_by = $_GET['sort'] ?? 'relevance'; // relevance, date, title
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -37,7 +37,7 @@ $search_info = [];
 if (!empty($search_query) && strlen($search_query) >= $min_search_length) {
     
     // Rate limiting
-    if (!check_rate_limit('forum_search', 30, 300)) { // 5 dakikada 30 arama
+    if (!check_rate_limit('forum_search', 60, 300)) { // 5 dakikada 30 arama
         $_SESSION['error_message'] = "Çok fazla arama yapıyorsunuz. Lütfen 5 dakika bekleyin.";
         $search_query = '';
     } else {
@@ -57,17 +57,15 @@ if (!empty($search_query) && strlen($search_query) >= $min_search_length) {
             
         } catch (Exception $e) {
             error_log("Forum search error: " . $e->getMessage());
-            $_SESSION['error_message'] = "Arama sırasında bir hata oluştu.";
+            error_log("Search parameters - Query: $search_query, Type: $search_type, Category: $category_filter");
+            $_SESSION['error_message'] = "Arama sırasında bir hata oluştu: " . $e->getMessage();
             $search_results = ['results' => [], 'total' => 0];
         }
     }
 }
 
-// Kategorileri al (filtre için)
-$categories = get_accessible_forum_categories($pdo, $current_user_id);
-
 // Popüler tag'lar (öneriler için)
-$popular_tags = get_popular_tags($pdo, 10);
+$popular_tags = get_popular_tags($pdo, 15);
 
 // Toplam sayfa sayısı
 $total_pages = $total_results > 0 ? ceil($total_results / $per_page) : 0;
@@ -86,7 +84,7 @@ include BASE_PATH . '/src/includes/header.php';
 include BASE_PATH . '/src/includes/navbar.php';
 
 /**
- * Detaylı forum arama fonksiyonu
+ * Detaylı forum arama fonksiyonu - DÜZELTME
  */
 function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_id, int $category_filter, string $sort, int $limit, int $offset): array {
     if (strlen($query) < 2) {
@@ -111,7 +109,6 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
         $accessible_category_ids = [$category_filter];
     }
     
-    $category_placeholder = implode(',', array_fill(0, count($accessible_category_ids), '?'));
     $search_term = '%' . $query . '%';
     
     $results = [];
@@ -131,15 +128,33 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
     };
     
     try {
+        // TAG ARAMA FİXİ - Özel tag arama işlemi
+        if ($type === 'tag') {
+            // Tag araması - name veya slug ile ara
+            $tag_results = get_topics_by_tag($pdo, $query, $user_id, $limit, $offset);
+            
+            // Kategori filtresi varsa uygula
+            if ($category_filter > 0 && !empty($tag_results['topics'])) {
+                $filtered_topics = array_filter($tag_results['topics'], function($topic) use ($category_filter) {
+                    return $topic['category_id'] == $category_filter;
+                });
+                $tag_results['topics'] = array_values($filtered_topics);
+                $tag_results['total'] = count($filtered_topics);
+            }
+            
+            return $tag_results;
+        }
+        
         if ($type === 'all' || $type === 'topics') {
-            // Konularda ara
+            // Konularda ara - Güvenli prepared statement ile
             $topics_query = "
                 SELECT 'topic' as result_type, 'Konu' as type_label,
                        ft.id, ft.title, LEFT(ft.content, 300) as content,
                        ft.tags, ft.view_count, ft.reply_count,
                        CONCAT('/public/forum/topic.php?id=', ft.id) as url,
-                       u.username, ur.color as user_role_color, ft.user_id, ft.created_at,
-                       fc.name as category_name, fc.color as category_color,
+                       u.username, COALESCE(ur.color, '#bd912a') as user_role_color, 
+                       ft.user_id, ft.created_at,
+                       fc.name as category_name, COALESCE(fc.color, '#bd912a') as category_color,
                        (CASE 
                            WHEN ft.title LIKE ? THEN 3
                            WHEN ft.content LIKE ? THEN 2
@@ -155,27 +170,28 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                     JOIN roles r2 ON ur2.role_id = r2.id 
                     WHERE ur2.user_id = u.id
                 )
-                WHERE ft.category_id IN ($category_placeholder) 
+                WHERE ft.category_id IN (" . implode(',', array_fill(0, count($accessible_category_ids), '?')) . ") 
                 AND (ft.title LIKE ? OR ft.content LIKE ? OR ft.tags LIKE ?)
                 HAVING relevance_score > 0
                 {$order_clause}
             ";
             
-            $params = array_merge(
+            // Parametreleri hazırla
+            $topic_params = array_merge(
                 [$search_term, $search_term, $search_term], // relevance hesabı için
-                $accessible_category_ids,
+                $accessible_category_ids, // kategori filtreleri için
                 [$search_term, $search_term, $search_term] // WHERE koşulu için
             );
             
             if ($type === 'topics') {
                 $topics_query .= " LIMIT ? OFFSET ?";
-                $params = array_merge($params, [$limit, $offset]);
+                $topic_params = array_merge($topic_params, [$limit, $offset]);
             } else {
                 $topics_query .= " LIMIT 10";
             }
             
             $stmt = $pdo->prepare($topics_query);
-            $stmt->execute($params);
+            $stmt->execute($topic_params);
             $topic_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             $results = array_merge($results, $topic_results);
@@ -189,8 +205,9 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                        fp.id, ft.title, LEFT(fp.content, 300) as content,
                        '' as tags, 0 as view_count, 0 as reply_count,
                        CONCAT('/public/forum/topic.php?id=', ft.id, '#post-', fp.id) as url,
-                       u.username, ur.color as user_role_color, fp.user_id, fp.created_at,
-                       fc.name as category_name, fc.color as category_color,
+                       u.username, COALESCE(ur.color, '#bd912a') as user_role_color, 
+                       fp.user_id, fp.created_at,
+                       fc.name as category_name, COALESCE(fc.color, '#bd912a') as category_color,
                        (CASE 
                            WHEN fp.content LIKE ? THEN 2
                            WHEN ft.title LIKE ? THEN 1
@@ -206,27 +223,27 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                     JOIN roles r2 ON ur2.role_id = r2.id 
                     WHERE ur2.user_id = u.id
                 )
-                WHERE ft.category_id IN ($category_placeholder) 
+                WHERE ft.category_id IN (" . implode(',', array_fill(0, count($accessible_category_ids), '?')) . ") 
                 AND fp.content LIKE ?
                 HAVING relevance_score > 0
                 {$order_clause}
             ";
             
-            $params = array_merge(
+            $post_params = array_merge(
                 [$search_term, $search_term], // relevance hesabı için
-                $accessible_category_ids,
+                $accessible_category_ids, // kategori filtreleri için
                 [$search_term] // WHERE koşulu için
             );
             
             if ($type === 'posts') {
                 $posts_query .= " LIMIT ? OFFSET ?";
-                $params = array_merge($params, [$limit, $offset]);
+                $post_params = array_merge($post_params, [$limit, $offset]);
             } else {
                 $posts_query .= " LIMIT 5";
             }
             
             $stmt = $pdo->prepare($posts_query);
-            $stmt->execute($params);
+            $stmt->execute($post_params);
             $post_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             $results = array_merge($results, $post_results);
@@ -239,7 +256,7 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                 SELECT 'tag' as result_type, 'Etiket' as type_label,
                        ft.id, ft.name as title, CONCAT(ft.usage_count, ' konuda kullanılmış') as content,
                        '' as tags, ft.usage_count as view_count, 0 as reply_count,
-                       CONCAT('/public/forum/search.php?q=', ft.name, '&type=tag') as url,
+                       CONCAT('/public/forum/search.php?q=', REPLACE(ft.name, ' ', '%20'), '&type=tags') as url,
                        '' as username, '#bd912a' as user_role_color, 0 as user_id, ft.created_at,
                        'Etiket' as category_name, '#bd912a' as category_color,
                        (CASE 
@@ -252,17 +269,17 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                 ORDER BY ft.usage_count DESC, ft.name ASC
             ";
             
-            $params = [$search_term, $search_term];
+            $tag_params = [$search_term, $search_term];
             
             if ($type === 'tags') {
                 $tags_query .= " LIMIT ? OFFSET ?";
-                $params = array_merge($params, [$limit, $offset]);
+                $tag_params = array_merge($tag_params, [$limit, $offset]);
             } else {
                 $tags_query .= " LIMIT 5";
             }
             
             $stmt = $pdo->prepare($tags_query);
-            $stmt->execute($params);
+            $stmt->execute($tag_params);
             $tag_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             $results = array_merge($results, $tag_results);
@@ -277,8 +294,9 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                        CONCAT('Oyun adı: ', COALESCE(u.ingame_name, 'Belirtilmemiş')) as content,
                        '' as tags, 0 as view_count, 0 as reply_count,
                        CONCAT('/public/view_profile.php?user_id=', u.id) as url,
-                       u.username, ur.color as user_role_color, u.id as user_id, u.created_at,
-                       'Kullanıcı' as category_name, ur.color as category_color,
+                       u.username, COALESCE(ur.color, '#bd912a') as user_role_color, 
+                       u.id as user_id, u.created_at,
+                       'Kullanıcı' as category_name, COALESCE(ur.color, '#bd912a') as category_color,
                        (CASE 
                            WHEN u.username LIKE ? THEN 3
                            WHEN u.ingame_name LIKE ? THEN 2
@@ -297,48 +315,22 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                 ORDER BY relevance_score DESC, u.username ASC
             ";
             
-            $params = [$search_term, $search_term, $search_term, $search_term];
+            $user_params = [$search_term, $search_term, $search_term, $search_term];
             
             if ($type === 'users') {
                 $users_query .= " LIMIT ? OFFSET ?";
-                $params = array_merge($params, [$limit, $offset]);
+                $user_params = array_merge($user_params, [$limit, $offset]);
             } else {
                 $users_query .= " LIMIT 5";
             }
             
             $stmt = $pdo->prepare($users_query);
-            $stmt->execute($params);
+            $stmt->execute($user_params);
             $user_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             $results = array_merge($results, $user_results);
             $info['users'] = count($user_results);
         }
-        
-        // Özel tag araması
-        if ($type === 'tag') {
-    // Önce tag adına göre slug'ı bul
-    try {
-        $tag_query = "SELECT slug FROM forum_tags WHERE name = :name LIMIT 1";
-        $stmt = execute_safe_query($pdo, $tag_query, [':name' => $query]);
-        $tag_slug = $stmt->fetchColumn();
-        
-        if ($tag_slug) {
-            // Slug bulunduysa tag bazlı konuları getir
-            return get_topics_by_tag($pdo, $tag_slug, $user_id, $limit, $offset);
-        } else {
-            // Tag bulunamadıysa boş sonuç dön
-            return [
-                'results' => [], 
-                'total' => 0, 
-                'info' => [],
-                'tag' => ['name' => $query, 'id' => null]
-            ];
-        }
-    } catch (Exception $e) {
-        error_log("Tag search error: " . $e->getMessage());
-        return ['results' => [], 'total' => 0, 'info' => []];
-    }
-}
         
         // Toplam sonuç sayısını hesapla
         if ($type === 'all') {
@@ -368,7 +360,11 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
         
     } catch (PDOException $e) {
         error_log("Forum search database error: " . $e->getMessage());
-        throw new DatabaseException("Search operation failed");
+        error_log("Query: " . $query . ", Type: " . $type . ", Category: " . $category_filter);
+        throw new DatabaseException("Search operation failed: " . $e->getMessage());
+    } catch (Exception $e) {
+        error_log("Forum search general error: " . $e->getMessage());
+        throw $e;
     }
 }
 
@@ -422,7 +418,7 @@ function format_search_time_ago($datetime) {
         <p>Konular, gönderiler, etiketler ve kullanıcılar arasında arama yapın.</p>
     </div>
 
-    <!-- Search Form -->
+    <!-- Kompakt Search Form -->
     <div class="search-form-container">
         <form method="GET" action="/public/forum/search.php" class="search-form">
             <div class="search-input-group">
@@ -432,14 +428,13 @@ function format_search_time_ago($datetime) {
                            class="search-input" maxlength="100" required>
                     <button type="submit" class="search-btn">
                         <i class="fas fa-search"></i>
-                        <span>Ara</span>
                     </button>
                 </div>
             </div>
 
             <div class="search-filters">
                 <div class="filter-group">
-                    <label>Arama Türü:</label>
+                    <label>Arama Türü</label>
                     <select name="type" class="filter-select">
                         <option value="all" <?= $search_type === 'all' ? 'selected' : '' ?>>Tümü</option>
                         <option value="topics" <?= $search_type === 'topics' ? 'selected' : '' ?>>Konular</option>
@@ -452,10 +447,13 @@ function format_search_time_ago($datetime) {
                 </div>
 
                 <div class="filter-group">
-                    <label>Kategori:</label>
+                    <label>Kategori</label>
                     <select name="category" class="filter-select">
                         <option value="0">Tüm Kategoriler</option>
-                        <?php foreach ($categories as $category): ?>
+                        <?php
+                        $categories = get_accessible_forum_categories($pdo, $current_user_id);
+                        $category_filter = (int)($_GET['category'] ?? 0);
+                        foreach ($categories as $category): ?>
                             <option value="<?= $category['id'] ?>" 
                                     <?= $category_filter == $category['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($category['name']) ?>
@@ -465,7 +463,7 @@ function format_search_time_ago($datetime) {
                 </div>
 
                 <div class="filter-group">
-                    <label>Sıralama:</label>
+                    <label>Sıralama</label>
                     <select name="sort" class="filter-select">
                         <option value="relevance" <?= $sort_by === 'relevance' ? 'selected' : '' ?>>İlgililik</option>
                         <option value="date" <?= $sort_by === 'date' ? 'selected' : '' ?>>Tarih</option>
@@ -498,7 +496,7 @@ function format_search_time_ago($datetime) {
                         <li>Farklı anahtar kelimeler deneyin</li>
                         <li>Daha genel terimler kullanın</li>
                         <li>Yazım hatalarını kontrol edin</li>
-                        <li>Farklı bir kategori seçin</li>
+                        <li>Farklı bir arama türü seçin</li>
                     </ul>
                 </div>
 
@@ -507,10 +505,10 @@ function format_search_time_ago($datetime) {
                         <h4>Popüler Etiketler:</h4>
                         <div class="tags-list">
                             <?php foreach ($popular_tags as $tag): ?>
-                                <a href="/public/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tag" 
+                                <a href="/public/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tags" 
                                    class="suggestion-tag">
                                     <?= htmlspecialchars($tag['name']) ?> 
-                                    <span>(<?= $tag['usage_count'] ?>)</span>
+                                    <span><?= $tag['usage_count'] ?></span>
                                 </a>
                             <?php endforeach; ?>
                         </div>
@@ -521,221 +519,225 @@ function format_search_time_ago($datetime) {
             
             <!-- Arama sonuçları -->
             <div class="search-results">
-    <!-- Özel tag sayfası görünümü -->
-    <div class="tag-results-header">
-        <div class="tag-info">
-            <h2>
-                <i class="fas fa-tag"></i>
-                "<?= htmlspecialchars($search_results['tag']['name'] ?? $search_query) ?>" Etiketi
-            </h2>
-            <p><?= number_format($total_results) ?> konu bu etikete sahip</p>
-        </div>
-    </div>
-
-    <?php if (!empty($search_results['topics'])): ?>
-        <div class="tag-topics-list">
-            <?php foreach ($search_results['topics'] as $topic): ?>
-                <div class="topic-item">
-                    <div class="topic-header">
-                        <h3 class="topic-title">
-                            <a href="/public/forum/topic.php?id=<?= $topic['id'] ?>">
-                                <?php if ($topic['is_pinned']): ?>
-                                    <i class="fas fa-thumbtack text-warning"></i>
-                                <?php endif; ?>
-                                <?php if ($topic['is_locked']): ?>
-                                    <i class="fas fa-lock text-secondary"></i>
-                                <?php endif; ?>
-                                <?= htmlspecialchars($topic['title']) ?>
-                            </a>
-                        </h3>
-                        <div class="topic-meta">
-                            <span class="topic-category">
-                                <i class="<?= $topic['category_icon'] ?? 'fas fa-folder' ?>" 
-                                   style="color: <?= $topic['category_color'] ?? '#bd912a' ?>"></i>
-                                <a href="/public/forum/category.php?slug=<?= urlencode($topic['category_slug']) ?>"
-                                   style="color: <?= $topic['category_color'] ?? '#bd912a' ?>">
-                                    <?= htmlspecialchars($topic['category_name']) ?>
-                                </a>
-                            </span>
-                            <span class="topic-author">
-                                <i class="fas fa-user"></i>
-                                <span style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
-                                    <?= htmlspecialchars($topic['author_username']) ?>
-                                </span>
-                            </span>
-                            <span class="topic-date">
-                                <i class="fas fa-clock"></i>
-                                <?= format_search_time_ago($topic['created_at']) ?>
-                            </span>
+                <?php if ($search_type === 'tag' && isset($search_results['tag'])): ?>
+                    <!-- Özel tag sayfası görünümü -->
+                    <div class="tag-results-header">
+                        <div class="tag-info">
+                            <h2>
+                                <i class="fas fa-tag"></i>
+                                "<?= htmlspecialchars($search_results['tag']['name'] ?? $search_query) ?>" Etiketi
+                            </h2>
+                            <p><?= number_format($total_results) ?> konu bu etikete sahip</p>
                         </div>
                     </div>
-                    
-                    <div class="topic-content">
-                        <p><?= htmlspecialchars(substr(strip_tags($topic['content']), 0, 200)) ?>...</p>
-                    </div>
-                    
-                    <div class="topic-stats">
-                        <span class="stat-item">
-                            <i class="fas fa-eye"></i>
-                            <?= number_format($topic['view_count']) ?> görüntüleme
-                        </span>
-                        <span class="stat-item">
-                            <i class="fas fa-comments"></i>
-                            <?= number_format($topic['reply_count']) ?> yanıt
-                        </span>
-                        <?php if (!empty($topic['tags'])): ?>
-                            <div class="topic-tags">
-                                <?php
-                                $tags = array_filter(array_map('trim', explode(',', $topic['tags'])));
-                                foreach (array_slice($tags, 0, 3) as $tag):
-                                ?>
-                                    <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tag" 
-                                       class="topic-tag <?= $tag === $search_query ? 'active' : '' ?>">
-                                        <?= htmlspecialchars($tag) ?>
-                                    </a>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-                <div class="results-header">
-                    <div class="results-info">
-                        <h2>Arama Sonuçları</h2>
-                        <p>
-                            <strong>"<?= htmlspecialchars($search_query) ?>"</strong> için 
-                            <span class="results-count"><?= number_format($total_results) ?></span> sonuç bulundu
-                        </p>
-                        
-                        <?php if ($search_type === 'all' && !empty($search_info)): ?>
-                            <div class="results-breakdown">
-                                <?php if ($search_info['topics'] > 0): ?>
-                                    <span class="breakdown-item">
-                                        <i class="fas fa-comment-dots"></i>
-                                        <?= $search_info['topics'] ?> Konu
-                                    </span>
-                                <?php endif; ?>
-                                <?php if ($search_info['posts'] > 0): ?>
-                                    <span class="breakdown-item">
-                                        <i class="fas fa-comment"></i>
-                                        <?= $search_info['posts'] ?> Gönderi
-                                    </span>
-                                <?php endif; ?>
-                                <?php if ($search_info['tags'] > 0): ?>
-                                    <span class="breakdown-item">
-                                        <i class="fas fa-tags"></i>
-                                        <?= $search_info['tags'] ?> Etiket
-                                    </span>
-                                <?php endif; ?>
-                                <?php if ($search_info['users'] > 0): ?>
-                                    <span class="breakdown-item">
-                                        <i class="fas fa-users"></i>
-                                        <?= $search_info['users'] ?> Kullanıcı
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
 
-                <div class="results-list">
-                    <?php foreach ($search_results['results'] as $result): ?>
-                        <div class="result-item result-<?= $result['result_type'] ?>">
-                            <div class="result-icon">
-                                <?php
-                                $icon_map = [
-                                    'topic' => 'fas fa-comment-dots',
-                                    'post' => 'fas fa-comment',
-                                    'tag' => 'fas fa-tag',
-                                    'user' => 'fas fa-user'
-                                ];
-                                $icon = $icon_map[$result['result_type']] ?? 'fas fa-file';
-                                ?>
-                                <i class="<?= $icon ?>"></i>
-                            </div>
-
-                            <div class="result-content">
-                                <div class="result-header">
-                                    <h3 class="result-title">
-                                        <a href="<?= $result['url'] ?>">
-                                            <?= highlight_search_terms($result['title'], $search_query) ?>
-                                        </a>
-                                    </h3>
-                                    <span class="result-type-badge"><?= $result['type_label'] ?></span>
-                                </div>
-
-                                <div class="result-description">
-                                    <?= highlight_search_terms($result['content'], $search_query) ?>
-                                </div>
-
-                                <div class="result-meta">
-                                    <div class="result-meta-left">
-                                        <?php if (!empty($result['username'])): ?>
-                                            <span class="result-author">
-                                                <i class="fas fa-user"></i>
-                                                <span style="color: <?= $result['user_role_color'] ?? '#bd912a' ?>">
-                                                    <?= htmlspecialchars($result['username']) ?>
-                                                </span>
-                                            </span>
-                                        <?php endif; ?>
-
-                                        <?php if (!empty($result['category_name']) && $result['result_type'] !== 'user'): ?>
-                                            <span class="result-category">
-                                                <i class="fas fa-folder"></i>
-                                                <span style="color: <?= $result['category_color'] ?? '#bd912a' ?>">
-                                                    <?= htmlspecialchars($result['category_name']) ?>
-                                                </span>
-                                            </span>
-                                        <?php endif; ?>
-
-                                        <span class="result-date">
-                                            <i class="fas fa-clock"></i>
-                                            <?= format_search_time_ago($result['created_at']) ?>
-                                        </span>
-                                    </div>
-
-                                    <div class="result-meta-right">
-                                        <?php if ($result['result_type'] === 'topic'): ?>
-                                            <?php if ($result['view_count'] > 0): ?>
-                                                <span class="result-stat">
-                                                    <i class="fas fa-eye"></i>
-                                                    <?= number_format($result['view_count']) ?>
-                                                </span>
-                                            <?php endif; ?>
-                                            <?php if ($result['reply_count'] > 0): ?>
-                                                <span class="result-stat">
-                                                    <i class="fas fa-comments"></i>
-                                                    <?= number_format($result['reply_count']) ?>
-                                                </span>
-                                            <?php endif; ?>
-                                        <?php elseif ($result['result_type'] === 'tag'): ?>
-                                            <span class="result-stat">
-                                                <i class="fas fa-hashtag"></i>
-                                                <?= $result['view_count'] ?> kullanım
-                                            </span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-
-                                <?php if (!empty($result['tags']) && $result['result_type'] === 'topic'): ?>
-                                    <div class="result-tags">
-                                        <?php
-                                        $tags = array_filter(array_map('trim', explode(',', $result['tags'])));
-                                        foreach (array_slice($tags, 0, 3) as $tag):
-                                        ?>
-                                            <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tag" 
-                                               class="result-tag">
-                                                <?= htmlspecialchars($tag) ?>
+                    <?php if (!empty($search_results['topics'])): ?>
+                        <div class="tag-topics-list">
+                            <?php foreach ($search_results['topics'] as $topic): ?>
+                                <div class="topic-item">
+                                    <div class="topic-header">
+                                        <h3 class="topic-title">
+                                            <a href="/public/forum/topic.php?id=<?= $topic['id'] ?>">
+                                                <?php if ($topic['is_pinned']): ?>
+                                                    <i class="fas fa-thumbtack text-warning"></i>
+                                                <?php endif; ?>
+                                                <?php if ($topic['is_locked']): ?>
+                                                    <i class="fas fa-lock text-secondary"></i>
+                                                <?php endif; ?>
+                                                <?= htmlspecialchars($topic['title']) ?>
                                             </a>
-                                        <?php endforeach; ?>
+                                        </h3>
+                                        <div class="topic-meta">
+                                            <span class="topic-category">
+                                                <i class="<?= $topic['category_icon'] ?? 'fas fa-folder' ?>" 
+                                                   style="color: <?= $topic['category_color'] ?? '#bd912a' ?>"></i>
+                                                <a href="/public/forum/category.php?slug=<?= urlencode($topic['category_slug']) ?>"
+                                                   style="color: <?= $topic['category_color'] ?? '#bd912a' ?>">
+                                                    <?= htmlspecialchars($topic['category_name']) ?>
+                                                </a>
+                                            </span>
+                                            <span class="topic-author">
+                                                <i class="fas fa-user"></i>
+                                                <span style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
+                                                    <?= htmlspecialchars($topic['author_username']) ?>
+                                                </span>
+                                            </span>
+                                            <span class="topic-date">
+                                                <i class="fas fa-clock"></i>
+                                                <?= format_search_time_ago($topic['created_at']) ?>
+                                            </span>
+                                        </div>
                                     </div>
-                                <?php endif; ?>
-                            </div>
+                                    
+                                    <div class="topic-content">
+                                        <p><?= htmlspecialchars(substr(strip_tags($topic['content']), 0, 200)) ?>...</p>
+                                    </div>
+                                    
+                                    <div class="topic-stats">
+                                        <span class="stat-item">
+                                            <i class="fas fa-eye"></i>
+                                            <?= number_format($topic['view_count']) ?> görüntüleme
+                                        </span>
+                                        <span class="stat-item">
+                                            <i class="fas fa-comments"></i>
+                                            <?= number_format($topic['reply_count']) ?> yanıt
+                                        </span>
+                                        <?php if (!empty($topic['tags'])): ?>
+                                            <div class="topic-tags">
+                                                <?php
+                                                $tags = array_filter(array_map('trim', explode(',', $topic['tags'])));
+                                                foreach (array_slice($tags, 0, 3) as $tag):
+                                                ?>
+                                                    <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tags" 
+                                                       class="topic-tag <?= $tag === $search_query ? 'active' : '' ?>">
+                                                        <?= htmlspecialchars($tag) ?>
+                                                    </a>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
-                    <?php endforeach; ?>
-                </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <!-- Normal arama sonuçları -->
+                    <div class="results-header">
+                        <div class="results-info">
+                            <h2>Arama Sonuçları</h2>
+                            <p>
+                                <strong>"<?= htmlspecialchars($search_query) ?>"</strong> için 
+                                <span class="results-count"><?= number_format($total_results) ?></span> sonuç bulundu
+                            </p>
+                            
+                            <?php if ($search_type === 'all' && !empty($search_info)): ?>
+                                <div class="results-breakdown">
+                                    <?php if ($search_info['topics'] > 0): ?>
+                                        <span class="breakdown-item">
+                                            <i class="fas fa-comment-dots"></i>
+                                            <?= $search_info['topics'] ?> Konu
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if ($search_info['posts'] > 0): ?>
+                                        <span class="breakdown-item">
+                                            <i class="fas fa-comment"></i>
+                                            <?= $search_info['posts'] ?> Gönderi
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if ($search_info['tags'] > 0): ?>
+                                        <span class="breakdown-item">
+                                            <i class="fas fa-tags"></i>
+                                            <?= $search_info['tags'] ?> Etiket
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if ($search_info['users'] > 0): ?>
+                                        <span class="breakdown-item">
+                                            <i class="fas fa-users"></i>
+                                            <?= $search_info['users'] ?> Kullanıcı
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="results-list">
+                        <?php foreach ($search_results['results'] as $result): ?>
+                            <div class="result-item result-<?= $result['result_type'] ?>">
+                                <div class="result-icon">
+                                    <?php
+                                    $icon_map = [
+                                        'topic' => 'fas fa-comment-dots',
+                                        'post' => 'fas fa-comment',
+                                        'tag' => 'fas fa-tag',
+                                        'user' => 'fas fa-user'
+                                    ];
+                                    $icon = $icon_map[$result['result_type']] ?? 'fas fa-file';
+                                    ?>
+                                    <i class="<?= $icon ?>"></i>
+                                </div>
+
+                                <div class="result-content">
+                                    <div class="result-header">
+                                        <h3 class="result-title">
+                                            <a href="<?= $result['url'] ?>">
+                                                <?= highlight_search_terms($result['title'], $search_query) ?>
+                                            </a>
+                                        </h3>
+                                        <span class="result-type-badge"><?= $result['type_label'] ?></span>
+                                    </div>
+
+                                    <div class="result-description">
+                                        <?= highlight_search_terms($result['content'], $search_query) ?>
+                                    </div>
+
+                                    <div class="result-meta">
+                                        <div class="result-meta-left">
+                                            <?php if (!empty($result['username'])): ?>
+                                                <span class="result-author">
+                                                    <i class="fas fa-user"></i>
+                                                    <span style="color: <?= $result['user_role_color'] ?? '#bd912a' ?>">
+                                                        <?= htmlspecialchars($result['username']) ?>
+                                                    </span>
+                                                </span>
+                                            <?php endif; ?>
+
+                                            <?php if (!empty($result['category_name']) && $result['result_type'] !== 'user'): ?>
+                                                <span class="result-category">
+                                                    <i class="fas fa-folder"></i>
+                                                    <span style="color: <?= $result['category_color'] ?? '#bd912a' ?>">
+                                                        <?= htmlspecialchars($result['category_name']) ?>
+                                                    </span>
+                                                </span>
+                                            <?php endif; ?>
+
+                                            <span class="result-date">
+                                                <i class="fas fa-clock"></i>
+                                                <?= format_search_time_ago($result['created_at']) ?>
+                                            </span>
+                                        </div>
+
+                                        <div class="result-meta-right">
+                                            <?php if ($result['result_type'] === 'topic'): ?>
+                                                <?php if ($result['view_count'] > 0): ?>
+                                                    <span class="result-stat">
+                                                        <i class="fas fa-eye"></i>
+                                                        <?= number_format($result['view_count']) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if ($result['reply_count'] > 0): ?>
+                                                    <span class="result-stat">
+                                                        <i class="fas fa-comments"></i>
+                                                        <?= number_format($result['reply_count']) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            <?php elseif ($result['result_type'] === 'tag'): ?>
+                                                <span class="result-stat">
+                                                    <i class="fas fa-hashtag"></i>
+                                                    <?= $result['view_count'] ?> kullanım
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+
+                                    <?php if (!empty($result['tags']) && $result['result_type'] === 'topic'): ?>
+                                        <div class="result-tags">
+                                            <?php
+                                            $tags = array_filter(array_map('trim', explode(',', $result['tags'])));
+                                            foreach (array_slice($tags, 0, 3) as $tag):
+                                            ?>
+                                                <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tags" 
+                                                   class="result-tag">
+                                                    <?= htmlspecialchars($tag) ?>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Pagination -->
                 <?php if ($total_pages > 1): ?>
@@ -806,7 +808,7 @@ function format_search_time_ago($datetime) {
                     <div class="tip-item">
                         <i class="fas fa-filter"></i>
                         <h4>Filtreleme</h4>
-                        <p>Kategori ve türe göre sonuçları filtreleyin</p>
+                        <p>Türe göre sonuçları filtreleyin</p>
                     </div>
                     <div class="tip-item">
                         <i class="fas fa-tags"></i>
@@ -821,31 +823,10 @@ function format_search_time_ago($datetime) {
                     <h3><i class="fas fa-fire"></i> Popüler Etiketler</h3>
                     <div class="popular-tags-grid">
                         <?php foreach ($popular_tags as $tag): ?>
-                            <a href="/public/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tag" 
-                               class="popular-tag" 
-                               style="<?= !empty($tag['color']) ? 'border-color: ' . $tag['color'] . '; color: ' . $tag['color'] . ';' : '' ?>">
+                            <a href="/public/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tags" 
+                               class="popular-tag">
                                 <span class="tag-name"><?= htmlspecialchars($tag['name']) ?></span>
                                 <span class="tag-count"><?= number_format($tag['usage_count']) ?></span>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <?php if (!empty($categories)): ?>
-                <div class="quick-categories">
-                    <h3><i class="fas fa-folder-open"></i> Kategoriler</h3>
-                    <div class="categories-grid">
-                        <?php foreach (array_slice($categories, 0, 6) as $category): ?>
-                            <a href="/public/forum/category.php?slug=<?= urlencode($category['slug']) ?>" 
-                               class="category-quick-link">
-                                <div class="category-icon" style="color: <?= $category['color'] ?? '#bd912a' ?>">
-                                    <i class="<?= $category['icon'] ?? 'fas fa-folder' ?>"></i>
-                                </div>
-                                <div class="category-info">
-                                    <h4><?= htmlspecialchars($category['name']) ?></h4>
-                                    <p><?= number_format($category['topic_count'] ?? 0) ?> konu</p>
-                                </div>
                             </a>
                         <?php endforeach; ?>
                     </div>
