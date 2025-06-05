@@ -766,9 +766,9 @@ function createEditModal() {
                                 </button>
                             </div>
                             <textarea id="editContent" name="content" rows="10" required 
-                                      minlength="5" maxlength="10000"></textarea>
+                                      minlength="5" maxlength="50000"></textarea>
                             <div class="char-counter">
-                                <span id="edit-char-count">0</span> / 10000 karakter
+                                <span id="edit-char-count">0</span> / 50000 karakter
                             </div>
                         </div>
                         

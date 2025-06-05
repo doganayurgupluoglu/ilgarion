@@ -211,13 +211,13 @@ include BASE_PATH . '/src/includes/navbar.php';
                     <div class="post-date">
                         <i class="fas fa-clock"></i>
                         <?= format_time_ago($topic['created_at']) ?>
-                                        <?php 
-    // Topic düzenleme bilgisi için veritabanından kontrol et
-    if (isset($topic['updated_at']) && $topic['created_at'] !== $topic['updated_at']): 
-    ?>
-            <i class="fas fa-edit"></i>
-            <em>Son düzenleme: <?= format_time_ago($topic['updated_at']) ?></em>
-    <?php endif; ?>
+                        <?php
+                        // Topic düzenleme bilgisi için veritabanından kontrol et
+                        if (isset($topic['updated_at']) && $topic['created_at'] !== $topic['updated_at']):
+                            ?>
+                            <i class="fas fa-edit"></i>
+                            <em>Son düzenleme: <?= format_time_ago($topic['updated_at']) ?></em>
+                        <?php endif; ?>
                     </div>
 
                     <div class="post-actions">
@@ -386,36 +386,127 @@ include BASE_PATH . '/src/includes/navbar.php';
                 <div class="form-group">
                     <label for="reply_content">Yanıt İçeriği:</label>
                     <div class="editor-toolbar">
-                        <button type="button" class="editor-btn" onclick="insertBBCode('b')" title="Kalın">
-                            <i class="fas fa-bold"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('i')" title="İtalik">
-                            <i class="fas fa-italic"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('u')" title="Altı Çizili">
-                            <i class="fas fa-underline"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('url')" title="Link">
-                            <i class="fas fa-link"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('img')" title="Resim">
-                            <i class="fas fa-image"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('quote')" title="Alıntı">
-                            <i class="fas fa-quote-left"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('code')" title="Kod">
-                            <i class="fas fa-code"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="openColorPicker()" title="Renk">
-                            <i class="fas fa-palette"></i>
-                        </button>
-                    </div>
+    <div class="toolbar-group">
+        <button type="button" class="editor-btn" onclick="insertBBCode('b')" title="Kalın">
+            <i class="fas fa-bold"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('i')" title="İtalik">
+            <i class="fas fa-italic"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('u')" title="Altı Çizili">
+            <i class="fas fa-underline"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('s')" title="Üstü Çizili">
+            <i class="fas fa-strikethrough"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('sub')" title="Alt Simge">
+            <i class="fas fa-subscript"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('sup')" title="Üst Simge">
+            <i class="fas fa-superscript"></i>
+        </button>
+    </div>
+    
+    <div class="toolbar-group">
+        <button type="button" class="editor-btn" onclick="insertBBCode('left')" title="Sola Hizala">
+            <i class="fas fa-align-left"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('center')" title="Ortala">
+            <i class="fas fa-align-center"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('right')" title="Sağa Hizala">
+            <i class="fas fa-align-right"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('justify')" title="İki Yana Yasla">
+            <i class="fas fa-align-justify"></i>
+        </button>
+    </div>
+    
+    <div class="toolbar-group">
+        <button type="button" class="editor-btn" onclick="insertBBCode('url')" title="Link Ekle">
+            <i class="fas fa-link"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('email')" title="E-posta">
+            <i class="fas fa-envelope"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('img')" title="Resim Ekle">
+            <i class="fas fa-image"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('youtube')" title="YouTube Video">
+            <i class="fab fa-youtube"></i>
+        </button>
+    </div>
+    
+    <div class="toolbar-group">
+        <button type="button" class="editor-btn" onclick="insertBBCode('quote')" title="Alıntı">
+            <i class="fas fa-quote-left"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('code')" title="Kod Bloğu">
+            <i class="fas fa-code"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('spoiler')" title="Spoiler">
+            <i class="fas fa-eye-slash"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('highlight')" title="Vurgula">
+            <i class="fas fa-highlighter"></i>
+        </button>
+    </div>
+    
+    <div class="toolbar-group">
+        <button type="button" class="editor-btn" onclick="insertBBCode('list')" title="Liste">
+            <i class="fas fa-list-ul"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('table')" title="Tablo">
+            <i class="fas fa-table"></i>
+        </button>
+        <button type="button" class="editor-btn" onclick="insertBBCode('hr')" title="Yatay Çizgi">
+            <i class="fas fa-minus"></i>
+        </button>
+    </div>
+    
+    <div class="toolbar-group">
+        <select id="colorSelect" onchange="insertColorCode()" title="Renk">
+            <option value="">Renk</option>
+            <option value="red" style="color: red;">Kırmızı</option>
+            <option value="blue" style="color: blue;">Mavi</option>
+            <option value="green" style="color: green;">Yeşil</option>
+            <option value="orange" style="color: orange;">Turuncu</option>
+            <option value="purple" style="color: purple;">Mor</option>
+            <option value="yellow" style="color: yellow;">Sarı</option>
+            <option value="cyan" style="color: cyan;">Camgöbeği</option>
+            <option value="pink" style="color: pink;">Pembe</option>
+            <option value="brown" style="color: brown;">Kahverengi</option>
+            <option value="gray" style="color: gray;">Gri</option>
+        </select>
+        
+        <select id="sizeSelect" onchange="insertSizeCode()" title="Boyut">
+            <option value="">Boyut</option>
+            <option value="8px">Çok Küçük</option>
+            <option value="10px">Küçük</option>
+            <option value="12px">Normal</option>
+            <option value="14px">Büyük</option>
+            <option value="18px">Çok Büyük</option>
+            <option value="24px">Başlık</option>
+        </select>
+        
+        <select id="fontSelect" onchange="insertFontCode()" title="Yazı Tipi">
+            <option value="">Yazı Tipi</option>
+            <option value="Arial">Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Times">Times</option>
+            <option value="Courier">Courier</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Comic Sans MS">Comic Sans</option>
+        </select>
+    </div>
+</div>
                     <textarea name="content" id="reply_content" rows="8" required
                         placeholder="Yanıtınızı buraya yazın... BBCode kullanabilirsiniz." minlength="5"
-                        maxlength="10000"></textarea>
+                        maxlength="50000"></textarea>
                     <div class="char-counter">
-                        <span id="char-count">0</span> / 10000 karakter
+                        <span id="char-count">0</span> / 50000 karakter
                     </div>
                 </div>
 
@@ -496,4 +587,5 @@ function format_time_ago($datetime)
 }
 
 include BASE_PATH . '/src/includes/footer.php';
+include BASE_PATH . '/src/functions/Parsedown.php';
 ?>

@@ -266,7 +266,7 @@ function get_forum_topic_by_id(PDO $pdo, int $topic_id, ?int $user_id = null) {
     try {
         $query = "
             SELECT ft.*,
-            
+                   ft.updated_at,
                    fc.name as category_name,
                    fc.slug as category_slug,
                    fc.color as category_color,
@@ -946,7 +946,7 @@ function increment_topic_view_count(PDO $pdo, int $topic_id, ?int $user_id = nul
 }
 
 /**
- * BBCode'u HTML'e çevirir (basit versiyon)
+ * BBCode'u HTML'e çevirir (genişletilmiş versiyon)
  * @param string $text BBCode içeren metin
  * @return string HTML'e çevrilmiş metin
  */
@@ -966,8 +966,13 @@ function parse_bbcode(string $text): string {
         '/\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/is' => '<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>',
         '/\[url\](https?:\/\/[^\[]+)\[\/url\]/is' => '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
         
+        // Email
+        '/\[email\]([\w\.\-]+@[\w\.\-]+)\[\/email\]/is' => '<a href="mailto:$1">$1</a>',
+        '/\[email=([\w\.\-]+@[\w\.\-]+)\](.*?)\[\/email\]/is' => '<a href="mailto:$1">$2</a>',
+        
         // Resimler - güvenlik kontrolü ile
         '/\[img\](https?:\/\/[^\[]+\.(jpg|jpeg|png|gif|webp|bmp|svg))\[\/img\]/is' => '<img src="$1" alt="User Image" style="max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0;" loading="lazy">',
+        '/\[img=([\d]+)x([\d]+)\](https?:\/\/[^\[]+)\[\/img\]/is' => '<img src="$3" width="$1" height="$2" alt="User Image" style="max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0;" loading="lazy">',
         
         // Renkler - hex ve CSS isim kontrolü ile
         '/\[color=(#[a-fA-F0-9]{3,6}|red|blue|green|yellow|orange|purple|pink|black|white|gray|grey|brown|cyan|magenta|lime|navy|olive|maroon|teal|silver|gold|indigo|violet|crimson)\](.*?)\[\/color\]/is' => '<span style="color: $1;">$2</span>',
@@ -975,14 +980,57 @@ function parse_bbcode(string $text): string {
         // Boyutlar - güvenli boyut kontrolü ile
         '/\[size=([1-7]|[0-9]{1,2}px|[0-9]{1,2}pt|[0-9]{1,2}em|small|medium|large|x-large|xx-large)\](.*?)\[\/size\]/is' => '<span style="font-size: $1;">$2</span>',
         
+        // Hizalama
+        '/\[center\](.*?)\[\/center\]/is' => '<div style="text-align: center;">$1</div>',
+        '/\[left\](.*?)\[\/left\]/is' => '<div style="text-align: left;">$1</div>',
+        '/\[right\](.*?)\[\/right\]/is' => '<div style="text-align: right;">$1</div>',
+        '/\[justify\](.*?)\[\/justify\]/is' => '<div style="text-align: justify;">$1</div>',
+        
+        // Listeler - Önce list item'ları işle
+        '/\[\*\](.*)$/m' => '<li>$1</li>',
+        
+        // Font
+        '/\[font=(Arial|Helvetica|Times|Courier|Verdana|Tahoma|Georgia|Palatino|Comic Sans MS|Impact)\](.*?)\[\/font\]/is' => '<span style="font-family: $1;">$2</span>',
+        
+        // Spoiler
+        '/\[spoiler\](.*?)\[\/spoiler\]/is' => '<details class="forum-spoiler"><summary>Spoiler (görmek için tıklayın)</summary>$1</details>',
+        '/\[spoiler=(.*?)\](.*?)\[\/spoiler\]/is' => '<details class="forum-spoiler"><summary>$1</summary>$2</details>',
+        
+        // YouTube videolar
+        '/\[youtube\](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)\[\/youtube\]/i' => '<div class="forum-video"><iframe width="560" height="315" src="https://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe></div>',
+        
+        // Horizontal line
+        '/\[hr\]/i' => '<hr class="forum-hr">',
+        
+        // Subscript ve Superscript
+        '/\[sub\](.*?)\[\/sub\]/is' => '<sub>$1</sub>',
+        '/\[sup\](.*?)\[\/sup\]/is' => '<sup>$1</sup>',
+        
+        // Highlight
+        '/\[highlight\](.*?)\[\/highlight\]/is' => '<mark style="background-color: yellow; color: black;">$1</mark>',
+        '/\[highlight=(#[a-fA-F0-9]{3,6}|yellow|lime|cyan|pink|orange)\](.*?)\[\/highlight\]/is' => '<mark style="background-color: $1; color: black;">$2</mark>',
+        
         // Kod blokları - quote'dan önce işle
-        '/\[code\](.*?)\[\/code\]/is' => '<pre class="forum-code">$1</pre>',
+        '/\[code\](.*?)\[\/code\]/is' => '<pre class="forum-code"><code>$1</code></pre>',
+        '/\[code=(php|javascript|python|html|css|sql|cpp|java|csharp)\](.*?)\[\/code\]/is' => '<pre class="forum-code" data-language="$1"><code>$2</code></pre>',
+        
+        // Table - basit versiyon
+        '/\[table\](.*?)\[\/table\]/is' => '<table class="forum-table">$1</table>',
+        '/\[tr\](.*?)\[\/tr\]/is' => '<tr>$1</tr>',
+        '/\[td\](.*?)\[\/td\]/is' => '<td>$1</td>',
+        '/\[th\](.*?)\[\/th\]/is' => '<th>$1</th>',
     ];
     
     // İlk geçiş - basit BBCode'ları işle
     foreach ($bbcode_patterns as $pattern => $replacement) {
         $text = preg_replace($pattern, $replacement, $text);
     }
+    
+    // Listeleri işle - list tag'lerini dönüştür
+    $text = preg_replace('/\[list\](.*?)\[\/list\]/is', '<ul class="forum-list">$1</ul>', $text);
+    $text = preg_replace('/\[list=1\](.*?)\[\/list\]/is', '<ol class="forum-list">$1</ol>', $text);
+    $text = preg_replace('/\[list=a\](.*?)\[\/list\]/is', '<ol class="forum-list" type="a">$1</ol>', $text);
+    $text = preg_replace('/\[list=A\](.*?)\[\/list\]/is', '<ol class="forum-list" type="A">$1</ol>', $text);
     
     // Quote'ları özel olarak işle (iç içe destekle)
     $text = parse_quotes($text);
@@ -992,7 +1040,6 @@ function parse_bbcode(string $text): string {
     
     return $text;
 }
-
 /**
  * Quote'ları özel olarak işler (iç içe desteği ile)
  * @param string $text İşlenecek metin

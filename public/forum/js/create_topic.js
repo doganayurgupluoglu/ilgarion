@@ -1,5 +1,5 @@
-// Create topic functionality - Basitleştirilmiş
-let csrfToken = '<?= generate_csrf_token() ?>';
+// Create topic functionality
+let csrfToken = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     // Character counters
@@ -80,6 +80,11 @@ function setupFormValidation() {
             return false;
         }
         
+        // Form başarıyla gönderilirse taslağı temizle
+        if (this.checkValidity()) {
+            localStorage.removeItem('forum_topic_draft');
+        }
+        
         // Disable submit button and show loading
         const submitBtn = this.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
@@ -87,9 +92,6 @@ function setupFormValidation() {
         submitBtn.disabled = true;
         submitBtn.classList.add('loading');
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Oluşturuluyor...';
-        
-        // If there's an error, the page will reload and button will be reset
-        // If successful, user will be redirected
     });
 }
 
@@ -178,8 +180,8 @@ function saveDraft() {
     showNotification('Taslak kaydedildi.', 'success');
 }
 
-// BBCode editor functions
-function insertBBCode(tag) {
+// BBCode editor functions - Genişletilmiş
+function insertBBCode(tag, param = null) {
     const textarea = document.getElementById('content');
     if (!textarea) return;
     
@@ -198,6 +200,7 @@ function insertBBCode(tag) {
                 return;
             }
             break;
+            
         case 'img':
             const imgUrl = prompt('Resim URL\'si girin:');
             if (imgUrl) {
@@ -206,6 +209,83 @@ function insertBBCode(tag) {
                 return;
             }
             break;
+            
+        case 'email':
+            const email = prompt('E-posta adresi girin:');
+            if (email) {
+                replacement = selectedText ? `[email=${email}]${selectedText}[/email]` : `[email=${email}][/email]`;
+            } else {
+                return;
+            }
+            break;
+            
+        case 'youtube':
+            const youtube = prompt('YouTube video URL\'si girin:');
+            if (youtube) {
+                replacement = `[youtube]${youtube}[/youtube]`;
+            } else {
+                return;
+            }
+            break;
+            
+        case 'spoiler':
+            if (param) {
+                replacement = `[spoiler=${param}]${selectedText || 'Spoiler içeriği'}[/spoiler]`;
+            } else {
+                const spoilerTitle = prompt('Spoiler başlığı (opsiyonel):');
+                if (spoilerTitle) {
+                    replacement = `[spoiler=${spoilerTitle}]${selectedText || 'Spoiler içeriği'}[/spoiler]`;
+                } else {
+                    replacement = `[spoiler]${selectedText || 'Spoiler içeriği'}[/spoiler]`;
+                }
+            }
+            break;
+            
+        case 'code':
+            const language = prompt('Programlama dili (opsiyonel - php, javascript, python, vb.):');
+            if (language) {
+                replacement = `[code=${language}]${selectedText || 'Kod buraya'}[/code]`;
+            } else {
+                replacement = `[code]${selectedText || 'Kod buraya'}[/code]`;
+            }
+            break;
+            
+        case 'list':
+            const listType = prompt('Liste tipi:\n• Boş bırakın = işaretli liste\n• 1 = numaralı liste\n• a = küçük harf\n• A = büyük harf');
+            if (listType) {
+                replacement = `[list=${listType}]\n[*]Öğe 1\n[*]Öğe 2\n[*]Öğe 3\n[/list]`;
+            } else {
+                replacement = `[list]\n[*]Öğe 1\n[*]Öğe 2\n[*]Öğe 3\n[/list]`;
+            }
+            break;
+            
+        case 'table':
+            replacement = `[table]\n[tr]\n[th]Başlık 1[/th]\n[th]Başlık 2[/th]\n[/tr]\n[tr]\n[td]Hücre 1[/td]\n[td]Hücre 2[/td]\n[/tr]\n[/table]`;
+            break;
+            
+        case 'font':
+            replacement = selectedText ? `[font=Arial]${selectedText}[/font]` : `[font=Arial][/font]`;
+            break;
+            
+        case 'highlight':
+            const highlightColor = prompt('Vurgu rengi (sarı, pembe, yeşil veya hex kod):') || 'yellow';
+            replacement = `[highlight=${highlightColor}]${selectedText || 'Vurgulanan metin'}[/highlight]`;
+            break;
+            
+        case 'center':
+        case 'left':
+        case 'right':
+        case 'justify':
+        case 'hr':
+        case 'sub':
+        case 'sup':
+            if (tag === 'hr') {
+                replacement = '[hr]';
+            } else {
+                replacement = selectedText ? `[${tag}]${selectedText}[/${tag}]` : `[${tag}][/${tag}]`;
+            }
+            break;
+            
         default:
             replacement = selectedText ? `[${tag}]${selectedText}[/${tag}]` : `[${tag}][/${tag}]`;
     }
@@ -213,7 +293,7 @@ function insertBBCode(tag) {
     textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
     
     // Move cursor
-    const newPos = start + replacement.length - (selectedText ? 0 : `[/${tag}]`.length);
+    const newPos = start + replacement.length - (selectedText || tag === 'hr' ? 0 : `[/${tag}]`.length);
     textarea.setSelectionRange(newPos, newPos);
     textarea.focus();
     
@@ -267,6 +347,126 @@ function insertSizeCode() {
     textarea.dispatchEvent(new Event('input'));
 }
 
+function insertFontCode() {
+    const select = document.getElementById('fontSelect');
+    const font = select.value;
+    
+    if (!font) return;
+    
+    const textarea = document.getElementById('content');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    
+    const replacement = selectedText ? `[font=${font}]${selectedText}[/font]` : `[font=${font}][/font]`;
+    
+    textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+    
+    const newPos = start + replacement.length - (selectedText ? 0 : '[/font]'.length);
+    textarea.setSelectionRange(newPos, newPos);
+    textarea.focus();
+    
+    select.value = '';
+    textarea.dispatchEvent(new Event('input'));
+}
+
+// BBCode to HTML parser for preview
+function parseBBCode(text) {
+    // HTML güvenliği için escape
+    text = text.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+    
+    // BBCode dönüşümleri
+    const bbcodeRules = [
+        // Basit formatlar
+        { pattern: /\[b\](.*?)\[\/b\]/gi, replacement: '<strong>$1</strong>' },
+        { pattern: /\[i\](.*?)\[\/i\]/gi, replacement: '<em>$1</em>' },
+        { pattern: /\[u\](.*?)\[\/u\]/gi, replacement: '<u>$1</u>' },
+        { pattern: /\[s\](.*?)\[\/s\]/gi, replacement: '<del>$1</del>' },
+        
+        // Sub ve Sup
+        { pattern: /\[sub\](.*?)\[\/sub\]/gi, replacement: '<sub>$1</sub>' },
+        { pattern: /\[sup\](.*?)\[\/sup\]/gi, replacement: '<sup>$1</sup>' },
+        
+        // Linkler
+        { pattern: /\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/gi, replacement: '<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>' },
+        { pattern: /\[url\](https?:\/\/[^\[]+)\[\/url\]/gi, replacement: '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>' },
+        
+        // Email
+        { pattern: /\[email\]([\w\.\-]+@[\w\.\-]+)\[\/email\]/gi, replacement: '<a href="mailto:$1">$1</a>' },
+        { pattern: /\[email=([\w\.\-]+@[\w\.\-]+)\](.*?)\[\/email\]/gi, replacement: '<a href="mailto:$1">$2</a>' },
+        
+        // Resimler
+        { pattern: /\[img\](https?:\/\/[^\[]+)\[\/img\]/gi, replacement: '<img src="$1" alt="User Image" style="max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0;" loading="lazy">' },
+        { pattern: /\[img=([\d]+)x([\d]+)\](https?:\/\/[^\[]+)\[\/img\]/gi, replacement: '<img src="$3" width="$1" height="$2" alt="User Image" style="max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0;" loading="lazy">' },
+        
+        // YouTube
+        { pattern: /\[youtube\](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)\[\/youtube\]/gi, replacement: '<div class="forum-video"><iframe width="560" height="315" src="https://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe></div>' },
+        
+        // Renkler
+        { pattern: /\[color=(#[a-fA-F0-9]{3,6}|red|blue|green|yellow|orange|purple|pink|black|white|gray|grey|brown|cyan|magenta|lime|navy|olive|maroon|teal|silver|gold|indigo|violet|crimson)\](.*?)\[\/color\]/gi, replacement: '<span style="color: $1;">$2</span>' },
+        
+        // Boyutlar
+        { pattern: /\[size=([1-7]|[0-9]{1,2}px|[0-9]{1,2}pt|[0-9]{1,2}em|small|medium|large|x-large|xx-large)\](.*?)\[\/size\]/gi, replacement: '<span style="font-size: $1;">$2</span>' },
+        
+        // Font
+        { pattern: /\[font=(Arial|Helvetica|Times|Courier|Verdana|Tahoma|Georgia|Palatino|Comic Sans MS|Impact)\](.*?)\[\/font\]/gi, replacement: '<span style="font-family: $1;">$2</span>' },
+        
+        // Hizalama
+        { pattern: /\[center\](.*?)\[\/center\]/gi, replacement: '<div style="text-align: center;">$1</div>' },
+        { pattern: /\[left\](.*?)\[\/left\]/gi, replacement: '<div style="text-align: left;">$1</div>' },
+        { pattern: /\[right\](.*?)\[\/right\]/gi, replacement: '<div style="text-align: right;">$1</div>' },
+        { pattern: /\[justify\](.*?)\[\/justify\]/gi, replacement: '<div style="text-align: justify;">$1</div>' },
+        
+        // Spoiler
+        { pattern: /\[spoiler\](.*?)\[\/spoiler\]/gi, replacement: '<details class="forum-spoiler"><summary>Spoiler (görmek için tıklayın)</summary>$1</details>' },
+        { pattern: /\[spoiler=(.*?)\](.*?)\[\/spoiler\]/gi, replacement: '<details class="forum-spoiler"><summary>$1</summary>$2</details>' },
+        
+        // Highlight
+        { pattern: /\[highlight\](.*?)\[\/highlight\]/gi, replacement: '<mark style="background-color: yellow; color: black;">$1</mark>' },
+        { pattern: /\[highlight=(#[a-fA-F0-9]{3,6}|yellow|lime|cyan|pink|orange)\](.*?)\[\/highlight\]/gi, replacement: '<mark style="background-color: $1; color: black;">$2</mark>' },
+        
+        // Horizontal line
+        { pattern: /\[hr\]/gi, replacement: '<hr class="forum-hr">' },
+        
+        // Code blocks
+        { pattern: /\[code\](.*?)\[\/code\]/gi, replacement: '<pre class="forum-code"><code>$1</code></pre>' },
+        { pattern: /\[code=(php|javascript|python|html|css|sql|cpp|java|csharp)\](.*?)\[\/code\]/gi, replacement: '<pre class="forum-code" data-language="$1"><code>$2</code></pre>' },
+        
+        // Table
+        { pattern: /\[table\](.*?)\[\/table\]/gi, replacement: '<table class="forum-table">$1</table>' },
+        { pattern: /\[tr\](.*?)\[\/tr\]/gi, replacement: '<tr>$1</tr>' },
+        { pattern: /\[td\](.*?)\[\/td\]/gi, replacement: '<td>$1</td>' },
+        { pattern: /\[th\](.*?)\[\/th\]/gi, replacement: '<th>$1</th>' },
+        
+        // List items (önce bunları işle)
+        { pattern: /\[\*\](.*)$/gm, replacement: '<li>$1</li>' }
+    ];
+    
+    // BBCode'ları uygula
+    bbcodeRules.forEach(rule => {
+        text = text.replace(rule.pattern, rule.replacement);
+    });
+    
+    // Listeleri işle
+    text = text.replace(/\[list\](.*?)\[\/list\]/gi, '<ul class="forum-list">$1</ul>');
+    text = text.replace(/\[list=1\](.*?)\[\/list\]/gi, '<ol class="forum-list">$1</ol>');
+    text = text.replace(/\[list=a\](.*?)\[\/list\]/gi, '<ol class="forum-list" type="a">$1</ol>');
+    text = text.replace(/\[list=A\](.*?)\[\/list\]/gi, '<ol class="forum-list" type="A">$1</ol>');
+    
+    // Quote'ları işle (basit versiyon)
+    text = text.replace(/\[quote\](.*?)\[\/quote\]/gi, '<blockquote class="forum-quote">$1</blockquote>');
+    text = text.replace(/\[quote=(.*?)\](.*?)\[\/quote\]/gi, '<blockquote class="forum-quote"><cite>$1 yazdı:</cite>$2</blockquote>');
+    
+    // Satır sonlarını <br> ile değiştir
+    text = text.replace(/\n/g, '<br>');
+    
+    return text;
+}
+
 function previewContent() {
     const content = document.getElementById('content').value;
     const previewDiv = document.getElementById('content-preview');
@@ -277,30 +477,15 @@ function previewContent() {
         return;
     }
     
-    // Simple BBCode to HTML conversion for preview
-    let html = content
-        .replace(/\[b\](.*?)\[\/b\]/g, '<strong>$1</strong>')
-        .replace(/\[i\](.*?)\[\/i\]/g, '<em>$1</em>')
-        .replace(/\[u\](.*?)\[\/u\]/g, '<u>$1</u>')
-        .replace(/\[s\](.*?)\[\/s\]/g, '<del>$1</del>')
-        .replace(/\[url=(.*?)\](.*?)\[\/url\]/g, '<a href="$1" target="_blank" style="color: var(--turquase);">$2</a>')
-        .replace(/\[url\](.*?)\[\/url\]/g, '<a href="$1" target="_blank" style="color: var(--turquase);">$1</a>')
-        .replace(/\[img\](.*?)\[\/img\]/g, '<img src="$1" alt="User Image" style="max-width: 100%; height: auto; border-radius: 4px;">')
-        .replace(/\[quote=(.*?)\](.*?)\[\/quote\]/g, '<blockquote class="forum-quote"><cite>$1 yazdı:</cite>$2</blockquote>')
-        .replace(/\[quote\](.*?)\[\/quote\]/g, '<blockquote class="forum-quote">$1</blockquote>')
-        .replace(/\[code\](.*?)\[\/code\]/g, '<pre class="forum-code">$1</pre>')
-        .replace(/\[color=(.*?)\](.*?)\[\/color\]/g, '<span style="color: $1;">$2</span>')
-        .replace(/\[size=(.*?)\](.*?)\[\/size\]/g, '<span style="font-size: $1;">$2</span>')
-        .replace(/\n/g, '<br>');
-    
-    previewContent.innerHTML = html;
+    // Parse BBCode and show preview
+    previewContent.innerHTML = parseBBCode(content);
     previewDiv.style.display = 'block';
     previewDiv.scrollIntoView({ behavior: 'smooth' });
 }
 
 // Notification function
 function showNotification(message, type) {
-    // Simple notification - you can enhance this
+    // Simple notification
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.style.cssText = `
@@ -341,10 +526,3 @@ function showNotification(message, type) {
         }, 300);
     }, 3000);
 }
-
-// Clear draft when topic is successfully created
-window.addEventListener('beforeunload', function() {
-    // This will be called when navigating away, but we only want to clear
-    // the draft if we're successfully creating a topic, not on errors
-    // The form submission will handle this appropriately
-});

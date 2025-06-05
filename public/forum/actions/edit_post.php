@@ -85,7 +85,7 @@ if (strlen($content) < 5) {
     exit;
 }
 
-if (strlen($content) > 10000) {
+if (strlen($content) > 50000) {
     http_response_code(400);
     echo json_encode([
         'success' => false,

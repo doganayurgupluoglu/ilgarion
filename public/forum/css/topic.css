@@ -788,8 +788,9 @@
     border: 1px solid var(--border-1-featured);
     border-radius: 12px;
     width: 90%;
-    max-width: 1000px;
+    max-width: 1600px;
     max-height: 90vh;
+    min-height: 40vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -1170,4 +1171,9 @@
     position: absolute;
     bottom: 10px;
     right: 50%;
+}
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
