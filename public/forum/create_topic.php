@@ -390,8 +390,8 @@ include BASE_PATH . '/src/includes/navbar.php';
             <div class="form-group">
                 <label for="tags">Etiketler</label>
                 <div class="tags-input-container">
-                    <div class="tags-display" id="tagsDisplay"></div>
                     <input type="text" id="tagsInput" placeholder="Etiket yazın ve Enter'a basın..." maxlength="30">
+                    <div class="tags-display" id="tagsDisplay"></div>
                     <input type="hidden" name="tags" id="tagsHidden"
                         value="<?= htmlspecialchars($form_data['tags'] ?? '') ?>">
                 </div>
@@ -591,6 +591,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                 <li>Önemli değişiklikler yapıyorsanız konunun sonuna açıklama ekleyebilirsiniz.</li>
                 <li>Başkalarının yanıtlarının anlamını bozacak şekilde değişiklik yapmayın.</li>
             <?php else: ?>
+                <li>Forum kurallarına özen göstererek paylaşım yapın.</li>
                 <li>Konunuzun başlığı açıklayıcı ve anlaşılır olmalıdır.</li>
                 <li>Uygun kategoriyi seçmeye özen gösterin.</li>
             <?php endif; ?>

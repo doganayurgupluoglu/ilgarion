@@ -242,7 +242,8 @@
 }
 
 .topic-item.pinned {
-    border-left: 3px solid var(--border-1-featured);
+    border-left: 3px solid var(--turquase);
+    background-color: rgba(89, 244, 255, 0.058);
 }
 
 .topic-item.locked {
@@ -260,7 +261,7 @@
 }
 
 .pinned-icon {
-    color: var(--light-gold);
+    color: var(--light-turquase);
     font-size: 1.1rem; 
 }
 
@@ -427,13 +428,20 @@
     border: 1px dashed var(--border-1);
     border-radius: 12px;
 }
+.btn-primary {
+    margin-top: 1.5rem !important;
+}
 
 .no-topics i {
     font-size: 3.5rem;
-    margin-bottom: 1.5rem;
-    color: var(--gold);
+    margin-bottom: 1rem;;
+    color: var(--light-gold);
 }
-
+.no-topics i:last-child {
+    font-size: 1.2rem;
+    color: var(--charcoal) !important;
+    margin-bottom: 0;
+}
 .no-topics h3 {
     color: var(--lighter-grey);
     margin-bottom: 1rem;

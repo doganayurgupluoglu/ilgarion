@@ -350,7 +350,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
-    padding-bottom: 0.75rem;
+    padding: 0 0.75rem 0.75rem 0.75rem;
+    
     border-bottom: 1px solid var(--border-1);
 }
 
@@ -1361,7 +1362,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--red);
+    color: var(--turquase);
     cursor: pointer;
     padding: 0.5rem;
     border-radius: 4px;
@@ -1370,8 +1371,8 @@
 }
 
 .liked-users-toggle:hover {
-    background: rgba(189, 145, 42, 0.1);
-    color: var(--gold);
+    background: var(--transparent-turquase);
+    color: var(--light-turquase);
 }
 
 .liked-users-toggle i.fa-chevron-down {
@@ -1386,7 +1387,7 @@
 .liked-users-list {
     padding: 0.75rem 0;
     border-radius: 4px;
-    background: rgba(189, 145, 42, 0.05);
+    background: rgba(42, 142, 189, 0.1);
     margin-top: 0.5rem;
     max-height: 200px;
     overflow-y: auto;
@@ -1462,29 +1463,4 @@
     .liked-users-list {
         max-height: 150px;
     }
-}
-/* Loading durumu için */
-.topic-like-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.topic-like-btn:disabled:hover {
-    border-color: var(--border-1);
-    color: var(--light-grey);
-}
-
-/* Beğeni sayısı animasyonu */
-.like-count {
-    transition: all 0.2s ease;
-}
-
-.like-count.updated {
-    animation: likeCountPulse 0.4s ease;
-}
-
-@keyframes likeCountPulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
 }

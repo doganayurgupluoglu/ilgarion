@@ -38,6 +38,8 @@
 │
 ├── favicon_io/
 │
+├── forum/
+│
 ├── gallery/
 │
 ├── js/
@@ -46,8 +48,6 @@
 │
 ├── api_item_search_test.php
 ├── create_event.php
-├── discussion_detail.php
-├── discussions.php
 ├── edit_event.php
 ├── edit_hangar.php
 ├── edit_profile.php
@@ -61,11 +61,11 @@
 ├── loadouts.php
 ├── logout.php
 ├── members.php
-├── new_discussion_topic.php
 ├── new_guide.php
 ├── notifications.php
 ├── profile.php
 ├── register.php
+├── sifre.php
 ├── upload_photo.php
 ├── user_discussions.php
 ├── user_gallery.php
@@ -95,4 +95,5 @@ Bu yapı, projenin tam dosya ve klasör organizasyonunu göstermektedir. Her bir
 2. `src/` dizini kaynak kodları ve iş mantığını içerir
 3. `assets/` dizini statik dosyaları (resimler, fontlar vb.) içerir
 4. Admin paneli `public/admin/` dizininde bulunmaktadır
-5. Tüm PHP sayfaları `public/` dizininde yer almaktadır 
+5. Tüm PHP sayfaları `public/` dizininde yer almaktadır
+6. Forum sistemi `public/forum/` dizininde bulunmaktadır 

@@ -599,8 +599,8 @@
 
 /* Search Highlighting */
 .search-highlight {
-    background: linear-gradient(135deg, rgba(255, 255, 0, 0.3), rgba(255, 255, 0, 0.4));
-    color: var(--charcoal);
+    background: transparent;
+    color: var(--light-turquase);
     padding: 0.1em 0.2em;
     border-radius: 2px;
     font-weight: 600;

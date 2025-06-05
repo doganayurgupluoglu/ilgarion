@@ -84,8 +84,6 @@
 
         <?php // Diğer script yüklemeleri... ?>
         <script src="/public/js/navbar.js?v=<?php echo defined('BASE_PATH') && file_exists(BASE_PATH . '/public/js/navbar.js') ? filemtime(BASE_PATH . '/public/js/navbar.js') : time(); ?>"></script>
-        <script src="/public/js/modals.js?v=<?php echo defined('BASE_PATH') && file_exists(BASE_PATH . '/public/js/modals.js') ? filemtime(BASE_PATH . '/public/js/modals.js') : time(); ?>"></script>
-        <script src="/public/js/popover.js?v=<?php echo defined('BASE_PATH') && file_exists(BASE_PATH . '/public/js/popover.js') ? filemtime(BASE_PATH . '/public/js/popover.js') : time(); ?>"></script>
         <script src="/public/js/dropdown.js?v=<?php echo defined('BASE_PATH') && file_exists(BASE_PATH . '/public/js/dropdown.js') ? filemtime(BASE_PATH . '/public/js/dropdown.js') : time(); ?>"></script>
         
         <?php $currentPageJs = basename($_SERVER['PHP_SELF'], '.php'); ?>
@@ -106,6 +104,5 @@
         <?php if (file_exists(BASE_PATH . '/public/js/notifications_ajax.js')): ?>
              <script src="/public/js/notifications_ajax.js?v=<?php echo filemtime(BASE_PATH . '/public/js/notifications_ajax.js'); ?>"></script>
         <?php endif; ?>
-        <script src="/public/js/script.js?v=<?php echo defined('BASE_PATH') && file_exists(BASE_PATH . '/public/js/script.js') ? filemtime(BASE_PATH . '/public/js/script.js') : time(); ?>"></script>
-    </body>
+      </body>
 </html>

@@ -1347,17 +1347,19 @@ function get_topics_by_tag(PDO $pdo, string $tag_identifier, ?int $user_id = nul
  * @param int|null $user_id Kullanıcı ID'si
  * @return array Beğeni verileri
  */
+/**
+ * Konu (ilk post) için beğeni verilerini getirir - DÜZELTME
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $topic_id Konu ID'si
+ * @param int|null $user_id Kullanıcı ID'si
+ * @return array Beğeni verileri
+ */
 function get_topic_like_data(PDO $pdo, int $topic_id, ?int $user_id = null): array {
     try {
-        // Debug log
-        error_log("get_topic_like_data called for topic_id: $topic_id, user_id: " . ($user_id ?? 'null'));
-        
         // Beğeni sayısını al
         $count_query = "SELECT COUNT(*) FROM forum_topic_likes WHERE topic_id = :topic_id";
         $stmt = execute_safe_query($pdo, $count_query, [':topic_id' => $topic_id]);
         $like_count = (int)$stmt->fetchColumn();
-        
-        error_log("Like count found: $like_count");
         
         // Kullanıcının beğenip beğenmediğini kontrol et
         $user_liked = false;
@@ -1365,13 +1367,12 @@ function get_topic_like_data(PDO $pdo, int $topic_id, ?int $user_id = null): arr
             $user_like_query = "SELECT COUNT(*) FROM forum_topic_likes WHERE topic_id = :topic_id AND user_id = :user_id";
             $stmt = execute_safe_query($pdo, $user_like_query, [':topic_id' => $topic_id, ':user_id' => $user_id]);
             $user_liked = $stmt->fetchColumn() > 0;
-            
-            error_log("User liked: " . ($user_liked ? 'yes' : 'no'));
         }
         
         // Beğenen kullanıcıları al (maksimum 20)
         $users_query = "
-            SELECT u.id, u.username, ur.color as role_color
+            SELECT u.id, u.username, 
+                   COALESCE(ur.color, '#bd912a') as role_color
             FROM forum_topic_likes ftl
             JOIN users u ON ftl.user_id = u.id
             LEFT JOIN user_roles uur ON u.id = uur.user_id
@@ -1388,21 +1389,14 @@ function get_topic_like_data(PDO $pdo, int $topic_id, ?int $user_id = null): arr
         $stmt = execute_safe_query($pdo, $users_query, [':topic_id' => $topic_id]);
         $liked_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        error_log("Liked users count: " . count($liked_users));
-        
-        $result = [
+        return [
             'like_count' => $like_count,
             'user_liked' => $user_liked,
             'liked_users' => $liked_users
         ];
         
-        error_log("Returning result: " . json_encode($result));
-        
-        return $result;
-        
     } catch (Exception $e) {
         error_log("Topic like data error: " . $e->getMessage());
-        error_log("Stack trace: " . $e->getTraceAsString());
         
         return [
             'like_count' => 0,

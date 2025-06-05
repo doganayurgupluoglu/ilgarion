@@ -1194,16 +1194,16 @@ async function deletePostAction(postId) {
         }
     }
 }
-// topic.js'e eklenecek yeni fonksiyonlar
+// ============= TOPIC LIKE FUNCTIONS - DÜZELTME =============
 
-// Konu beğeni toggle fonksiyonu
+// Konu beğeni toggle fonksiyonu - DÜZELTME
 async function toggleTopicLike(topicId) {
     if (!csrfToken) {
         showNotification('CSRF token bulunamadı. Sayfayı yenileyin.', 'error');
         return;
     }
 
-    const btn = document.querySelector(`[data-topic-id="${topicId}"]`);
+    const btn = document.querySelector('.topic-like-btn[data-topic-id="' + topicId + '"]');
     if (!btn) {
         showNotification('Beğeni butonu bulunamadı.', 'error');
         return;
@@ -1251,7 +1251,7 @@ async function toggleTopicLike(topicId) {
             btn.innerHTML = `<i class="fas fa-heart"></i> <span class="like-count">${data.like_count}</span>`;
             
             // Beğenen kullanıcılar listesini güncelle
-            updateLikedUsersList(`topic-${topicId}`, data.liked_users, data.like_count);
+            updateLikedUsersList(`topic-${topicId}`, data.liked_users || [], data.like_count);
             
             showNotification(data.message, 'success');
         } else {
@@ -1269,10 +1269,10 @@ async function toggleTopicLike(topicId) {
 
 // Beğenen kullanıcılar listesini güncelle
 function updateLikedUsersList(elementId, likedUsers, totalCount) {
-    const likedUsersSection = document.querySelector(`.liked-users-section`);
+    let likedUsersSection = document.querySelector('.liked-users-section');
     
     if (totalCount === 0) {
-        // Hiç beğeni yoksa bölümü gizle
+        // Hiç beğeni yoksa bölümü gizle veya kaldır
         if (likedUsersSection) {
             likedUsersSection.style.display = 'none';
         }
@@ -1324,9 +1324,8 @@ function updateLikedUsersList(elementId, likedUsers, totalCount) {
 
 // Beğeni bölümü oluştur
 function createLikedUsersSection(elementId, likedUsers, totalCount) {
-    const reactionsSection = document.querySelector('.post-reactions-section');
-    const topicContentwrapper = document.querySelector(`.topic-content-wrapper`);
-    if (!reactionsSection) return;
+    const topicContentWrapper = document.querySelector('.topic-content-wrapper');
+    if (!topicContentWrapper) return;
     
     let usersHtml = '';
     likedUsers.forEach(user => {
@@ -1361,7 +1360,7 @@ function createLikedUsersSection(elementId, likedUsers, totalCount) {
         </div>
     `;
     
-    topicContentwrapper.appendChild('beforeend', sectionHtml);
+    topicContentWrapper.insertAdjacentHTML('beforeend', sectionHtml);
 }
 
 // Beğenen kullanıcılar listesini aç/kapat
@@ -1396,15 +1395,3 @@ function escapeHtml(text) {
         return map[m]; 
     });
 }
-
-// Sayfa yüklendiğinde beğeni verilerini kontrol et
-document.addEventListener('DOMContentLoaded', function() {
-    // Mevcut beğeni toggle'larına event listener ekle
-    const likedUsersToggles = document.querySelectorAll('.liked-users-toggle');
-    likedUsersToggles.forEach(toggle => {
-        if (!toggle.onclick) {
-            const elementId = toggle.getAttribute('onclick').match(/'([^']+)'/)[1];
-            toggle.onclick = () => toggleLikedUsers(elementId);
-        }
-    });
-});

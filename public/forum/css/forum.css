@@ -100,15 +100,15 @@
 
 .search-input-group {
     display: flex;
-    align-items: center;
     border: 1px solid var(--border-1);
     border-radius: 6px;
     overflow: hidden;
     transition: all 0.2s ease;
+    width: 100%;
 }
 
 .search-input-group:focus-within {
-    border-color: var(--gold);
+    border-color: var(--border-1-hover);
 }
 
 .search-input {
@@ -117,7 +117,7 @@
     color: var(--lighter-grey);
     padding: 0.75rem 1rem;
     font-size: 0.9rem;
-    width: 280px;
+    min-width: 280px;
     font-family: var(--font);
 }
 
@@ -616,7 +616,7 @@
     cursor: pointer;
     font-family: var(--font);
     font-size: 0.9rem;
-    height: 50px;
+    height: 35px;
 }
 
 .btn-primary {
@@ -625,7 +625,6 @@
     background: var(--gold);
     color: var(--charcoal);
 }
-
 .btn-primary:hover {
     background: var(--light-gold);
     text-decoration: none;
