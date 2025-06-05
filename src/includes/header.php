@@ -63,5 +63,3 @@ if (isset($pdo) && function_exists('is_user_logged_in') && is_user_logged_in()) 
             unset($_SESSION['info_message']);
         }
         ?>
-        <?php 
-        // Navbar artık her sayfa tarafından ayrıca çağrılacak ?>

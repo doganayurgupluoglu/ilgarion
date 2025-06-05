@@ -1334,4 +1334,3 @@ function get_topics_by_tag(PDO $pdo, string $tag_identifier, ?int $user_id = nul
     }
 }
 ?>
-?>
