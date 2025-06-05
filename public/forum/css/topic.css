@@ -1352,3 +1352,139 @@
     align-items: center;
     gap: 0.5rem;
 }
+.liked-users-section {
+    border-top: 1px solid var(--border-1);
+    padding-top: 0.75rem;
+}
+
+.liked-users-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--red);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+}
+
+.liked-users-toggle:hover {
+    background: rgba(189, 145, 42, 0.1);
+    color: var(--gold);
+}
+
+.liked-users-toggle i.fa-chevron-down {
+    margin-left: auto;
+    transition: transform 0.2s ease;
+}
+
+.liked-users-toggle.active i.fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+.liked-users-list {
+    padding: 0.75rem 0;
+    border-radius: 4px;
+    background: rgba(189, 145, 42, 0.05);
+    margin-top: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.liked-user-item {
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.liked-user-item:hover {
+    background: rgba(189, 145, 42, 0.1);
+}
+
+.liked-user-item .user-link {
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.liked-user-item .user-link:hover {
+    text-decoration: underline;
+}
+
+.liked-users-more {
+    padding: 0.4rem 0.75rem;
+    color: var(--light-grey);
+    font-style: italic;
+    font-size: 0.8rem;
+    text-align: center;
+    border-top: 1px solid var(--border-1);
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+}
+
+/* Animasyonlar */
+.liked-users-list {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+        padding: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 200px;
+        padding: 0.75rem 0;
+    }
+}
+
+/* Responsive tasarım */
+@media (max-width: 768px) {
+    .post-reactions-section {
+        gap: 0.75rem;
+    }
+    
+    .liked-users-toggle {
+        font-size: 0.8rem;
+        padding: 0.4rem;
+    }
+    
+    .liked-user-item {
+        padding: 0.3rem 0.5rem;
+    }
+    
+    .liked-users-list {
+        max-height: 150px;
+    }
+}
+/* Loading durumu için */
+.topic-like-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.topic-like-btn:disabled:hover {
+    border-color: var(--border-1);
+    color: var(--light-grey);
+}
+
+/* Beğeni sayısı animasyonu */
+.like-count {
+    transition: all 0.2s ease;
+}
+
+.like-count.updated {
+    animation: likeCountPulse 0.4s ease;
+}
+
+@keyframes likeCountPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}

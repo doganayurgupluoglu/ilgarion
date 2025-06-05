@@ -1194,3 +1194,217 @@ async function deletePostAction(postId) {
         }
     }
 }
+// topic.js'e eklenecek yeni fonksiyonlar
+
+// Konu beğeni toggle fonksiyonu
+async function toggleTopicLike(topicId) {
+    if (!csrfToken) {
+        showNotification('CSRF token bulunamadı. Sayfayı yenileyin.', 'error');
+        return;
+    }
+
+    const btn = document.querySelector(`[data-topic-id="${topicId}"]`);
+    if (!btn) {
+        showNotification('Beğeni butonu bulunamadı.', 'error');
+        return;
+    }
+
+    // Button'u geçici olarak devre dışı bırak
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="like-count">...</span>';
+
+    try {
+        const response = await fetch('/public/forum/actions/toggle_topic_like.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `csrf_token=${encodeURIComponent(csrfToken)}&topic_id=${topicId}`
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const likeCount = btn.querySelector('.like-count');
+            
+            // Beğeni durumunu güncelle
+            if (data.liked) {
+                btn.classList.add('liked');
+            } else {
+                btn.classList.remove('liked');
+            }
+            
+            // Beğeni sayısını güncelle
+            if (likeCount) {
+                likeCount.textContent = data.like_count;
+                likeCount.classList.add('updated');
+                setTimeout(() => likeCount.classList.remove('updated'), 400);
+            }
+            
+            // Button'u tekrar etkinleştir
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-heart"></i> <span class="like-count">${data.like_count}</span>`;
+            
+            // Beğenen kullanıcılar listesini güncelle
+            updateLikedUsersList(`topic-${topicId}`, data.liked_users, data.like_count);
+            
+            showNotification(data.message, 'success');
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            showNotification(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Topic like toggle error:', error);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        showNotification('Beğeni işlemi başarısız oldu: ' + error.message, 'error');
+    }
+}
+
+// Beğenen kullanıcılar listesini güncelle
+function updateLikedUsersList(elementId, likedUsers, totalCount) {
+    const likedUsersSection = document.querySelector(`.liked-users-section`);
+    
+    if (totalCount === 0) {
+        // Hiç beğeni yoksa bölümü gizle
+        if (likedUsersSection) {
+            likedUsersSection.style.display = 'none';
+        }
+        return;
+    }
+    
+    if (!likedUsersSection) {
+        // Eğer beğeni bölümü yoksa oluştur
+        createLikedUsersSection(elementId, likedUsers, totalCount);
+        return;
+    }
+    
+    // Mevcut bölümü güncelle
+    likedUsersSection.style.display = 'block';
+    
+    // Toggle butonunu güncelle
+    const toggle = likedUsersSection.querySelector('.liked-users-toggle span');
+    if (toggle) {
+        toggle.textContent = `${totalCount} kişi beğendi`;
+    }
+    
+    // Kullanıcı listesini güncelle
+    const usersList = likedUsersSection.querySelector('.liked-users-list');
+    if (usersList) {
+        let usersHtml = '';
+        
+        likedUsers.forEach(user => {
+            usersHtml += `
+                <div class="liked-user-item">
+                    <span class="user-link" data-user-id="${user.id}"
+                        style="color: ${user.role_color || '#bd912a'}">
+                        ${escapeHtml(user.username)}
+                    </span>
+                </div>
+            `;
+        });
+        
+        if (totalCount > 20) {
+            usersHtml += `
+                <div class="liked-users-more">
+                    ve ${totalCount - 20} kişi daha...
+                </div>
+            `;
+        }
+        
+        usersList.innerHTML = usersHtml;
+    }
+}
+
+// Beğeni bölümü oluştur
+function createLikedUsersSection(elementId, likedUsers, totalCount) {
+    const reactionsSection = document.querySelector('.post-reactions-section');
+    const topicContentwrapper = document.querySelector(`.topic-content-wrapper`);
+    if (!reactionsSection) return;
+    
+    let usersHtml = '';
+    likedUsers.forEach(user => {
+        usersHtml += `
+            <div class="liked-user-item">
+                <span class="user-link" data-user-id="${user.id}"
+                    style="color: ${user.role_color || '#bd912a'}">
+                    ${escapeHtml(user.username)}
+                </span>
+            </div>
+        `;
+    });
+    
+    if (totalCount > 20) {
+        usersHtml += `
+            <div class="liked-users-more">
+                ve ${totalCount - 20} kişi daha...
+            </div>
+        `;
+    }
+    
+    const sectionHtml = `
+        <div class="liked-users-section">
+            <div class="liked-users-toggle" onclick="toggleLikedUsers('${elementId}')">
+                <i class="fas fa-users"></i>
+                <span>${totalCount} kişi beğendi</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="liked-users-list" id="liked-users-${elementId}" style="display: none;">
+                ${usersHtml}
+            </div>
+        </div>
+    `;
+    
+    topicContentwrapper.appendChild('beforeend', sectionHtml);
+}
+
+// Beğenen kullanıcılar listesini aç/kapat
+function toggleLikedUsers(elementId) {
+    const usersList = document.getElementById(`liked-users-${elementId}`);
+    const toggle = document.querySelector(`[onclick="toggleLikedUsers('${elementId}')"]`);
+    
+    if (!usersList || !toggle) return;
+    
+    if (usersList.style.display === 'none') {
+        usersList.style.display = 'block';
+        toggle.classList.add('active');
+    } else {
+        usersList.style.display = 'none';
+        toggle.classList.remove('active');
+    }
+}
+
+// HTML escape fonksiyonu - GÜVENLİ VERSİYON
+function escapeHtml(text) {
+    if (!text) return '';
+    
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    
+    return String(text).replace(/[&<>"']/g, function(m) { 
+        return map[m]; 
+    });
+}
+
+// Sayfa yüklendiğinde beğeni verilerini kontrol et
+document.addEventListener('DOMContentLoaded', function() {
+    // Mevcut beğeni toggle'larına event listener ekle
+    const likedUsersToggles = document.querySelectorAll('.liked-users-toggle');
+    likedUsersToggles.forEach(toggle => {
+        if (!toggle.onclick) {
+            const elementId = toggle.getAttribute('onclick').match(/'([^']+)'/)[1];
+            toggle.onclick = () => toggleLikedUsers(elementId);
+        }
+    });
+});

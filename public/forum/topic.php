@@ -13,7 +13,7 @@ require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 
 // Session kontrolü
 check_user_session_validity();
-
+check_forum_topic_likes_table($pdo);
 // Kullanıcı bilgileri
 $current_user_id = $_SESSION['user_id'] ?? null;
 $is_logged_in = is_user_logged_in();
@@ -33,6 +33,26 @@ if (!$topic) {
     header('Location: /public/forum/');
     exit;
 }
+
+// YENİ EKLEME - Konu beğeni verilerini al
+try {
+    $topic_like_data = get_topic_like_data($pdo, $topic_id, $current_user_id);
+    
+    $topic['like_count'] = $topic_like_data['like_count'] ?? 0;
+    $topic['user_liked'] = $topic_like_data['user_liked'] ?? false;
+    $topic['liked_users'] = $topic_like_data['liked_users'] ?? [];
+    $topic['can_like'] = ($is_approved && 
+                         $current_user_id && 
+                         $topic['user_id'] != $current_user_id && 
+                         has_permission($pdo, 'forum.post.like', $current_user_id));
+} catch (Exception $e) {
+    error_log("Topic like data error: " . $e->getMessage());
+    $topic['like_count'] = 0;
+    $topic['user_liked'] = false;
+    $topic['liked_users'] = [];
+    $topic['can_like'] = false;
+}
+
 
 // Sayfalama parametreleri
 $page = max(1, (int) ($_GET['page'] ?? 1));
@@ -194,44 +214,40 @@ include BASE_PATH . '/src/includes/navbar.php';
             </div>
         <?php endif; ?>
     <!-- Topic Content (First Post) -->
-    <div class="topic-content-wrapper">
-        <div class="topic-first-post post-item" id="post-0">
-            <div class="post-author">
-                <div class="author-avatar">
-                    <img src="<?= fix_avatar_path($topic['author_avatar']) ?>"
-                        alt="<?= htmlspecialchars($topic['author_username']) ?> Avatarı" class="avatar-img">
+<div class="topic-content-wrapper">
+    <div class="topic-first-post post-item" id="post-0" data-topic-id="<?= $topic_id ?>">
+        <div class="post-author">
+            <div class="author-avatar">
+                <img src="<?= fix_avatar_path($topic['author_avatar']) ?>"
+                    alt="<?= htmlspecialchars($topic['author_username']) ?> Avatarı" class="avatar-img">
+            </div>
+            <div class="author-info">
+                <div class="author-name">
+                    <span class="user-link" data-user-id="<?= $topic['user_id'] ?>"
+                        style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
+                        <?= htmlspecialchars($topic['author_username']) ?>
+                    </span>
                 </div>
-                <div class="author-info">
-                    <div class="author-name">
-                        <span class="user-link" data-user-id="<?= $topic['user_id'] ?>"
-                            style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
-                            <?= htmlspecialchars($topic['author_username']) ?>
-                        </span>
-                    </div>
-                    <div class="author-role" style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
-                        <?= htmlspecialchars($topic['author_role_name'] ?? 'Üye') ?>
-                    </div>
-                    <div class="author-join-date">
-                        Üyelik: <?= date('M Y', strtotime($topic['created_at'])) ?>
-                    </div>
+                <div class="author-role" style="color: <?= $topic['author_role_color'] ?? '#bd912a' ?>">
+                    <?= htmlspecialchars($topic['author_role_name'] ?? 'Üye') ?>
+                </div>
+                <div class="author-join-date">
+                    Üyelik: <?= date('M Y', strtotime($topic['created_at'])) ?>
                 </div>
             </div>
+        </div>
 
-            <div class="post-content">
+        <div class="post-content">
+            <div class="post-body">
+                <?= parse_bbcode($topic['content']) ?>
+            </div>
 
-                <div class="post-body">
-                    <?= parse_bbcode($topic['content']) ?>
-
-                </div>
-
-                <div class="post-footer">
+            <div class="post-footer">
+                <div class="post-meta-section">
                     <div class="post-date">
                         <i class="fas fa-clock"></i>
                         <?= format_time_ago($topic['created_at']) ?>
-                        <?php
-                        // Topic düzenleme bilgisi için veritabanından kontrol et
-                        if (isset($topic['updated_at']) && $topic['created_at'] !== $topic['updated_at']):
-                            ?>
+                        <?php if (isset($topic['updated_at']) && $topic['created_at'] !== $topic['updated_at']): ?>
                             <i class="fas fa-edit"></i>
                             <em>Son düzenleme: <?= format_time_ago($topic['updated_at']) ?></em>
                         <?php endif; ?>
@@ -250,12 +266,68 @@ include BASE_PATH . '/src/includes/navbar.php';
                                 <i class="fas fa-quote-left"></i> Alıntıla
                             </button>
                         <?php endif; ?>
-                        
                     </div>
+                </div>
+
+                <!-- BEĞENİ SİSTEMİ BÖLÜMÜ - GÜVENLİ VERSİYON -->
+                <div class="post-reactions-section">
+                    <div class="post-reactions">
+                        <?php 
+                        $like_count = $topic['like_count'] ?? 0;
+                        $user_liked = $topic['user_liked'] ?? false;
+                        $can_like = $topic['can_like'] ?? false;
+                        ?>
+                        
+                        <?php if ($can_like): ?>
+                            <button class="post-like-btn topic-like-btn <?= $user_liked ? 'liked' : '' ?>"
+                                onclick="toggleTopicLike(<?= $topic_id ?>)" 
+                                data-topic-id="<?= $topic_id ?>"
+                                data-like-count="<?= $like_count ?>">
+                                <i class="fas fa-heart"></i>
+                                <span class="like-count"><?= $like_count ?></span>
+                            </button>
+                        <?php elseif ($like_count > 0): ?>
+                            <span class="post-like-display topic-like-display">
+                                <i class="fas fa-heart"></i>
+                                <span class="like-count"><?= $like_count ?></span>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- BEĞENEN KULLANICILAR LİSTESİ -->
+                    
                 </div>
             </div>
         </div>
     </div>
+    <?php 
+                    $liked_users = $topic['liked_users'] ?? [];
+                    if (!empty($liked_users) && $like_count > 0): 
+                    ?>
+                        <div class="liked-users-section">
+                            <div class="liked-users-toggle" onclick="toggleLikedUsers('topic-<?= $topic_id ?>')">
+                                <i class="fas fa-users"></i>
+                                <span><?= $like_count ?> kişi beğendi</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                            <div class="liked-users-list" id="liked-users-topic-<?= $topic_id ?>" style="display: none;">
+                                <?php foreach ($liked_users as $user): ?>
+                                    <div class="liked-user-item">
+                                        <span class="user-link" data-user-id="<?= $user['id'] ?>"
+                                            style="color: <?= $user['role_color'] ?? '#bd912a' ?>">
+                                            <?= htmlspecialchars($user['username']) ?>
+                                        </span>
+                                    </div>
+                                <?php endforeach; ?>
+                                <?php if ($like_count > 20): ?>
+                                    <div class="liked-users-more">
+                                        ve <?= $like_count - 20 ?> kişi daha...
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+</div>
 
     <!-- Posts List -->
     <?php if (!empty($posts)): ?>

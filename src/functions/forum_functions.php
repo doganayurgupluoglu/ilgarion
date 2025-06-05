@@ -1333,4 +1333,101 @@ function get_topics_by_tag(PDO $pdo, string $tag_identifier, ?int $user_id = nul
         return ['topics' => [], 'total' => 0, 'tag' => null];
     }
 }
+/**
+ * Konu (ilk post) için beğeni verilerini getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $topic_id Konu ID'si
+ * @param int|null $user_id Kullanıcı ID'si
+ * @return array Beğeni verileri
+ */
+/**
+ * Konu (ilk post) için beğeni verilerini getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $topic_id Konu ID'si
+ * @param int|null $user_id Kullanıcı ID'si
+ * @return array Beğeni verileri
+ */
+function get_topic_like_data(PDO $pdo, int $topic_id, ?int $user_id = null): array {
+    try {
+        // Debug log
+        error_log("get_topic_like_data called for topic_id: $topic_id, user_id: " . ($user_id ?? 'null'));
+        
+        // Beğeni sayısını al
+        $count_query = "SELECT COUNT(*) FROM forum_topic_likes WHERE topic_id = :topic_id";
+        $stmt = execute_safe_query($pdo, $count_query, [':topic_id' => $topic_id]);
+        $like_count = (int)$stmt->fetchColumn();
+        
+        error_log("Like count found: $like_count");
+        
+        // Kullanıcının beğenip beğenmediğini kontrol et
+        $user_liked = false;
+        if ($user_id) {
+            $user_like_query = "SELECT COUNT(*) FROM forum_topic_likes WHERE topic_id = :topic_id AND user_id = :user_id";
+            $stmt = execute_safe_query($pdo, $user_like_query, [':topic_id' => $topic_id, ':user_id' => $user_id]);
+            $user_liked = $stmt->fetchColumn() > 0;
+            
+            error_log("User liked: " . ($user_liked ? 'yes' : 'no'));
+        }
+        
+        // Beğenen kullanıcıları al (maksimum 20)
+        $users_query = "
+            SELECT u.id, u.username, ur.color as role_color
+            FROM forum_topic_likes ftl
+            JOIN users u ON ftl.user_id = u.id
+            LEFT JOIN user_roles uur ON u.id = uur.user_id
+            LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
+                SELECT MIN(r2.priority) FROM user_roles ur2 
+                JOIN roles r2 ON ur2.role_id = r2.id 
+                WHERE ur2.user_id = u.id
+            )
+            WHERE ftl.topic_id = :topic_id
+            ORDER BY ftl.liked_at DESC
+            LIMIT 20
+        ";
+        
+        $stmt = execute_safe_query($pdo, $users_query, [':topic_id' => $topic_id]);
+        $liked_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("Liked users count: " . count($liked_users));
+        
+        $result = [
+            'like_count' => $like_count,
+            'user_liked' => $user_liked,
+            'liked_users' => $liked_users
+        ];
+        
+        error_log("Returning result: " . json_encode($result));
+        
+        return $result;
+        
+    } catch (Exception $e) {
+        error_log("Topic like data error: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        
+        return [
+            'like_count' => 0,
+            'user_liked' => false,
+            'liked_users' => []
+        ];
+    }
+}
+
+// Forum tablosunun var olup olmadığını kontrol eden fonksiyon
+function check_forum_topic_likes_table(PDO $pdo): bool {
+    try {
+        $stmt = $pdo->query("SHOW TABLES LIKE 'forum_topic_likes'");
+        $exists = $stmt->rowCount() > 0;
+        
+        if (!$exists) {
+            error_log("ERROR: forum_topic_likes table does not exist!");
+            error_log("Please create the table using the SQL provided in the artifacts.");
+        }
+        
+        return $exists;
+    } catch (Exception $e) {
+        error_log("Error checking forum_topic_likes table: " . $e->getMessage());
+        return false;
+    }
+}
+
 ?>
