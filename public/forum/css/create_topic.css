@@ -432,3 +432,127 @@
     background: var(--light-grey);
     color: var(--charcoal);
 }
+.tags-input-container {
+    border: 2px solid var(--darker-gold-2);
+    border-radius: 6px;
+    padding: 0.5rem;
+    background: var(--charcoal);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    min-height: 3rem;
+    transition: all 0.2s ease;
+}
+
+.tags-input-container:focus-within {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(189, 145, 42, 0.1);
+}
+
+.tags-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.tag-item {
+    background: var(--gold);
+    color: var(--charcoal);
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: tagFadeIn 0.2s ease;
+}
+
+.tag-remove {
+    background: rgba(0,0,0,0.2);
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--charcoal);
+    transition: background 0.2s ease;
+}
+
+.tag-remove:hover {
+    background: rgba(0,0,0,0.4);
+}
+
+#tagsInput {
+    border: none;
+    background: transparent;
+    color: var(--lighter-grey);
+    font-size: 0.95rem;
+    outline: none;
+    flex: 1;
+    min-width: 150px;
+    padding: 0.25rem 0;
+}
+
+#tagsInput::placeholder {
+    color: var(--light-grey);
+}
+
+.tags-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.tags-counter {
+    color: var(--light-grey);
+    font-size: 0.8rem;
+}
+
+.tags-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.tag-suggestion {
+    background: transparent;
+    border: 1px solid var(--darker-gold-2);
+    color: var(--gold);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tag-suggestion:hover {
+    background: var(--darker-gold-2);
+    color: var(--lighter-grey);
+}
+
+@keyframes tagFadeIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .tags-info {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .tags-suggestions {
+        justify-content: center;
+    }
+}

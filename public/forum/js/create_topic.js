@@ -526,3 +526,185 @@ function showNotification(message, type) {
         }, 300);
     }, 3000);
 }
+document.addEventListener('DOMContentLoaded', function() {
+    const tagsInput = document.getElementById('tagsInput');
+    const tagsDisplay = document.getElementById('tagsDisplay');
+    const tagsHidden = document.getElementById('tagsHidden');
+    const tagsCount = document.getElementById('tags-count');
+    const tagsSuggestions = document.getElementById('tagsSuggestions');
+    
+    let tags = [];
+    const maxTags = 5;
+    const maxTagLength = 30;
+    
+    // Önerilen etiketler (kategori bazında dinamik olabilir)
+    const suggestedTags = [
+        'başlangıç', 'rehber', 'soru', 'tartışma', 'haber', 'öneri', 
+        'mining', 'trading', 'exploration', 'combat', 'organization',
+        'ship', 'weapon', 'armor', 'location', 'event'
+    ];
+    
+    // Mevcut etiketleri yükle (edit mode için)
+    const existingTags = tagsHidden.value;
+    if (existingTags) {
+        tags = existingTags.split(',').filter(tag => tag.trim());
+        updateDisplay();
+    }
+    
+    function updateDisplay() {
+        // Tag'ları göster
+        tagsDisplay.innerHTML = '';
+        tags.forEach((tag, index) => {
+            const tagElement = createTagElement(tag, index);
+            tagsDisplay.appendChild(tagElement);
+        });
+        
+        // Hidden input'u güncelle
+        tagsHidden.value = tags.join(',');
+        
+        // Sayacı güncelle
+        tagsCount.textContent = tags.length;
+        
+        // Sayaç rengini güncelle
+        if (tags.length >= maxTags) {
+            tagsCount.style.color = 'var(--red)';
+        } else if (tags.length >= 4) {
+            tagsCount.style.color = 'var(--gold)';
+        } else {
+            tagsCount.style.color = 'var(--light-grey)';
+        }
+        
+        // Önerileri güncelle
+        updateSuggestions();
+    }
+    
+    function createTagElement(tag, index) {
+        const tagDiv = document.createElement('div');
+        tagDiv.className = 'tag-item';
+        tagDiv.innerHTML = `
+            <span>${escapeHtml(tag)}</span>
+            <button type="button" class="tag-remove" onclick="removeTag(${index})" title="Etiketi kaldır">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        return tagDiv;
+    }
+    
+    function addTag(tagText) {
+        const tag = tagText.trim().toLowerCase();
+        
+        // Validasyon
+        if (!tag) return false;
+        if (tag.length > maxTagLength) {
+            showTagError(`Etiket en fazla ${maxTagLength} karakter olabilir.`);
+            return false;
+        }
+        if (tags.length >= maxTags) {
+            showTagError(`Maksimum ${maxTags} etiket ekleyebilirsiniz.`);
+            return false;
+        }
+        if (tags.includes(tag)) {
+            showTagError('Bu etiket zaten eklenmiş.');
+            return false;
+        }
+        if (!/^[a-zA-Z0-9çğıöşüÇĞIİÖŞÜ\s\-_]+$/.test(tag)) {
+            showTagError('Etiket sadece harf, rakam, tire ve alt çizgi içerebilir.');
+            return false;
+        }
+        
+        tags.push(tag);
+        updateDisplay();
+        tagsInput.value = '';
+        return true;
+    }
+    
+    function removeTag(index) {
+        tags.splice(index, 1);
+        updateDisplay();
+        tagsInput.focus();
+    }
+    
+    function updateSuggestions() {
+        const availableSuggestions = suggestedTags.filter(suggestion => 
+            !tags.includes(suggestion) && tags.length < maxTags
+        ).slice(0, 6);
+        
+        tagsSuggestions.innerHTML = '';
+        availableSuggestions.forEach(suggestion => {
+            const suggestionBtn = document.createElement('button');
+            suggestionBtn.type = 'button';
+            suggestionBtn.className = 'tag-suggestion';
+            suggestionBtn.textContent = suggestion;
+            suggestionBtn.onclick = () => addTag(suggestion);
+            tagsSuggestions.appendChild(suggestionBtn);
+        });
+    }
+    
+    function showTagError(message) {
+        // Basit hata gösterimi
+        const existingError = document.querySelector('.tag-error');
+        if (existingError) existingError.remove();
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'tag-error';
+        errorDiv.style.cssText = `
+            color: var(--red);
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+            animation: fadeIn 0.3s ease;
+        `;
+        errorDiv.textContent = message;
+        
+        tagsInput.parentNode.parentNode.appendChild(errorDiv);
+        
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.remove();
+            }
+        }, 3000);
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Event listeners
+    tagsInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addTag(this.value);
+        } else if (e.key === 'Backspace' && !this.value && tags.length > 0) {
+            removeTag(tags.length - 1);
+        }
+    });
+    
+    tagsInput.addEventListener('blur', function() {
+        if (this.value.trim()) {
+            addTag(this.value);
+        }
+    });
+    
+    tagsInput.addEventListener('input', function() {
+        // Virgül ile ayrılmış etiketleri otomatik ekle
+        if (this.value.includes(',')) {
+            const parts = this.value.split(',');
+            const lastPart = parts.pop();
+            
+            parts.forEach(part => {
+                if (part.trim()) {
+                    addTag(part.trim());
+                }
+            });
+            
+            this.value = lastPart;
+        }
+    });
+    
+    // Global fonksiyonlar
+    window.removeTag = removeTag;
+    
+    // İlk önerileri göster
+    updateSuggestions();
+});

@@ -842,14 +842,14 @@ function create_forum_topic(PDO $pdo, array $topic_data, int $user_id) {
         // Slug oluştur
         $slug = create_topic_slug($pdo, $topic_data['title']);
         
-        // Basit konu oluşturma - visibility ayarlarını kaldırıyoruz
+        // Transaction başlat
         $pdo->beginTransaction();
         
         try {
             // Konuyu oluştur
             $insert_query = "
-                INSERT INTO forum_topics (category_id, user_id, title, slug, content, created_at, updated_at)
-                VALUES (:category_id, :user_id, :title, :slug, :content, NOW(), NOW())
+                INSERT INTO forum_topics (category_id, user_id, title, slug, content, tags, created_at, updated_at)
+                VALUES (:category_id, :user_id, :title, :slug, :content, :tags, NOW(), NOW())
             ";
             
             $insert_params = [
@@ -857,18 +857,25 @@ function create_forum_topic(PDO $pdo, array $topic_data, int $user_id) {
                 ':user_id' => $user_id,
                 ':title' => $topic_data['title'],
                 ':slug' => $slug,
-                ':content' => $topic_data['content']
+                ':content' => $topic_data['content'],
+                ':tags' => $topic_data['tags'] ?? null
             ];
             
             $stmt = execute_safe_query($pdo, $insert_query, $insert_params);
             $topic_id = $pdo->lastInsertId();
+            
+            // Tag'ları normalize tablolara ekle
+            if (!empty($topic_data['tags_array'])) {
+                update_topic_tags($pdo, $topic_id, $topic_data['tags_array']);
+            }
             
             $pdo->commit();
             
             // Audit log
             audit_log($pdo, $user_id, 'forum_topic_created', 'forum_topic', $topic_id, null, [
                 'category_id' => $topic_data['category_id'],
-                'title' => $topic_data['title']
+                'title' => $topic_data['title'],
+                'tags' => $topic_data['tags']
             ]);
             
             return $topic_id;
@@ -1131,4 +1138,200 @@ function generate_forum_breadcrumb(array $items): string {
     $breadcrumb .= '</ol></nav>';
     return $breadcrumb;
 }
+/**
+ * Forum tag'larını normalize şekilde yönetir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $topic_id Konu ID'si
+ * @param array $tags Tag'lar dizisi
+ */
+function update_topic_tags(PDO $pdo, int $topic_id, array $tags): void {
+    foreach ($tags as $tag_name) {
+        try {
+            // Tag'ın forum_tags tablosunda olup olmadığını kontrol et
+            $tag_check_query = "SELECT id FROM forum_tags WHERE name = :name";
+            $stmt = execute_safe_query($pdo, $tag_check_query, [':name' => $tag_name]);
+            $tag_id = $stmt->fetchColumn();
+            
+            if (!$tag_id) {
+                // Tag yoksa oluştur
+                $tag_slug = create_tag_slug($tag_name);
+                $insert_tag_query = "
+                    INSERT INTO forum_tags (name, slug, usage_count, created_at) 
+                    VALUES (:name, :slug, 1, NOW())
+                ";
+                $stmt = execute_safe_query($pdo, $insert_tag_query, [
+                    ':name' => $tag_name,
+                    ':slug' => $tag_slug
+                ]);
+                $tag_id = $pdo->lastInsertId();
+            } else {
+                // Tag varsa usage_count'u artır
+                $update_count_query = "UPDATE forum_tags SET usage_count = usage_count + 1 WHERE id = :id";
+                execute_safe_query($pdo, $update_count_query, [':id' => $tag_id]);
+            }
+            
+            // forum_topic_tags tablosuna ilişki ekle
+            $insert_relation_query = "
+                INSERT IGNORE INTO forum_topic_tags (topic_id, tag_id) 
+                VALUES (:topic_id, :tag_id)
+            ";
+            execute_safe_query($pdo, $insert_relation_query, [
+                ':topic_id' => $topic_id,
+                ':tag_id' => $tag_id
+            ]);
+            
+        } catch (Exception $e) {
+            error_log("Tag processing error for '{$tag_name}': " . $e->getMessage());
+        }
+    }
+}
+
+/**
+ * Tag slug oluşturur
+ * @param string $tag_name Tag adı
+ * @return string Slug
+ */
+function create_tag_slug(string $tag_name): string {
+    $slug = mb_strtolower($tag_name, 'UTF-8');
+    $slug = str_replace(
+        ['ç', 'ğ', 'ı', 'ö', 'ş', 'ü', 'Ç', 'Ğ', 'I', 'İ', 'Ö', 'Ş', 'Ü'],
+        ['c', 'g', 'i', 'o', 's', 'u', 'c', 'g', 'i', 'i', 'o', 's', 'u'],
+        $slug
+    );
+    $slug = preg_replace('/[^a-z0-9\s-]/', '', $slug);
+    $slug = preg_replace('/\s+/', '-', trim($slug));
+    $slug = preg_replace('/-+/', '-', $slug);
+    return substr($slug, 0, 50);
+}
+
+/**
+ * Forum konusu oluşturur (GÜNCELLENMIŞ - Normalize tags desteği ile)
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param array $topic_data Konu verileri
+ * @param int $user_id Kullanıcı ID'si
+ * @return int|false Oluşturulan konu ID'si veya false
+ */
+
+
+/**
+ * Popüler tag'ları getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $limit Kaç tag getirileceği
+ * @return array Tag listesi
+ */
+function get_popular_tags(PDO $pdo, int $limit = 20): array {
+    try {
+        $query = "
+            SELECT ft.name, ft.slug, ft.usage_count, ft.color
+            FROM forum_tags ft
+            WHERE ft.usage_count > 0
+            ORDER BY ft.usage_count DESC, ft.name ASC
+            LIMIT :limit
+        ";
+        
+        $stmt = $pdo->prepare($query);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (Exception $e) {
+        error_log("Popular tags getirme hatası: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Belirli tag ile konuları getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param string $tag_slug Tag slug'ı
+ * @param int|null $user_id Kullanıcı ID'si
+ * @param int $limit Sayfa başına konu sayısı
+ * @param int $offset Başlangıç noktası
+ * @return array Konular ve toplam sayı
+ */
+function get_topics_by_tag(PDO $pdo, string $tag_identifier, ?int $user_id = null, int $limit = 20, int $offset = 0): array {
+    try {
+        // Önce slug ile dene, bulamazsa name ile dene
+        $tag_query = "SELECT id, name, slug FROM forum_tags WHERE slug = :identifier OR name = :identifier LIMIT 1";
+        $stmt = execute_safe_query($pdo, $tag_query, [':identifier' => $tag_identifier]);
+        $tag = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$tag) {
+            return ['topics' => [], 'total' => 0, 'tag' => null];
+        }
+        
+        // Erişilebilir kategorileri al
+        $accessible_categories = get_accessible_forum_categories($pdo, $user_id);
+        $accessible_category_ids = array_column($accessible_categories, 'id');
+        
+        if (empty($accessible_category_ids)) {
+            return ['topics' => [], 'total' => 0, 'tag' => $tag];
+        }
+        
+        $category_ids_placeholder = implode(',', array_fill(0, count($accessible_category_ids), '?'));
+        
+        // Toplam konu sayısını al
+        $count_query = "
+            SELECT COUNT(DISTINCT ft.id) 
+            FROM forum_topics ft
+            JOIN forum_topic_tags ftt ON ft.id = ftt.topic_id
+            WHERE ftt.tag_id = ? AND ft.category_id IN ($category_ids_placeholder)
+        ";
+        $count_params = array_merge([$tag['id']], $accessible_category_ids);
+        $stmt = $pdo->prepare($count_query);
+        $stmt->execute($count_params);
+        $total = (int)$stmt->fetchColumn();
+        
+        // Konuları getir
+        $topics_query = "
+            SELECT ft.*, fc.name as category_name, fc.slug as category_slug,
+                   fc.color as category_color, fc.icon as category_icon,
+                   u.username as author_username, ur.color as author_role_color,
+                   ur.name as author_role_name
+            FROM forum_topics ft
+            JOIN forum_topic_tags ftt ON ft.id = ftt.topic_id
+            JOIN forum_categories fc ON ft.category_id = fc.id
+            JOIN users u ON ft.user_id = u.id
+            LEFT JOIN user_roles uur ON u.id = uur.user_id
+            LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
+                SELECT MIN(r2.priority) FROM user_roles ur2 
+                JOIN roles r2 ON ur2.role_id = r2.id 
+                WHERE ur2.user_id = u.id
+            )
+            WHERE ftt.tag_id = ? AND ft.category_id IN ($category_ids_placeholder)
+            ORDER BY ft.updated_at DESC
+            LIMIT ? OFFSET ?
+        ";
+        
+        $topics_params = array_merge([$tag['id']], $accessible_category_ids, [$limit, $offset]);
+        $stmt = $pdo->prepare($topics_query);
+        $stmt->execute($topics_params);
+        $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Her konu için erişim yetkilerini ekle
+        foreach ($topics as &$topic) {
+            if ($user_id) {
+                $topic['can_reply'] = !$topic['is_locked'] && has_permission($pdo, 'forum.topic.reply', $user_id);
+                $topic['can_edit'] = can_user_edit_forum_topic($pdo, $topic['id'], $user_id);
+                $topic['can_delete'] = can_user_delete_forum_topic($pdo, $topic['id'], $user_id);
+            } else {
+                $topic['can_reply'] = false;
+                $topic['can_edit'] = false;
+                $topic['can_delete'] = false;
+            }
+        }
+        
+        return [
+            'topics' => $topics,
+            'total' => $total,
+            'tag' => $tag
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Tag konuları getirme hatası: " . $e->getMessage());
+        return ['topics' => [], 'total' => 0, 'tag' => null];
+    }
+}
+?>
 ?>

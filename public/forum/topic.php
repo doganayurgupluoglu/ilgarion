@@ -122,9 +122,27 @@ include BASE_PATH . '/src/includes/navbar.php';
 
                     <?= htmlspecialchars($topic['title']) ?>
                 </h1>
-
+            
+            <?php if (!empty($topic['tags'])): ?>
+            <div class="topic-tags-section">
+                <div class="topic-tags">
+                    <i class="fas fa-tags"></i>
+                    <div class="tags-list">
+                        <?php 
+                        $tags = array_filter(array_map('trim', explode(',', $topic['tags'])));
+                        foreach ($tags as $tag): 
+                        ?>
+                            <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tag" 
+                               class="topic-tag" 
+                               title="'<?= htmlspecialchars($tag) ?>' etiketini ara">
+                                <?= htmlspecialchars($tag) ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
-
+            </div>
+        <?php endif; ?>
             <div class="topic-stats">
                 <div class="stat-item">
                     <div class="stat-number"><?= number_format($topic['reply_count']) ?></div>
@@ -144,11 +162,11 @@ include BASE_PATH . '/src/includes/navbar.php';
                 </a>
             <?php endif; ?>
 
-            <?php if ($topic['can_edit']): ?>
-                <a href="/public/forum/edit_topic.php?id=<?= $topic_id ?>" class="btn-edit">
-                    <i class="fas fa-edit"></i> Düzenle
-                </a>
-            <?php endif; ?>
+           <?php if ($topic['can_edit']): ?>
+   <a href="/public/forum/create_topic.php?edit=<?= $topic_id ?>" class="btn-edit">
+       <i class="fas fa-edit"></i> Düzenle
+   </a>
+<?php endif; ?>
 
             <?php if ($topic['can_pin']): ?>
                 <button class="btn-pin <?= $topic['is_pinned'] ? 'active' : '' ?>"
@@ -174,6 +192,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                 </button>
             <?php endif; ?>
         </div>
+        <br>
     </div>
 
     <!-- Topic Content (First Post) -->
