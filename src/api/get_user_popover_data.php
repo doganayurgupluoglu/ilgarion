@@ -1,240 +1,270 @@
 <?php
-// src/api/get_user_popover_data.php - Avatar ve galeri düzeltmeli versiyon
+// src/api/get_user_popover_data.php - User Popover Data API
 
-// Error handling
-error_reporting(E_ALL);
-ini_set('display_errors', 0); // JSON için display_errors kapalı olmalı
-
-// JSON header
 header('Content-Type: application/json');
+header('Cache-Control: no-cache, must-revalidate');
 
-// Session kontrolü
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// Base path kontrolü
-if (!defined('BASE_PATH')) {
-    define('BASE_PATH', dirname(dirname(__DIR__)));
-}
+require_once '../config/database.php';
+require_once BASE_PATH . '/src/functions/auth_functions.php';
+require_once BASE_PATH . '/src/functions/role_functions.php';
+require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+
+// Session kontrolü
+check_user_session_validity();
+
+// CORS headers (gerekirse)
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET');
+header('Access-Control-Allow-Headers: Content-Type');
 
 try {
-    // Required files
-    if (file_exists(BASE_PATH . '/src/config/database.php')) {
-        require_once BASE_PATH . '/src/config/database.php';
+    // User ID kontrolü
+    $user_id = (int) ($_GET['user_id'] ?? 0);
+    
+    if (!$user_id) {
+        throw new Exception('Kullanıcı ID gereklidir.');
+    }
+    
+    // Rate limiting basit kontrolü
+    $current_user_id = $_SESSION['user_id'] ?? null;
+    $rate_limit_key = "popover_requests_" . ($current_user_id ?: 'guest');
+    
+    if (!isset($_SESSION[$rate_limit_key])) {
+        $_SESSION[$rate_limit_key] = ['count' => 0, 'timestamp' => time()];
+    }
+    
+    $rate_data = $_SESSION[$rate_limit_key];
+    
+    // Son 1 dakikada 30'dan fazla istek varsa engelle
+    if (time() - $rate_data['timestamp'] < 60 && $rate_data['count'] > 30) {
+        throw new Exception('Çok fazla istek. Lütfen bekleyin.');
+    }
+    
+    // Rate limit sayacını güncelle
+    if (time() - $rate_data['timestamp'] >= 60) {
+        $_SESSION[$rate_limit_key] = ['count' => 1, 'timestamp' => time()];
     } else {
-        throw new Exception('Database config not found');
+        $_SESSION[$rate_limit_key]['count']++;
     }
-
-    // Basic functions
-    if (!function_exists('is_user_approved')) {
-        function is_user_approved() {
-            return isset($_SESSION['user_status']) && $_SESSION['user_status'] === 'approved';
-        }
+    
+    // Kullanıcı verilerini çek
+    $user_data = getUserPopoverData($pdo, $user_id, $current_user_id);
+    
+    if (!$user_data) {
+        throw new Exception('Kullanıcı bulunamadı veya erişim izniniz yok.');
     }
-
-    if (!function_exists('is_user_logged_in')) {
-        function is_user_logged_in() {
-            return isset($_SESSION['user_id']) && isset($_SESSION['user_status']);
-        }
-    }
-
+    
+    echo json_encode([
+        'success' => true,
+        'user' => $user_data
+    ]);
+    
 } catch (Exception $e) {
-    error_log("User Popover API - Include Error: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Sistem dosyaları yüklenemedi'
-    ]);
-    exit;
-}
-
-// Method kontrolü
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Sadece GET istekleri kabul edilir'
-    ]);
-    exit;
-}
-
-// User ID kontrolü
-$user_id = $_GET['user_id'] ?? null;
-
-if (!$user_id || !is_numeric($user_id)) {
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => 'Geçerli bir kullanıcı ID\'si gereklidir'
+        'message' => $e->getMessage()
     ]);
-    exit;
 }
 
-$user_id = (int)$user_id;
-
-// PDO kontrolü
-if (!isset($pdo) || !($pdo instanceof PDO)) {
-    error_log("User Popover API - PDO not available");
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Veritabanı bağlantısı mevcut değil'
-    ]);
-    exit;
-}
-
-try {
-    // Kullanıcı bilgilerini çek
-    $user_query = "
-        SELECT u.id, u.username, u.avatar_path, u.ingame_name, 
-               u.discord_username, u.created_at, u.status,
-               r.name as primary_role_name, r.color as primary_role_color
-        FROM users u
-        LEFT JOIN user_roles ur ON u.id = ur.user_id
-        LEFT JOIN roles r ON ur.role_id = r.id
-        WHERE u.id = ?
-        ORDER BY r.priority ASC
-        LIMIT 1
-    ";
-    
-    $stmt = $pdo->prepare($user_query);
-    $stmt->execute([$user_id]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$user) {
-        http_response_code(404);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Kullanıcı bulunamadı'
-        ]);
-        exit;
-    }
-
-    // Kullanıcı onaylı değilse gizle
-    if ($user['status'] !== 'approved') {
-        http_response_code(404);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Kullanıcı bulunamadı'
-        ]);
-        exit;
-    }
-
-    // Forum istatistikleri (basit)
-    $forum_topics = 0;
-    $forum_posts = 0;
-    
+/**
+ * User popover için gerekli verileri çeker
+ */
+function getUserPopoverData(PDO $pdo, int $target_user_id, ?int $current_user_id): ?array {
     try {
-        $topics_stmt = $pdo->prepare("SELECT COUNT(*) FROM forum_topics WHERE user_id = ?");
-        $topics_stmt->execute([$user_id]);
-        $forum_topics = (int)$topics_stmt->fetchColumn();
+        // Temel kullanıcı bilgileri
+        $query = "
+            SELECT u.id, u.username, u.email, u.ingame_name, u.discord_username,
+                   u.avatar_path, u.status, u.created_at, u.profile_info,
+                   GROUP_CONCAT(DISTINCT r.name ORDER BY r.priority ASC SEPARATOR ',') AS roles_list,
+                   (SELECT r2.name FROM roles r2 JOIN user_roles ur2 ON r2.id = ur2.role_id 
+                    WHERE ur2.user_id = u.id ORDER BY r2.priority ASC LIMIT 1) as primary_role_name,
+                   (SELECT r2.color FROM roles r2 JOIN user_roles ur2 ON r2.id = ur2.role_id 
+                    WHERE ur2.user_id = u.id ORDER BY r2.priority ASC LIMIT 1) as primary_role_color
+            FROM users u
+            LEFT JOIN user_roles ur ON u.id = ur.user_id
+            LEFT JOIN roles r ON ur.role_id = r.id
+            WHERE u.id = :user_id
+            GROUP BY u.id
+        ";
         
-        $posts_stmt = $pdo->prepare("SELECT COUNT(*) FROM forum_posts WHERE user_id = ?");
-        $posts_stmt->execute([$user_id]);
-        $forum_posts = (int)$posts_stmt->fetchColumn();
-    } catch (Exception $e) {
-        // Forum tabloları yoksa varsayılan değerler
-        error_log("Forum stats error: " . $e->getMessage());
-    }
-
-    // ✅ Galeri fotoğraf sayısı eklendi
-    $gallery_photos = 0;
-    try {
-        $gallery_stmt = $pdo->prepare("SELECT COUNT(*) FROM gallery_photos WHERE user_id = ?");
-        $gallery_stmt->execute([$user_id]);
-        $gallery_photos = (int)$gallery_stmt->fetchColumn();
-    } catch (Exception $e) {
-        // Galeri tablosu yoksa varsayılan değer
-        error_log("Gallery stats error: " . $e->getMessage());
-    }
-
-    // Online durumu (basit)
-    $is_online = false;
-    if (isset($_SESSION['user_id'])) {
-        try {
-            $online_stmt = $pdo->prepare("
-                SELECT COUNT(*) FROM audit_log 
-                WHERE user_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
-            ");
-            $online_stmt->execute([$user_id]);
-            $is_online = $online_stmt->fetchColumn() > 0;
-        } catch (Exception $e) {
-            // Audit tablosu yoksa offline kabul et
-            $is_online = false;
+        $stmt = execute_safe_query($pdo, $query, [':user_id' => $target_user_id]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            return null;
         }
-    }
-
-    // Mesaj gönderme yetkisi
-    $current_user_id = $_SESSION['user_id'] ?? null;
-    $can_message = ($current_user_id && $current_user_id != $user_id && is_user_logged_in());
-
-    // ✅ Avatar path düzeltmesi - /uploads/avatars/ konumuna göre
-    $avatar_path = $user['avatar_path'];
-    if ($avatar_path) {
-        // uploads/avatars/ ile başlıyorsa /uploads/avatars/ yap
-        if (strpos($avatar_path, 'uploads/avatars/') === 0) {
-            $avatar_path = '/' . $avatar_path;
+        
+        // Sadece onaylanmış kullanıcılar görülebilir (admin hariç)
+        if ($user['status'] !== 'approved' && $current_user_id) {
+            // Admin kontrolü
+            if (!has_permission($pdo, 'admin.users.view', $current_user_id)) {
+                return null;
+            }
+        } elseif ($user['status'] !== 'approved' && !$current_user_id) {
+            return null;
         }
-        // ../assets/ -> /assets/
-        elseif (strpos($avatar_path, '../assets/') === 0) {
+        
+        // Avatar path düzeltme
+        $avatar_path = $user['avatar_path'];
+        if (empty($avatar_path)) {
+            $avatar_path = '/assets/logo.png';
+        } elseif (strpos($avatar_path, '../assets/') === 0) {
             $avatar_path = str_replace('../assets/', '/assets/', $avatar_path);
-        }
-        // /assets/ ile başlıyorsa dokunma
-        elseif (strpos($avatar_path, '/assets/') === 0) {
-            // Dokunma
-        }
-        // /uploads/ ile başlıyorsa dokunma
-        elseif (strpos($avatar_path, '/uploads/') === 0) {
-            // Dokunma
-        }
-        // Hiçbiri değilse varsayılan logo
-        else {
+        } elseif (strpos($avatar_path, 'uploads/') === 0) {
+            $avatar_path = '/' . $avatar_path;
+        } elseif (strpos($avatar_path, '/assets/') !== 0 && strpos($avatar_path, '/') !== 0) {
             $avatar_path = '/assets/logo.png';
         }
-    } else {
-        $avatar_path = '/assets/logo.png';
+        
+        // Forum istatistikleri
+        $forum_stats = getForumStats($pdo, $target_user_id);
+        
+        // Online durumu (basit - son 15 dakika içinde aktivite)
+        $is_online = checkUserOnlineStatus($pdo, $target_user_id);
+        
+        // Mesaj gönderme izni
+        $can_message = ($current_user_id && 
+                       $current_user_id != $target_user_id && 
+                       is_user_approved());
+        
+        return [
+            'id' => (int)$user['id'],
+            'username' => $user['username'],
+            'email' => $user['email'], // Sadece admin görebilir
+            'ingame_name' => $user['ingame_name'] ?: '',
+            'discord_username' => $user['discord_username'] ?: '',
+            'avatar_path' => $avatar_path,
+            'status' => $user['status'],
+            'created_at' => $user['created_at'],
+            'profile_info' => $user['profile_info'] ?: '',
+            'roles_list' => $user['roles_list'] ?: '',
+            'primary_role_name' => $user['primary_role_name'] ?: 'Üye',
+            'primary_role_color' => $user['primary_role_color'] ?: '#bd912a',
+            'forum_topics' => $forum_stats['topics'],
+            'forum_posts' => $forum_stats['posts'],
+            'is_online' => $is_online,
+            'can_message' => $can_message
+        ];
+        
+    } catch (Exception $e) {
+        error_log("User popover data error: " . $e->getMessage());
+        return null;
     }
+}
 
-    // Tarih formatı düzeltmesi - ISO formatında gönder
-    $created_at_iso = $user['created_at']; // ISO format: 2025-06-03 17:32:08
+/**
+ * Forum istatistiklerini çeker
+ */
+function getForumStats(PDO $pdo, int $user_id): array {
+    try {
+        // Topic sayısı
+        $topic_query = "SELECT COUNT(*) FROM forum_topics WHERE user_id = :user_id";
+        $stmt = execute_safe_query($pdo, $topic_query, [':user_id' => $user_id]);
+        $topic_count = $stmt->fetchColumn();
+        
+        // Post sayısı  
+        $post_query = "SELECT COUNT(*) FROM forum_posts WHERE user_id = :user_id";
+        $stmt = execute_safe_query($pdo, $post_query, [':user_id' => $user_id]);
+        $post_count = $stmt->fetchColumn();
+        
+        return [
+            'topics' => (int)$topic_count,
+            'posts' => (int)$post_count
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Forum stats error: " . $e->getMessage());
+        return ['topics' => 0, 'posts' => 0];
+    }
+}
+
+/**
+ * Kullanıcının online durumunu kontrol eder
+ */
+function checkUserOnlineStatus(PDO $pdo, int $user_id): bool {
+    try {
+        // Basit online kontrolü - audit log tablosundan son aktivite
+        $query = "
+            SELECT created_at 
+            FROM audit_log 
+            WHERE user_id = :user_id 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        ";
+        
+        $stmt = execute_safe_query($pdo, $query, [':user_id' => $user_id]);
+        $last_activity = $stmt->fetchColumn();
+        
+        if (!$last_activity) {
+            return false;
+        }
+        
+        // Son 15 dakika içinde aktivite varsa online
+        $last_activity_time = strtotime($last_activity);
+        $current_time = time();
+        
+        return ($current_time - $last_activity_time) <= (15 * 60); // 15 dakika
+        
+    } catch (Exception $e) {
+        error_log("Online status check error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * IP adresi güvenlik kontrolü
+ */
+function validateRequestSecurity(): bool {
+    // Temel güvenlik kontrolleri
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
     
-    // Response data
-    $response_data = [
-        'id' => (int)$user['id'],
-        'username' => $user['username'],
-        'avatar_path' => $avatar_path,
-        'ingame_name' => $user['ingame_name'] ?: 'Belirtilmemiş',
-        'discord_username' => $user['discord_username'] ?: 'Belirtilmemiş',
-        'created_at' => $created_at_iso, // ISO formatında gönder
-        'primary_role_name' => $user['primary_role_name'] ?: 'Üye',
-        'primary_role_color' => $user['primary_role_color'] ?: '#bd912a',
-        'forum_topics' => $forum_topics,
-        'forum_posts' => $forum_posts,
-        'gallery_photos' => $gallery_photos, // ✅ Galeri fotoğraf sayısı eklendi
-        'is_online' => $is_online,
-        'can_message' => $can_message
-    ];
+    // Bot kontrolü
+    $bots = ['bot', 'spider', 'crawler', 'scraper'];
+    foreach ($bots as $bot) {
+        if (stripos($user_agent, $bot) !== false) {
+            return false;
+        }
+    }
+    
+    // Referer kontrolü (aynı domain)
+    if ($referer && !empty($_SERVER['HTTP_HOST'])) {
+        $host = $_SERVER['HTTP_HOST'];
+        if (strpos($referer, $host) === false) {
+            error_log("Invalid referer for popover API: " . $referer);
+            // Sadece log, bloklamayalım (CDN'ler için)
+        }
+    }
+    
+    return true;
+}
 
-    // Başarılı yanıt
-    echo json_encode([
-        'success' => true,
-        'user' => $response_data
-    ]);
-
-} catch (PDOException $e) {
-    error_log("User Popover API - Database Error: " . $e->getMessage());
-    http_response_code(500);
+// IP güvenlik kontrolü
+if (!validateRequestSecurity()) {
+    http_response_code(403);
     echo json_encode([
         'success' => false,
-        'message' => 'Veritabanı hatası'
+        'message' => 'Erişim reddedildi.'
     ]);
-} catch (Exception $e) {
-    error_log("User Popover API - General Error: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Sistem hatası'
-    ]);
+    exit;
+}
+
+// İstatistik loglama (opsiyonel)
+if (function_exists('audit_log') && isset($current_user_id) && isset($user_id)) {
+    try {
+        audit_log($pdo, $current_user_id, 'user_popover_viewed', 'user', $user_id, null, [
+            'target_user' => $user_id,
+            'ip' => get_client_ip(),
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+        ]);
+    } catch (Exception $e) {
+        // Audit log hatası kritik değil
+        error_log("Audit log error in popover API: " . $e->getMessage());
+    }
 }
 ?>

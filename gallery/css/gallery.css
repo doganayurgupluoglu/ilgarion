@@ -4,13 +4,12 @@
 .gallery-page-container {
     width: 100%;
     margin: 0 auto;
-    padding: 2rem 1rem;
+    padding: 2rem 0rem !important;
     color: var(--lighter-grey);
 }
 
 /* Breadcrumb */
 .gallery-breadcrumb {
-    margin-bottom: 1.5rem;
     padding: 0;
 }
 

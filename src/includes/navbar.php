@@ -66,7 +66,7 @@ $nav_links_config_navbar = [
     ],
     [
         'title' => 'Üyeler',
-        'url' => 'members.php',
+        'url' => 'users',
         'icon' => 'fa-users',
         'permission' => null, // Onaylı üyelerin listesi
         'show_to_guests' => false
