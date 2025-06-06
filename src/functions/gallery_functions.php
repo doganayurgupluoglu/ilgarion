@@ -543,7 +543,7 @@ function delete_photo(PDO $pdo, int $photo_id, int $user_id): array {
             execute_safe_query($pdo, $delete_query, [':photo_id' => $photo_id]);
             
             // Dosyayı sil
-            $file_path = BASE_PATH . '/public/' . $photo['image_path'];
+            $file_path = BASE_PATH . '' . $photo['image_path'];
             if (file_exists($file_path)) {
                 unlink($file_path);
             }

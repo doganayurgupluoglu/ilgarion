@@ -10,7 +10,7 @@ require_once BASE_PATH . '/src/functions/auth_functions.php'; // Auth fonksiyonl
 require_once BASE_PATH . '/src/functions/role_functions.php'; // Rol fonksiyonları eklendi
 
 // $baseUrl'i yönlendirmeler için alalım
-$baseUrl = get_auth_base_url();
+$baseUrl = null;
 $admin_gallery_page = $baseUrl . '/admin/gallery.php';
 // user_gallery.php'den gelindiyse, o sayfaya geri dönmek için bir parametre alabiliriz
 $redirect_page = $_POST['redirect_to'] ?? $admin_gallery_page; // Varsayılan olarak admin galerisine dön

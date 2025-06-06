@@ -74,7 +74,7 @@
 <style>
 .user-popover {
     position: fixed;
-    z-index: 9999;
+    z-index: 20000;
     min-width: 300px;
     max-width: 350px;
     background: var(--card-bg-4);

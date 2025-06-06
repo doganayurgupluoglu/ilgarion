@@ -5,12 +5,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!function_exists('get_auth_base_url')) {
-    function get_auth_base_url() {
-        return ''; // Varsayılan olarak kök dizin
-    }
-}
-$baseUrl = get_auth_base_url();
+$baseUrl = null;
 
 if (!function_exists('is_user_logged_in')) {
     function is_user_logged_in() {
@@ -34,7 +29,7 @@ $user_id_for_links = $is_logged_in && isset($_SESSION['user_id']) ? $_SESSION['u
 $user_avatar_path = ''; // Varsayılan olarak boş
 
 if ($is_logged_in && isset($_SESSION['user_avatar_path']) && !empty($_SESSION['user_avatar_path'])) {
-    $user_avatar_path = '/public/' . htmlspecialchars($_SESSION['user_avatar_path']);
+    $user_avatar_path = '' . htmlspecialchars($_SESSION['user_avatar_path']);
 }
 
 $current_page_navbar = basename($_SERVER['PHP_SELF']);
@@ -42,52 +37,38 @@ $current_page_navbar = basename($_SERVER['PHP_SELF']);
 // Navbar menü yapılandırması - Yetki tabanlı
 $nav_links_config_navbar = [
     [
-        'title' => 'Ana Sayfa',
-        'url' => 'index.php',
-        'icon' => 'fa-home',
-        'permission' => null, // Herkese açık
-        'show_to_guests' => true
+        'title' => 'Forum',
+        'url' => 'forum',
+        'icon' => 'fa-comments',
+        'permission' => null,
+        'show_to_guests' => true // Sadece üyeler
     ],
     [
         'title' => 'Etkinlikler',
         'url' => 'events.php',
         'icon' => 'fa-calendar-alt',
-        'permission' => 'event.view_public',
+        'permission' => null,
         'show_to_guests' => true // Herkese açık etkinlikler için
     ],
     [
         'title' => 'Galeri',
-        'url' => 'gallery.php',
+        'url' => 'gallery',
         'icon' => 'fa-images',
-        'permission' => 'gallery.view_public',
+        'permission' => null,
         'show_to_guests' => true // Herkese açık galeri için
-    ],
-    [
-        'title' => 'Tartışmalar',
-        'url' => '/forum/',
-        'icon' => 'fa-comments',
-        'permission' => 'discussion.view_public',
-        'show_to_guests' => true // Sadece üyeler
-    ],
-    [
-        'title' => 'Rehberler',
-        'url' => 'guides.php',
-        'icon' => 'fa-book-open',
-        'permission' => 'guide.view_public',
-        'show_to_guests' => true // Herkese açık rehberler için
     ],
     [
         'title' => 'Teçhizat Setleri',
         'url' => 'loadouts.php',
         'icon' => 'fa-user-shield',
-        'permission' => 'loadout.view_public',
-        'show_to_guests' => false // Sadece üyeler
+        'permission' => null,
+        'show_to_guests' => true // Sadece üyeler
     ],
     [
         'title' => 'Üyeler',
         'url' => 'members.php',
         'icon' => 'fa-users',
-        'permission' => 'discussion.view_approved', // Onaylı üyelerin listesi
+        'permission' => null, // Onaylı üyelerin listesi
         'show_to_guests' => false
     ]
 ];
@@ -188,7 +169,7 @@ if ($is_logged_in && isset($pdo) && function_exists('has_permission')) {
     if (has_permission($pdo, 'gallery.upload')) {
         $user_nav_items[] = [
             'title' => 'Fotoğraf Yükle',
-            'url' => 'gallery.php',
+            'url' => 'gallery',
             'icon' => 'fa-camera',
             'permission' => 'gallery.upload'
         ];

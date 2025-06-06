@@ -714,7 +714,7 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
         $category_query = "
             SELECT 'category' as type, 'Kategori' as type_label,
                    id, name as title, description as content,
-                   CONCAT('/public/forum/category.php?slug=', slug) as url
+                   CONCAT('/forum/category.php?slug=', slug) as url
             FROM forum_categories
             WHERE is_active = 1 AND id IN ($category_ids_placeholder) 
             AND (name LIKE ? OR description LIKE ?)
@@ -734,7 +734,7 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
         $topic_query = "
             SELECT 'topic' as type, 'Konu' as type_label,
                    ft.id, ft.title, LEFT(ft.content, 200) as content,
-                   CONCAT('/public/forum/topic.php?id=', ft.id) as url,
+                   CONCAT('/forum/topic.php?id=', ft.id) as url,
                    u.username, ur.color as user_role_color, ft.user_id, ft.created_at
             FROM forum_topics ft
             JOIN users u ON ft.user_id = u.id
@@ -762,7 +762,7 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
         $post_query = "
             SELECT 'post' as type, 'Gönderi' as type_label,
                    fp.id, ft.title, LEFT(fp.content, 200) as content,
-                   CONCAT('/public/forum/topic.php?id=', ft.id, '#post-', fp.id) as url,
+                   CONCAT('/forum/topic.php?id=', ft.id, '#post-', fp.id) as url,
                    u.username, ur.color as user_role_color, fp.user_id, fp.created_at
             FROM forum_posts fp
             JOIN forum_topics ft ON fp.topic_id = ft.id
@@ -792,7 +792,7 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
             $user_query = "
                 SELECT 'user' as type, 'Kullanıcı' as type_label,
                        id, username as title, '' as content,
-                       CONCAT('/public/view_profile.php?user_id=', id) as url,
+                       CONCAT('/view_profile.php?user_id=', id) as url,
                        username, '#bd912a' as user_role_color, id as user_id, created_at
                 FROM users
                 WHERE status = 'approved' AND (username LIKE ? OR ingame_name LIKE ?)
