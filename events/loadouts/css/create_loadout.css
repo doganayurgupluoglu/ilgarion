@@ -1065,3 +1065,194 @@ mark {
         width: 80%;
     }
 }
+/* Weapon Attachment Styles - YENİ */
+.attachment-slots-container {
+    margin-top: 1rem;
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--card-bg-2), var(--card-bg-3));
+    animation: slideInDown 0.3s ease;
+}
+
+.attachment-slots-container h4 {
+    margin: 0 0 1rem 0;
+    color: var(--gold);
+    font-size: 1rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border-1);
+    padding-bottom: 0.5rem;
+}
+
+.attachment-slot {
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    background: var(--card-bg-3);
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 80px;
+    position: relative;
+    overflow: hidden;
+}
+
+.attachment-slot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(189, 145, 42, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.attachment-slot:hover::before {
+    left: 100%;
+}
+
+.attachment-slot:hover {
+    border-color: var(--border-1-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.attachment-slot.has-attachment {
+    border-color: var(--gold);
+    background: var(--transparent-gold);
+}
+
+.attachment-slot.has-attachment:hover {
+    border-color: var(--light-gold);
+    box-shadow: 0 4px 12px rgba(189, 145, 42, 0.3);
+}
+
+.attachment-slot.attachment-drag-over {
+    border-color: var(--turquase);
+    background: var(--transparent-turquase);
+    transform: scale(1.02);
+}
+
+.attachment-slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-1);
+}
+
+.attachment-slot-name {
+    font-weight: 500;
+    color: var(--gold);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.attachment-clear-btn {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 0.25rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    opacity: 0.8;
+}
+
+.attachment-clear-btn:hover {
+    background: var(--red) !important;
+    color: var(--white) !important;
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.attachment-slot-content {
+    text-align: center;
+}
+
+.attachment-empty {
+    color: var(--light-grey);
+    font-size: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.attachment-empty i {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+    opacity: 0.5;
+    transition: all 0.2s ease;
+}
+
+.attachment-slot:hover .attachment-empty i {
+    opacity: 0.8;
+    transform: scale(1.1);
+}
+
+.attachment-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.attachment-name {
+    font-weight: 500;
+    color: var(--lighter-grey);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.attachment-manufacturer {
+    color: var(--light-grey);
+    font-size: 0.75rem;
+    text-align: center;
+    opacity: 0.8;
+}
+
+/* Responsive Attachment Styles */
+@media (max-width: 768px) {
+    .attachment-slots-container {
+        padding: 0.75rem;
+    }
+    
+    .attachment-slot {
+        padding: 0.5rem;
+        min-height: 60px;
+    }
+    
+    .attachment-slot-name {
+        font-size: 0.8rem;
+    }
+    
+    .attachment-empty i {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .attachment-slots-container {
+        margin-top: 0.75rem;
+        padding: 0.5rem;
+    }
+    
+    .attachment-slot {
+        padding: 0.5rem;
+        min-height: 50px;
+    }
+    
+    .attachment-slot-header {
+        flex-direction: column;
+        gap: 0.25rem;
+        align-items: center;
+    }
+}
