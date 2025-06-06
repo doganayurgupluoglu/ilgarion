@@ -1,4 +1,4 @@
-// /events/loadouts/js/loadouts.js
+// /events/loadouts/js/create_loadout.js - API Dokümantasyonuna Uygun Versiyon
 
 // Global variables
 let currentSearchResults = [];
@@ -8,9 +8,9 @@ let isSearching = false;
 // CSRF token
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-// API Configuration
+// API Configuration - Kendi proxy'imizi kullan
 const API_CONFIG = {
-    BASE_URL: 'https://api.star-citizen.wiki/api/v2/items/search',
+    BASE_URL: 'api.php', // Aynı klasördeki proxy
     TIMEOUT: 30000,
     MAX_RESULTS: 50
 };
@@ -113,74 +113,47 @@ function initializeSlots() {
     });
 }
 
-// Search Functions
+// Search Functions - Basit ve çalışır
 async function searchItems() {
     const query = searchInput.value.trim();
-    const typeFilter = document.getElementById('type_filter').value;
+    const filterType = typeFilter.value;
 
     if (query.length < 2) {
         showMessage('En az 2 karakter girmelisiniz', 'error');
         return;
     }
 
-    if (isSearching) {
-        return;
-    }
+    if (isSearching) return;
 
     showSearchLoading();
     isSearching = true;
 
     try {
-        const searchParams = {
-            query: query
-        };
-
-        if (typeFilter) {
-            searchParams['filter[type]'] = typeFilter;
-        }
-
-        const apiUrl = API_CONFIG.BASE_URL + (typeFilter ? `?filter[type]=${encodeURIComponent(typeFilter)}` : '');
-
-        const response = await fetch(apiUrl, {
+        const response = await fetch(API_CONFIG.BASE_URL, {
             method: 'POST',
             headers: {
-                'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ query: query }),
-            signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
+            body: JSON.stringify({ query: query })
         });
 
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
-
-        if (data.success === false) {
-            throw new Error(data.message || 'API returned error');
-        }
-
-        if (data.data && Array.isArray(data.data)) {
-            currentSearchResults = data.data.slice(0, API_CONFIG.MAX_RESULTS);
+        
+        // Data kontrolü
+        const items = Array.isArray(data) ? data : (data.data || []);
+        
+        if (items.length > 0) {
+            currentSearchResults = items.slice(0, API_CONFIG.MAX_RESULTS);
             displaySearchResults(currentSearchResults);
         } else {
-            currentSearchResults = [];
             showNoResults();
         }
 
     } catch (error) {
         console.error('Search error:', error);
-        let errorMessage = 'Arama sırasında bir hata oluştu';
-        
-        if (error.name === 'TimeoutError') {
-            errorMessage = 'Arama zaman aşımına uğradı';
-        } else if (error.message.includes('network')) {
-            errorMessage = 'Ağ bağlantısı hatası';
-        }
-        
-        showSearchError(errorMessage);
-        currentSearchResults = [];
+        showSearchError('Arama hatası: ' + error.message);
     } finally {
         hideSearchLoading();
         isSearching = false;
@@ -188,6 +161,7 @@ async function searchItems() {
 }
 
 function displaySearchResults(results) {
+    console.log('Displaying', results.length, 'results');
     hideSearchElements();
     resultsContainer.style.display = 'block';
     resultsContainer.innerHTML = '';
@@ -197,7 +171,8 @@ function displaySearchResults(results) {
         return;
     }
 
-    results.forEach(item => {
+    results.forEach((item, index) => {
+        console.log(`Item ${index}:`, item);
         const resultElement = createSearchResultElement(item);
         resultsContainer.appendChild(resultElement);
     });
@@ -214,18 +189,17 @@ function createSearchResultElement(item) {
         div.classList.add('compatible');
     }
 
-    // Image placeholder (API'de image field'i yoksa placeholder kullan)
-    const imageUrl = item.media?.[0]?.source_url || 
-                    `https://via.placeholder.com/100x100.png?text=${encodeURIComponent(item.name?.substring(0, 10) || 'Item')}`;
+    const itemName = escapeHtml(item.name || 'Unknown Item');
+    const itemType = escapeHtml(item.type || 'Unknown Type');
+    const itemSubType = escapeHtml(item.sub_type || '');
+    const manufacturerName = escapeHtml(item.manufacturer?.name || 'Unknown Manufacturer');
 
     div.innerHTML = `
-        <img src="${imageUrl}" alt="${escapeHtml(item.name || 'Unknown Item')}" class="result-image" 
-             onerror="this.src='https://via.placeholder.com/100x100.png?text=Item'">
         <div class="result-info">
-            <div class="result-name">${escapeHtml(item.name || 'Unknown Item')}</div>
+            <div class="result-name">${itemName}</div>
             <div class="result-meta">
-                <div class="result-type">${escapeHtml(item.type || 'Unknown Type')}</div>
-                <div class="result-manufacturer">${escapeHtml(item.manufacturer?.name || 'Unknown Manufacturer')}</div>
+                <div class="result-type">${itemType}${itemSubType && itemSubType !== 'UNDEFINED' ? ' / ' + itemSubType : ''}</div>
+                <div class="result-manufacturer">${manufacturerName}</div>
             </div>
             ${compatibleSlots.length > 0 ? `
                 <div class="compatible-slots">
@@ -260,14 +234,17 @@ function getCompatibleSlots(item) {
     const itemType = item.type || '';
     const itemSubType = item.sub_type || '';
     
+    console.log('Checking compatibility for:', itemType, itemSubType);
+    
     // Type-based compatibility
     Object.entries(SLOT_TYPE_MAPPING).forEach(([type, slotNames]) => {
         if (itemType.includes(type) || itemSubType.includes(type)) {
             compatibleSlots.push(...slotNames);
+            console.log('Compatible with:', slotNames, 'due to type:', type);
         }
     });
 
-    // Multi-type compatibility (örn: gadget hem gadget hem medical slot'a uyabilir)
+    // Multi-type compatibility
     if (item.slot_type) {
         const slotTypes = item.slot_type.split(',').map(s => s.trim());
         slotTypes.forEach(slotType => {
@@ -277,7 +254,9 @@ function getCompatibleSlots(item) {
         });
     }
 
-    return [...new Set(compatibleSlots)]; // Remove duplicates
+    const uniqueSlots = [...new Set(compatibleSlots)];
+    console.log('Final compatible slots:', uniqueSlots);
+    return uniqueSlots;
 }
 
 function assignItemToFirstCompatibleSlot(item, compatibleSlots) {
@@ -320,19 +299,9 @@ function assignItemToSlot(item, slot) {
     slotItem.style.display = 'flex';
     clearBtn.style.display = 'inline-flex';
 
-    // Update item display
-    const itemImage = slotItem.querySelector('.item-image');
+    // Update item display - görsel olmadan
     const itemName = slotItem.querySelector('.item-name');
     const itemManufacturer = slotItem.querySelector('.item-manufacturer');
-
-    const imageUrl = item.media?.[0]?.source_url || 
-                    `https://via.placeholder.com/100x100.png?text=${encodeURIComponent(item.name?.substring(0, 10) || 'Item')}`;
-
-    itemImage.src = imageUrl;
-    itemImage.alt = item.name || 'Unknown Item';
-    itemImage.onerror = function() {
-        this.src = 'https://via.placeholder.com/100x100.png?text=Item';
-    };
 
     itemName.textContent = item.name || 'Unknown Item';
     itemManufacturer.textContent = item.manufacturer?.name || 'Unknown Manufacturer';

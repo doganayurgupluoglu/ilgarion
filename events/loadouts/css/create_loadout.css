@@ -1,5 +1,57 @@
-/* /events/loadouts/css/loadouts.css */
+/* /events/loadouts/css/create_loadout.css */
 
+/* Breadcrumb Styles */
+.breadcrumb-nav {
+    margin-bottom: 2rem;
+}
+
+.breadcrumb {
+    background-color: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font);
+    font-size: 0.9rem;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+}
+
+.breadcrumb-item a {
+    color: var(--gold);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.breadcrumb-item a:hover {
+    color: var(--light-gold);
+}
+
+.breadcrumb-item.active {
+    color: var(--light-grey);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: '>';
+    margin: 0 0.5rem;
+    color: var(--light-grey);
+}
+
+/* Main Container */
 .loadout-page-container {
     max-width: 1400px;
     margin: 0 auto;
@@ -48,7 +100,7 @@
 /* Main Layout */
 .loadout-creator {
     display: grid;
-    grid-template-columns: 1fr 400px;
+    grid-template-columns: 1fr;
     gap: 2rem;
     align-items: start;
 }
@@ -229,9 +281,20 @@
 .slot-empty i {
     font-size: 2rem;
     margin-bottom: 0.5rem;
-    color: var(--gold);
     opacity: 0.5;
 }
+
+/* Slot iconları */
+.slot-empty i.slot-helmet { color: #FFD700; } /* Altın - Kask */
+.slot-empty i.slot-torso { color: #4169E1; } /* Mavi - Gövde */
+.slot-empty i.slot-arms { color: #32CD32; } /* Yeşil - Kollar */
+.slot-empty i.slot-legs { color: #FF6347; } /* Turuncu-Kırmızı - Bacaklar */
+.slot-empty i.slot-undersuit { color: #9370DB; } /* Mor - Alt giyim */
+.slot-empty i.slot-backpack { color: #8B4513; } /* Kahverengi - Çanta */
+.slot-empty i.slot-weapon { color: #DC143C; } /* Kırmızı - Silahlar */
+.slot-empty i.slot-gadget { color: #00CED1; } /* Turkuaz - Gadget */
+.slot-empty i.slot-medical { color: #FF1493; } /* Pembe - Medikal */
+.slot-empty i.slot-tool { color: #FFA500; } /* Turuncu - Tool */
 
 .slot-empty span {
     display: block;
@@ -247,17 +310,10 @@
 .slot-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
     width: 100%;
-}
-
-.item-image {
-    width: 60px;
-    height: 60px;
-    border-radius: 4px;
-    border: 1px solid var(--border-1);
-    object-fit: cover;
-    background: var(--card-bg-3);
+    text-align: center;
 }
 
 .item-info {
@@ -396,9 +452,8 @@
     padding: 0.75rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    display: block;
+    width: 100%;
 }
 
 .search-result-item:hover {
@@ -414,16 +469,6 @@
 .search-result-item.compatible:hover {
     border-color: var(--light-turquase);
     background: var(--transparent-turquase);
-}
-
-.result-image {
-    width: 50px;
-    height: 50px;
-    border-radius: 4px;
-    border: 1px solid var(--border-1);
-    object-fit: cover;
-    background: var(--card-bg-3);
-    flex-shrink: 0;
 }
 
 .result-info {
@@ -615,6 +660,18 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    animation: slideInDown 0.3s ease;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .message.success {
@@ -675,22 +732,27 @@
     background: var(--light-gold);
 }
 
+/* Additional Variables if not defined in main CSS */
+:root {
+    --darker-gold-2: #8b6914;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
-    .loadout-creator {
-        grid-template-columns: 1fr 350px;
+    .second-row {
+        grid-template-columns: 350px 1fr;
     }
 }
 
 @media (max-width: 992px) {
-    .loadout-creator {
+    .second-row {
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }
     
     .right-panel {
         position: static;
-        order: -1;
+        order: -1; /* Arama önce gelsin */
     }
     
     .search-results {
@@ -752,6 +814,23 @@
         width: 100%;
         justify-content: center;
     }
+    
+    /* Breadcrumb responsive */
+    .breadcrumb {
+        font-size: 0.8rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .breadcrumb-item a,
+    .breadcrumb-item.active {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.25rem;
+    }
+    
+    .breadcrumb-item + .breadcrumb-item::before {
+        margin: 0 0.25rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -779,6 +858,16 @@
         text-align: center;
         gap: 0.5rem;
     }
+    
+    /* Breadcrumb mobile */
+    .breadcrumb {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .breadcrumb-item {
+        font-size: 0.75rem;
+    }
 }
 
 /* Dark theme adjustments */
@@ -800,5 +889,105 @@
     .form-group select {
         background: #0f0f0f;
         border-color: #333;
+    }
+    
+    .breadcrumb {
+        background: #1a1a1a;
+        border-color: #333;
+    }
+}
+
+/* API Error Display Improvements */
+.search-error-details {
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1rem;
+    color: var(--red);
+    font-size: 0.9rem;
+}
+
+.search-error-details summary {
+    cursor: pointer;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.search-error-details pre {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+    margin-top: 0.5rem;
+}
+
+/* Success States */
+.slot-item-success {
+    animation: itemAdded 0.5s ease;
+}
+
+@keyframes itemAdded {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Loading overlay for search */
+.search-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    z-index: 100;
+}
+
+/* Focus states */
+.equipment-slot:focus-within {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+}
+
+.search-input-group input:focus {
+    box-shadow: 0 0 0 2px rgba(189, 145, 42, 0.2);
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .equipment-slot {
+        border-width: 2px;
+    }
+    
+    .search-result-item {
+        border-width: 2px;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        border-width: 2px;
     }
 }
