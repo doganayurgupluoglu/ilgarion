@@ -10,7 +10,7 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute
 
 // API Configuration - Kendi proxy'imizi kullan
 const API_CONFIG = {
-    BASE_URL: 'api.php', // Aynı klasördeki proxy
+    BASE_URL: 'api/api.php', // Aynı klasördeki proxy
     TIMEOUT: 30000,
     MAX_RESULTS: 50
 };
@@ -684,19 +684,62 @@ function focusSearchForSlot(slot) {
 // WEAPON ATTACHMENT FUNCTIONS - YENİ
 
 async function createAttachmentSlots(parentSlotId) {
-    console.log('Creating attachment slots for parent slot:', parentSlotId);
+    console.log('🔧 Creating attachment slots for parent slot:', parentSlotId);
+    
+    // Önce debug bilgisi
+    console.log('Current user session:', typeof $_SESSION !== 'undefined' ? 'Available' : 'Not available');
     
     try {
-        // Get attachment slot definitions from API
-        const response = await fetch(`api/get_attachment_slots.php?parent_slot_id=${parentSlotId}`);
-        const data = await response.json();
+        // URL'i düzelt - relative path sorununu çöz
+        const apiUrl = `api/get_attachment_slots.php?parent_slot_id=${parentSlotId}`;
+        console.log('🔧 Calling API:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin' // Session cookies'i gönder
+        });
+        
+        console.log('🔧 Response status:', response.status);
+        console.log('🔧 Response headers:', response.headers);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const responseText = await response.text();
+        console.log('🔧 Raw response text:', responseText);
+        
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (jsonError) {
+            console.error('🔧 JSON parse error:', jsonError);
+            console.error('🔧 Response was:', responseText);
+            throw new Error('Invalid JSON response: ' + responseText.substring(0, 100));
+        }
+        
+        console.log('🔧 Parsed API response:', data);
         
         if (!data.success) {
-            console.error('Failed to get attachment slots:', data.error);
+            console.error('🔧 API returned error:', data.error);
+            showMessage(`Attachment slotları yüklenemedi: ${data.error}`, 'error');
             return;
         }
         
-        const attachmentSlotDefs = data.data;
+        const attachmentSlotDefs = data.data || [];
+        console.log('🔧 Attachment slot definitions:', attachmentSlotDefs);
+        
+        if (attachmentSlotDefs.length === 0) {
+            console.warn('🔧 No attachment slots found for parent slot:', parentSlotId);
+            showMessage(`Slot ${parentSlotId} için attachment slotu bulunamadı`, 'warning');
+            return;
+        }
+        
+        // Store attachment slots
         attachmentSlots.set(parentSlotId, attachmentSlotDefs);
         
         // Update slot type mapping for attachments
@@ -705,8 +748,15 @@ async function createAttachmentSlots(parentSlotId) {
         // Create UI elements
         createAttachmentSlotsUI(parentSlotId, attachmentSlotDefs);
         
+        console.log('✅ Attachment slots created successfully for parent slot:', parentSlotId);
+        
     } catch (error) {
-        console.error('Error creating attachment slots:', error);
+        console.error('❌ Error creating attachment slots:', error);
+        showMessage(`Attachment slotları oluşturulurken hata: ${error.message}`, 'error');
+        
+        // Fallback - basit attachment slotları oluştur
+        console.log('🔧 Attempting fallback attachment slots creation...');
+        createFallbackAttachmentSlots(parentSlotId);
     }
 }
 

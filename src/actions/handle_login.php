@@ -8,7 +8,8 @@ if (session_status() == PHP_SESSION_NONE) {
 require_once dirname(__DIR__) . '/config/database.php'; // $pdo ve BASE_PATH
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 
-$baseUrl = '/public';
+$baseUrl = '';
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usernameOrEmail = trim($_POST['username']);

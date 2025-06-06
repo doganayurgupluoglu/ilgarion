@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require_once '../src/config/database.php'; // $pdo ve BASE_PATH
+require_once 'src/config/database.php'; // $pdo ve BASE_PATH
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php'; // Yetki fonksiyonları
 require_once BASE_PATH . '/src/functions/enhanced_role_functions.php'; // Gelişmiş yetki kontrolleri

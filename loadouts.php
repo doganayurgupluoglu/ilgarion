@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require_once '../src/config/database.php'; 
+require_once 'src/config/database.php'; 
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php'; // Rol ve yetki fonksiyonları
 require_once BASE_PATH . '/src/functions/formatting_functions.php'; // render_user_info_with_popover için

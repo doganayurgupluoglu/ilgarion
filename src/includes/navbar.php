@@ -21,6 +21,9 @@ if (!function_exists('is_user_admin')) {
 }
 $is_admin = $is_logged_in && is_user_admin();
 
+$baseUrl = get_auth_base_url();
+
+
 $unread_notification_count = $GLOBALS['unread_notification_count'] ?? 0;
 $notifications_for_dropdown = $GLOBALS['notifications_for_dropdown'] ?? [];
 
@@ -45,7 +48,7 @@ $nav_links_config_navbar = [
     ],
     [
         'title' => 'Etkinlikler',
-        'url' => 'events.php',
+        'url' => 'events',
         'icon' => 'fa-calendar-alt',
         'permission' => null,
         'show_to_guests' => true // Herkese açık etkinlikler için

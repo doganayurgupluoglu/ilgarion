@@ -32,6 +32,19 @@ function regenerate_session_id_safely(bool $force = false): void {
         }
     }
 }
+function get_auth_base_url(): string
+{
+    // Protokolü belirle (HTTP veya HTTPS)
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+
+    // Sunucu adını al
+    $host = $_SERVER['HTTP_HOST'];
+
+    // Projenin çalıştığı alt dizini hesaba kat
+
+    // Temel URL'i birleştir ve döndür
+    return rtrim($protocol . $host);
+}
 
 /**
  * Session hijacking koruması - fingerprint kontrolü

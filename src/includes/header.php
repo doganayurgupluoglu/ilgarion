@@ -26,8 +26,8 @@ if (isset($pdo) && function_exists('is_user_logged_in') && is_user_logged_in()) 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($page_title) ? htmlspecialchars($page_title) . ' | ILGARION TURANIS' : 'ILGARION TURANIS'; ?></title>
     <link rel="stylesheet" href="../css/style.css">
-    <link rel="manifest" href="favicon_io/site.webmanifest">
-<link rel="icon" href="favicon_io/favicon.ico">
+    <link rel="manifest" href="../favicon_io/site.webmanifest">
+<link rel="icon" href="../favicon_io/favicon.ico">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="favicon_io/android-chrome-192x192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="favicon_io/android-chrome-512x512.png">
