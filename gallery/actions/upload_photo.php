@@ -1,5 +1,5 @@
 <?php
-// actions/upload_photo.php
+// gallery/actions/upload_photo.php
 
 header('Content-Type: application/json');
 
@@ -30,8 +30,8 @@ try {
     
     // Rate limiting
     if (!is_super_admin($pdo, $_SESSION['user_id']) && !check_rate_limit('photo_upload', 5, 3600)) {
-    throw new Exception('Çok fazla fotoğraf yükleme girişimi. Lütfen bir saat sonra tekrar deneyin.');
-}
+        throw new Exception('Çok fazla fotoğraf yükleme girişimi. Lütfen bir saat sonra tekrar deneyin.');
+    }
     
     // Detaylı dosya kontrolü
     if (!isset($_FILES['photo'])) {
@@ -123,7 +123,9 @@ try {
     $safe_filename = preg_replace('/[^a-zA-Z0-9._-]/', '', $file['name']);
     $filename = "gallery_user{$_SESSION['user_id']}_{$unique_id}.{$file_extension}";
     $file_path = $upload_dir . $filename;
-    $relative_path = '/uploads/gallery/' . $filename;
+    
+    // DÜZELTME: Relative path'i doğru oluştur (başında / olmadan)
+    $relative_path = 'uploads/gallery/' . $filename;
     
     // Dosyayı taşı
     if (!move_uploaded_file($file['tmp_name'], $file_path)) {

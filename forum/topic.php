@@ -79,10 +79,16 @@ if (isset($_GET['page']) && $_GET['page'] === 'last') {
 }
 
 // Avatar path düzeltme fonksiyonu
+// Avatar path düzeltme fonksiyonu
 function fix_avatar_path($avatar_path)
 {
     if (empty($avatar_path)) {
         return '/assets/logo.png';
+    }
+
+    // uploads/avatars/ -> /uploads/avatars/
+    if (strpos($avatar_path, 'uploads/avatars/') === 0) {
+        return '/' . $avatar_path;
     }
 
     // ../assets/ -> /assets/
@@ -90,13 +96,13 @@ function fix_avatar_path($avatar_path)
         return str_replace('../assets/', '/assets/', $avatar_path);
     }
 
-    // uploads/ -> uploads/
-    if (strpos($avatar_path, 'uploads/') === 0) {
-        return '' . $avatar_path;
+    // /assets/ ile başlıyorsa dokunma
+    if (strpos($avatar_path, '/assets/') === 0) {
+        return $avatar_path;
     }
 
-    // /assets/ veya  ile başlıyorsa dokunma
-    if (strpos($avatar_path, '/assets/') === 0 || strpos($avatar_path, '') === 0) {
+    // /uploads/avatars/ ile başlıyorsa dokunma
+    if (strpos($avatar_path, '/uploads/avatars/') === 0) {
         return $avatar_path;
     }
 

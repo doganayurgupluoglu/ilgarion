@@ -1,4 +1,4 @@
-<!-- User Popover Component - public/forum/includes/user_popover.php -->
+<!-- User Popover Component - src/includes/user_popover.php -->
 <div id="userPopover" class="user-popover" style="display: none;">
     <div class="popover-content">
         <div class="popover-loading">
@@ -40,6 +40,7 @@
                     </div>
                 </div>
                 
+                <!-- ✅ Güncellenmiş istatistik bölümü - 3 sütun -->
                 <div class="forum-stats">
                     <div class="stat-item">
                         <div class="stat-number forum-topics">0</div>
@@ -48,6 +49,10 @@
                     <div class="stat-item">
                         <div class="stat-number forum-posts">0</div>
                         <div class="stat-label">Gönderi</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number gallery-photos">0</div>
+                        <div class="stat-label">Fotoğraf</div>
                     </div>
                 </div>
             </div>
@@ -225,9 +230,11 @@
     word-break: break-word;
 }
 
+/* ✅ Güncellenmiş forum-stats - 3 sütun için */
 .forum-stats {
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
     padding: 10px 0;
     border-top: 1px solid var(--border-1);
     border-bottom: 1px solid var(--border-1);
@@ -235,20 +242,22 @@
 
 .stat-item {
     text-align: center;
+    padding: 5px;
 }
 
 .stat-number {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--gold);
     font-family: var(--font);
 }
 
 .stat-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--light-grey);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-top: 2px;
 }
 
 .popover-footer {
@@ -335,6 +344,19 @@
         flex: none;
         width: 100%;
     }
+    
+    /* ✅ Mobilde istatistikler daha kompakt */
+    .forum-stats {
+        gap: 5px;
+    }
+    
+    .stat-number {
+        font-size: 1rem;
+    }
+    
+    .stat-label {
+        font-size: 0.65rem;
+    }
 }
 
 /* Animation for popover arrow (optional) */
@@ -366,7 +388,7 @@
 </style>
 
 <script>
-// ✅ DÜZELTEN JAVASCRIPT KODU - BURAYA YAPIŞTIRILACAK
+// ✅ DÜZELTEN JAVASCRIPT KODU - GALERI İSTATİSTİKLERİ İLE
 let userPopoverTimeout;
 let currentPopoverUserId = null;
 let popoverVisible = false;
@@ -536,12 +558,13 @@ function populateUserPopover(userData) {
     userInfoDiv.querySelector('.ingame-name').textContent = userData.ingame_name || 'Belirtilmemiş';
     userInfoDiv.querySelector('.discord-username').textContent = userData.discord_username || 'Belirtilmemiş';
     
-    // ✅ Düzeltilmiş tarih formatı
+    // Düzeltilmiş tarih formatı
     userInfoDiv.querySelector('.join-date').textContent = formatDate(userData.created_at);
     
-    // Forum stats
+    // ✅ Forum ve galeri istatistikleri
     userInfoDiv.querySelector('.forum-topics').textContent = userData.forum_topics || 0;
     userInfoDiv.querySelector('.forum-posts').textContent = userData.forum_posts || 0;
+    userInfoDiv.querySelector('.gallery-photos').textContent = userData.gallery_photos || 0;
     
     // Profile link
     const profileLink = userInfoDiv.querySelector('.btn-view-profile');
@@ -575,7 +598,7 @@ function showPopoverError(message = 'Kullanıcı bilgileri yüklenemedi.') {
     }
 }
 
-// ✅ Düzeltilmiş Event Listeners - Sadece tıklama ve dışına tıklama
+// Event Listeners - Sadece tıklama ve dışına tıklama
 document.addEventListener('DOMContentLoaded', function() {
     // User link click handlers - sadece tıklama ile aç
     document.addEventListener('click', function(e) {
@@ -589,7 +612,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // ✅ Dışına tıklama ile kapat
+    // Dışına tıklama ile kapat
     document.addEventListener('click', function(e) {
         const popover = document.getElementById('userPopover');
         const userLink = e.target.closest('.user-link');
@@ -607,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // ✅ Escape tuşu ile kapat
+    // Escape tuşu ile kapat
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && popoverVisible) {
             closeUserPopover();
@@ -617,4 +640,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Global fonksiyonlar
 window.closeUserPopover = closeUserPopover;
+window.showUserPopover = showUserPopover;
 </script>

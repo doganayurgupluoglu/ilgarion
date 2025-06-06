@@ -27,21 +27,13 @@
     --card-bg-2: #22201E;
     --card-bg-3: #1A1C1D;
     --card-bg-4: #201E22;
+    --body-bg:  #161412;
 
     /* BORDERS */
     --border-1: #59524c46;
     --border-1-hover: #59524C;
     --border-1-featured: #685d5388;
 
-
-
-    --darker-gold:  #161412;
-    --darker-gold-1: rgba(189, 145, 42, 0.01);
-    --dark-gold-green: #0b0e00fa;
-    --dark-gold-green-border: #1b2001ea;
-    --transparent-turquase: #79fffb44;
-    --transparent-turquase-2: rgba(89, 244, 255, 0.149);
-    
     /* FONT */
     --font: "Roboto", serif;
     
@@ -53,7 +45,7 @@ html {
     height: 100%;
 }
 body {
-    background-color: var(--darker-gold);
+    background-color: var(--body-bg);
     height: 100%;
     margin: 0;
     padding: 0;

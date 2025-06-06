@@ -51,6 +51,13 @@ $page_title = "Galeri - Ilgarion Turanis";
 
 include BASE_PATH . '/src/includes/header.php';
 include BASE_PATH . '/src/includes/navbar.php';
+
+// Helper function to get correct image path
+function get_image_path($image_path) {
+    // Eğer başında / varsa kaldır
+    $clean_path = ltrim($image_path, '/');
+    return '/' . $clean_path;
+}
 ?>
 
 <link rel="stylesheet" href="/gallery/css/gallery.css">
@@ -156,7 +163,7 @@ include BASE_PATH . '/src/includes/navbar.php';
             <?php foreach ($photos as $photo): ?>
                 <div class="photo-item" data-photo-id="<?= $photo['id'] ?>">
                     <div class="photo-container" onclick="openPhotoModal(<?= $photo['id'] ?>)">
-                        <img src="/<?= htmlspecialchars($photo['image_path']) ?>" 
+                        <img src="<?= get_image_path($photo['image_path']) ?>" 
                              alt="<?= htmlspecialchars($photo['description'] ?: 'Galeri Fotoğrafı') ?>"
                              loading="lazy"
                              class="photo-image">

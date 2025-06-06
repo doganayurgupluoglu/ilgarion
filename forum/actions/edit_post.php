@@ -5,7 +5,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once '../src/config/database.php';
+require_once '../../src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/forum_functions.php';

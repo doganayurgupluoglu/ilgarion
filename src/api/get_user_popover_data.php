@@ -1,5 +1,5 @@
 <?php
-// src/api/get_user_popover_data.php - Tarih düzeltmeli versiyon
+// src/api/get_user_popover_data.php - Avatar ve galeri düzeltmeli versiyon
 
 // Error handling
 error_reporting(E_ALL);
@@ -138,6 +138,17 @@ try {
         error_log("Forum stats error: " . $e->getMessage());
     }
 
+    // ✅ Galeri fotoğraf sayısı eklendi
+    $gallery_photos = 0;
+    try {
+        $gallery_stmt = $pdo->prepare("SELECT COUNT(*) FROM gallery_photos WHERE user_id = ?");
+        $gallery_stmt->execute([$user_id]);
+        $gallery_photos = (int)$gallery_stmt->fetchColumn();
+    } catch (Exception $e) {
+        // Galeri tablosu yoksa varsayılan değer
+        error_log("Gallery stats error: " . $e->getMessage());
+    }
+
     // Online durumu (basit)
     $is_online = false;
     if (isset($_SESSION['user_id'])) {
@@ -158,23 +169,34 @@ try {
     $current_user_id = $_SESSION['user_id'] ?? null;
     $can_message = ($current_user_id && $current_user_id != $user_id && is_user_logged_in());
 
-    // Avatar path düzeltmesi
+    // ✅ Avatar path düzeltmesi - /uploads/avatars/ konumuna göre
     $avatar_path = $user['avatar_path'];
     if ($avatar_path) {
+        // uploads/avatars/ ile başlıyorsa /uploads/avatars/ yap
+        if (strpos($avatar_path, 'uploads/avatars/') === 0) {
+            $avatar_path = '/' . $avatar_path;
+        }
         // ../assets/ -> /assets/
-        if (strpos($avatar_path, '../assets/') === 0) {
+        elseif (strpos($avatar_path, '../assets/') === 0) {
             $avatar_path = str_replace('../assets/', '/assets/', $avatar_path);
         }
-        // uploads/ -> /public/uploads/
-        elseif (strpos($avatar_path, 'uploads/') === 0) {
-            $avatar_path = '/public/' . $avatar_path;
+        // /assets/ ile başlıyorsa dokunma
+        elseif (strpos($avatar_path, '/assets/') === 0) {
+            // Dokunma
         }
-        // /assets/ veya /public/ ile başlıyorsa dokunma
+        // /uploads/ ile başlıyorsa dokunma
+        elseif (strpos($avatar_path, '/uploads/') === 0) {
+            // Dokunma
+        }
+        // Hiçbiri değilse varsayılan logo
+        else {
+            $avatar_path = '/assets/logo.png';
+        }
     } else {
         $avatar_path = '/assets/logo.png';
     }
 
-    // ✅ Tarih formatı düzeltmesi - ISO formatında gönder
+    // Tarih formatı düzeltmesi - ISO formatında gönder
     $created_at_iso = $user['created_at']; // ISO format: 2025-06-03 17:32:08
     
     // Response data
@@ -189,6 +211,7 @@ try {
         'primary_role_color' => $user['primary_role_color'] ?: '#bd912a',
         'forum_topics' => $forum_topics,
         'forum_posts' => $forum_posts,
+        'gallery_photos' => $gallery_photos, // ✅ Galeri fotoğraf sayısı eklendi
         'is_online' => $is_online,
         'can_message' => $can_message
     ];
