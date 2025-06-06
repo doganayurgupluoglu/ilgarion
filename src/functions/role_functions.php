@@ -2,6 +2,7 @@
 // src/functions/role_functions.php
 
 // SQL güvenlik fonksiyonlarını dahil et
+require_once dirname(dirname(__DIR__)) . '/src/config/database.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 
 /**

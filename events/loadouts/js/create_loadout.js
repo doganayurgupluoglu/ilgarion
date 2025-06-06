@@ -1,4 +1,4 @@
-// /events/loadouts/js/create_loadout.js - API Dokümantasyonuna Uygun Versiyon
+// /events/loadouts/js/create_loadout.js - Tip Filtresi Düzeltildi
 
 // Global variables
 let currentSearchResults = [];
@@ -113,7 +113,7 @@ function initializeSlots() {
     });
 }
 
-// Search Functions - Basit ve çalışır
+// Search Functions - TİP FİLTRESİ DÜZELTİLDİ
 async function searchItems() {
     const query = searchInput.value.trim();
     const filterType = typeFilter.value;
@@ -125,6 +125,7 @@ async function searchItems() {
 
     if (isSearching) return;
 
+    console.log('Searching for:', query, 'with filter:', filterType);
     showSearchLoading();
     isSearching = true;
 
@@ -134,15 +135,34 @@ async function searchItems() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ query: query })
+            body: JSON.stringify({ 
+                query: query,
+                filter_type: filterType // Filtreyi de gönder
+            })
         });
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
+        console.log('API Response:', data);
         
         // Data kontrolü
-        const items = Array.isArray(data) ? data : (data.data || []);
+        let items = Array.isArray(data) ? data : (data.data || []);
+        
+        // Eğer tip filtresi seçildiyse, client-side'da da filtrele
+        if (filterType && filterType.trim() !== '') {
+            items = items.filter(item => {
+                const itemType = item.type || '';
+                const itemSubType = item.sub_type || '';
+                
+                // Tam eşleşme veya içerme kontrolü
+                return itemType.includes(filterType) || 
+                       itemSubType.includes(filterType) ||
+                       itemType.toLowerCase().includes(filterType.toLowerCase()) ||
+                       itemSubType.toLowerCase().includes(filterType.toLowerCase());
+            });
+            console.log('Filtered results:', items.length, 'items');
+        }
         
         if (items.length > 0) {
             currentSearchResults = items.slice(0, API_CONFIG.MAX_RESULTS);
@@ -171,11 +191,48 @@ function displaySearchResults(results) {
         return;
     }
 
+    const filterType = typeFilter.value;
+    if (filterType) {
+        // Filtre info göster
+        const filterInfo = document.createElement('div');
+        filterInfo.className = 'filter-info';
+        filterInfo.innerHTML = `
+            <div style="background: var(--transparent-gold); padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.8rem;">
+                <i class="fas fa-filter"></i> Filtre: <strong>${getFilterDisplayName(filterType)}</strong>
+                <button onclick="clearFilter()" style="float: right; background: none; border: none; color: var(--red); cursor: pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        resultsContainer.appendChild(filterInfo);
+    }
+
     results.forEach((item, index) => {
         console.log(`Item ${index}:`, item);
         const resultElement = createSearchResultElement(item);
         resultsContainer.appendChild(resultElement);
     });
+}
+
+function getFilterDisplayName(filterType) {
+    const filterNames = {
+        'WeaponPersonal': 'Silahlar',
+        'Char_Armor_Helmet': 'Kasklar',
+        'Char_Armor_Torso': 'Gövde Zırhları',
+        'Char_Armor_Arms': 'Kol Zırhları',
+        'Char_Armor_Legs': 'Bacak Zırhları',
+        'Char_Armor_Backpack': 'Sırt Çantaları',
+        'Char_Clothing_Undersuit': 'Alt Giysiler',
+        'fps_consumable': 'Tüketilebilir'
+    };
+    return filterNames[filterType] || filterType;
+}
+
+function clearFilter() {
+    typeFilter.value = '';
+    if (searchInput.value.length >= 3) {
+        searchItems();
+    }
 }
 
 function createSearchResultElement(item) {
@@ -194,11 +251,18 @@ function createSearchResultElement(item) {
     const itemSubType = escapeHtml(item.sub_type || '');
     const manufacturerName = escapeHtml(item.manufacturer?.name || 'Unknown Manufacturer');
 
+    // Filtre match'ini vurgula
+    const filterType = typeFilter.value;
+    let typeDisplay = itemType;
+    if (filterType && (itemType.includes(filterType) || itemSubType.includes(filterType))) {
+        typeDisplay = highlightMatch(itemType, filterType);
+    }
+
     div.innerHTML = `
         <div class="result-info">
             <div class="result-name">${itemName}</div>
             <div class="result-meta">
-                <div class="result-type">${itemType}${itemSubType && itemSubType !== 'UNDEFINED' ? ' / ' + itemSubType : ''}</div>
+                <div class="result-type">${typeDisplay}${itemSubType && itemSubType !== 'UNDEFINED' ? ' / ' + itemSubType : ''}</div>
                 <div class="result-manufacturer">${manufacturerName}</div>
             </div>
             ${compatibleSlots.length > 0 ? `
@@ -227,6 +291,16 @@ function createSearchResultElement(item) {
     div.itemData = item;
 
     return div;
+}
+
+function highlightMatch(text, filter) {
+    if (!filter) return text;
+    const regex = new RegExp(`(${escapeRegex(filter)})`, 'gi');
+    return text.replace(regex, '<mark style="background: var(--gold); color: var(--charcoal); padding: 0 2px;">$1</mark>');
+}
+
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function getCompatibleSlots(item) {
@@ -452,11 +526,15 @@ function clearSearchResults() {
 function showNoResults() {
     hideSearchElements();
     resultsContainer.style.display = 'block';
+    const filterType = typeFilter.value;
+    const filterText = filterType ? ` "${getFilterDisplayName(filterType)}" tipinde` : '';
+    
     resultsContainer.innerHTML = `
         <div style="text-align: center; padding: 2rem; color: var(--light-grey);">
             <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-            <p>Arama kriterlerinize uygun sonuç bulunamadı</p>
-            <small>Farklı arama terimleri deneyin</small>
+            <p>${filterText} arama kriterlerinize uygun sonuç bulunamadı</p>
+            <small>Farklı arama terimleri deneyin${filterType ? ' veya filtreyi kaldırın' : ''}</small>
+            ${filterType ? `<br><button onclick="clearFilter()" style="margin-top: 1rem; background: var(--red); color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Filtreyi Kaldır</button>` : ''}
         </div>
     `;
 }
@@ -616,3 +694,4 @@ window.clearSlot = clearSlot;
 window.closeModal = closeModal;
 window.searchItems = searchItems;
 window.loadExistingItems = loadExistingItems;
+window.clearFilter = clearFilter;

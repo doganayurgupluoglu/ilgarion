@@ -205,54 +205,9 @@ function generate_loadout_breadcrumb($items) {
                 </form>
             </div>
 
-            <!-- 2. SATIR: Arama (Sol) + Slotlar (Sağ) -->
-            <div class="second-row">
-                <!-- Sol: Item Arama -->
-                <div class="search-panel">
-                    <h3><i class="fas fa-search"></i> Item Arama</h3>
-                    
-                    <div class="search-form">
-                        <div class="search-input-group">
-                            <input type="text" id="item_search" placeholder="Item adı yazın (örn: Morozov, Helmet)">
-                            <button type="button" id="search_btn" onclick="searchItems()">
-                                <i class="fas fa-search"></i>
-                            </button>
-                        </div>
-                        
-                        <div class="search-filters">
-                            <select id="type_filter">
-                                <option value="">Tüm Tipler</option>
-                                <option value="WeaponPersonal">Silahlar</option>
-                                <option value="Char_Armor_Helmet">Kasklar</option>
-                                <option value="Char_Armor_Torso">Gövde Zırhları</option>
-                                <option value="Char_Armor_Arms">Kol Zırhları</option>
-                                <option value="Char_Armor_Legs">Bacak Zırhları</option>
-                                <option value="Char_Armor_Backpack">Sırt Çantaları</option>
-                                <option value="Char_Clothing_Undersuit">Alt Giysiler</option>
-                                <option value="fps_consumable">Tüketilebilir</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="search-results">
-                        <div class="search-placeholder">
-                            <i class="fas fa-search"></i>
-                            <p>Yukarıdaki arama kutusunu kullanarak Star Citizen itemlerini arayın</p>
-                            <small>Sonuçlara tıklayarak uygun slotlara yerleştirebilirsiniz</small>
-                        </div>
-                        
-                        <div class="search-loading" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <p>Aranıyor...</p>
-                        </div>
-                        
-                        <div id="search_results_container" class="results-container" style="display: none;">
-                            <!-- Arama sonuçları buraya gelecek -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sağ: Equipment Slotları -->
+            <!-- 2. SATIR: Slotlar (Sol) + Arama (Sağ) -->
+            <div class="content-grid">
+                <!-- Sol: Equipment Slotları -->
                 <div class="equipment-slots-panel">
                     <h3><i class="fas fa-boxes"></i> Teçhizat Slotları</h3>
                     <div class="slots-container">
@@ -301,6 +256,51 @@ function generate_loadout_breadcrumb($items) {
                                 </div>
                             </div>
                         <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- Sağ: Item Arama -->
+                <div class="search-panel">
+                    <h3><i class="fas fa-search"></i> Item Arama</h3>
+                    
+                    <div class="search-form">
+                        <div class="search-input-group">
+                            <input type="text" id="item_search" placeholder="Item adı yazın (örn: Morozov, Helmet)">
+                            <button type="button" id="search_btn" onclick="searchItems()">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="search-filters">
+                            <select id="type_filter">
+                                <option value="">Tüm Tipler</option>
+                                <option value="WeaponPersonal">Silahlar</option>
+                                <option value="Char_Armor_Helmet">Kasklar</option>
+                                <option value="Char_Armor_Torso">Gövde Zırhları</option>
+                                <option value="Char_Armor_Arms">Kol Zırhları</option>
+                                <option value="Char_Armor_Legs">Bacak Zırhları</option>
+                                <option value="Char_Armor_Backpack">Sırt Çantaları</option>
+                                <option value="Char_Clothing_Undersuit">Alt Giysiler</option>
+                                <option value="fps_consumable">Tüketilebilir</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="search-results">
+                        <div class="search-placeholder">
+                            <i class="fas fa-search"></i>
+                            <p>Yukarıdaki arama kutusunu kullanarak Star Citizen itemlerini arayın</p>
+                            <small>Sonuçlara tıklayarak uygun slotlara yerleştirebilirsiniz</small>
+                        </div>
+                        
+                        <div class="search-loading" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Aranıyor...</p>
+                        </div>
+                        
+                        <div id="search_results_container" class="results-container" style="display: none;">
+                            <!-- Arama sonuçları buraya gelecek -->
+                        </div>
                     </div>
                 </div>
             </div>

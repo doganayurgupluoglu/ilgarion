@@ -1,4 +1,4 @@
-/* /events/loadouts/css/create_loadout.css */
+/* /events/loadouts/css/create_loadout.css - Güncellenmiş Layout */
 
 /* Breadcrumb Styles */
 .breadcrumb-nav {
@@ -97,19 +97,19 @@
     gap: 1rem;
 }
 
-/* Main Layout */
+/* Main Layout - YENİ DÜZEN */
 .loadout-creator {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
-    align-items: start;
-}
-
-/* Left Panel */
-.left-panel {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 2rem;
+}
+
+/* 2. SATIR Grid - Sol: Slotlar, Sağ: Arama */
+.content-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Sol taraf daha geniş, sağ taraf daha dar */
+    gap: 2rem;
+    align-items: start;
 }
 
 /* Panel Base Styles */
@@ -203,10 +203,10 @@
     font-size: 0.9rem;
 }
 
-/* Equipment Slots */
+/* Equipment Slots - Sol tarafta daha büyük grid */
 .slots-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
 }
 
@@ -285,16 +285,16 @@
 }
 
 /* Slot iconları */
-.slot-empty i.slot-helmet { color: #FFD700; } /* Altın - Kask */
-.slot-empty i.slot-torso { color: #4169E1; } /* Mavi - Gövde */
-.slot-empty i.slot-arms { color: #32CD32; } /* Yeşil - Kollar */
-.slot-empty i.slot-legs { color: #FF6347; } /* Turuncu-Kırmızı - Bacaklar */
-.slot-empty i.slot-undersuit { color: #9370DB; } /* Mor - Alt giyim */
-.slot-empty i.slot-backpack { color: #8B4513; } /* Kahverengi - Çanta */
-.slot-empty i.slot-weapon { color: #DC143C; } /* Kırmızı - Silahlar */
-.slot-empty i.slot-gadget { color: #00CED1; } /* Turkuaz - Gadget */
-.slot-empty i.slot-medical { color: #FF1493; } /* Pembe - Medikal */
-.slot-empty i.slot-tool { color: #FFA500; } /* Turuncu - Tool */
+.slot-empty i.slot-helmet { color: #FFD700; }
+.slot-empty i.slot-torso { color: #4169E1; }
+.slot-empty i.slot-arms { color: #32CD32; }
+.slot-empty i.slot-legs { color: #FF6347; }
+.slot-empty i.slot-undersuit { color: #9370DB; }
+.slot-empty i.slot-backpack { color: #8B4513; }
+.slot-empty i.slot-weapon { color: #DC143C; }
+.slot-empty i.slot-gadget { color: #00CED1; }
+.slot-empty i.slot-medical { color: #FF1493; }
+.slot-empty i.slot-tool { color: #FFA500; }
 
 .slot-empty span {
     display: block;
@@ -334,23 +334,13 @@
     font-size: 0.8rem;
 }
 
-/* Save Panel */
-.save-panel {
-    text-align: center;
-}
-
-.btn-save {
-    width: 100%;
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-/* Right Panel - Search */
-.right-panel {
+/* Search Panel - Sağ tarafta sabit */
+.search-panel {
     position: sticky;
     top: 2rem;
     height: fit-content;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
 }
 
 .search-form {
@@ -405,7 +395,7 @@
 
 /* Search Results */
 .search-results {
-    max-height: 600px;
+    max-height: 500px;
     overflow-y: auto;
 }
 
@@ -449,6 +439,7 @@
     background: var(--card-bg-2);
     border: 1px solid var(--border-1);
     border-radius: 6px;
+    margin-bottom: .3rem;
     padding: 0.75rem;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -463,7 +454,7 @@
 }
 
 .search-result-item.compatible {
-    border-color: var(--turquase);
+    border-color: var(--transparent-turquase);
 }
 
 .search-result-item.compatible:hover {
@@ -547,7 +538,7 @@
 }
 
 .btn-secondary:hover {
-    background: var(--darker-gold-2);
+    background: var(--card-bg-2);
     color: var(--lighter-grey);
     text-decoration: none;
     transform: translateY(-1px);
@@ -692,71 +683,59 @@
     color: #17a2b8;
 }
 
-/* Loading States */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
-    position: relative;
-}
-
-.loading::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: inherit;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 /* Scrollbar Styling */
-.search-results::-webkit-scrollbar {
+.search-results::-webkit-scrollbar,
+.search-panel::-webkit-scrollbar {
     width: 6px;
 }
 
-.search-results::-webkit-scrollbar-track {
+.search-results::-webkit-scrollbar-track,
+.search-panel::-webkit-scrollbar-track {
     background: var(--card-bg-3);
     border-radius: 3px;
 }
 
-.search-results::-webkit-scrollbar-thumb {
+.search-results::-webkit-scrollbar-thumb,
+.search-panel::-webkit-scrollbar-thumb {
     background: var(--gold);
     border-radius: 3px;
 }
 
-.search-results::-webkit-scrollbar-thumb:hover {
+.search-results::-webkit-scrollbar-thumb:hover,
+.search-panel::-webkit-scrollbar-thumb:hover {
     background: var(--light-gold);
-}
-
-/* Additional Variables if not defined in main CSS */
-:root {
-    --darker-gold-2: #8b6914;
 }
 
 /* Responsive Design */
 @media (max-width: 1200px) {
-    .second-row {
-        grid-template-columns: 350px 1fr;
+    .content-grid {
+        grid-template-columns: 1.5fr 1fr;
+        gap: 1.5rem;
+    }
+    
+    .slots-container {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     }
 }
 
 @media (max-width: 992px) {
-    .second-row {
+    .content-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }
     
-    .right-panel {
+    .search-panel {
         position: static;
-        order: -1; /* Arama önce gelsin */
+        order: -1; /* Arama önce gelsin mobilde */
+        max-height: none;
     }
     
     .search-results {
         max-height: 400px;
+    }
+    
+    .slots-container {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     }
 }
 
@@ -785,7 +764,6 @@
     
     .loadout-info-panel,
     .equipment-slots-panel,
-    .save-panel,
     .search-panel {
         padding: 1rem;
     }
@@ -831,6 +809,13 @@
     .breadcrumb-item + .breadcrumb-item::before {
         margin: 0 0.25rem;
     }
+    
+    /* Form responsive - grid satırları */
+    .loadout-info-panel [style*="grid-template-columns"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
 }
 
 @media (max-width: 480px) {
@@ -842,11 +827,6 @@
         flex-direction: column;
         text-align: center;
         gap: 0.5rem;
-    }
-    
-    .result-image {
-        width: 40px;
-        height: 40px;
     }
     
     .slot-content {
@@ -897,66 +877,6 @@
     }
 }
 
-/* API Error Display Improvements */
-.search-error-details {
-    background: rgba(220, 53, 69, 0.1);
-    border: 1px solid rgba(220, 53, 69, 0.3);
-    border-radius: 6px;
-    padding: 1rem;
-    margin-top: 1rem;
-    color: var(--red);
-    font-size: 0.9rem;
-}
-
-.search-error-details summary {
-    cursor: pointer;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-}
-
-.search-error-details pre {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 0.5rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    overflow-x: auto;
-    margin-top: 0.5rem;
-}
-
-/* Success States */
-.slot-item-success {
-    animation: itemAdded 0.5s ease;
-}
-
-@keyframes itemAdded {
-    0% {
-        transform: scale(0.8);
-        opacity: 0;
-    }
-    50% {
-        transform: scale(1.1);
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-/* Loading overlay for search */
-.search-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: inherit;
-    z-index: 100;
-}
-
 /* Focus states */
 .equipment-slot:focus-within {
     outline: 2px solid var(--gold);
@@ -976,18 +896,173 @@
     }
 }
 
-/* High contrast mode */
-@media (prefers-contrast: high) {
-    .equipment-slot {
-        border-width: 2px;
+/* Filter Info Styles */
+.filter-info {
+    margin-bottom: 1rem;
+}
+
+.filter-info div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.filter-info button {
+    background: none;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+}
+
+.filter-info button:hover {
+    background: var(--red);
+    color: var(--white);
+}
+
+/* Highlight Styles */
+mark {
+    background: var(--gold) !important;
+    color: var(--charcoal) !important;
+    padding: 0 2px !important;
+    border-radius: 2px;
+    font-weight: 500;
+}
+
+/* Enhanced Search Result Styles */
+.search-result-item.filtered {
+    border-color: var(--gold);
+    background: var(--transparent-gold);
+}
+
+.search-result-item.filtered:hover {
+    border-color: var(--light-gold);
+    background: rgba(189, 145, 42, 0.15);
+}
+
+/* Filter Button in No Results */
+.clear-filter-btn {
+    margin-top: 1rem;
+    background: var(--red);
+    color: var(--white);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all 0.2s ease;
+}
+
+.clear-filter-btn:hover {
+    background: var(--dark-red);
+    transform: translateY(-1px);
+}
+
+/* Search Filters Enhancement */
+.search-filters {
+    position: relative;
+}
+
+.search-filters select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--card-bg-3);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    color: var(--lighter-grey);
+    font-family: var(--font);
+    transition: all 0.2s ease;
+}
+
+.search-filters select:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(189, 145, 42, 0.2);
+}
+
+.search-filters select option {
+    background: var(--card-bg-3);
+    color: var(--lighter-grey);
+    padding: 0.5rem;
+}
+
+/* Filter Active State */
+.search-filters select:not([value=""]) {
+    border-color: var(--gold);
+    background: var(--transparent-gold);
+}
+
+/* Enhanced No Results */
+.no-results-container {
+    text-align: center;
+    padding: 2rem;
+    color: var(--light-grey);
+}
+
+.no-results-container i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.no-results-container p {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+}
+
+.no-results-container small {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+/* Search Loading Enhancement */
+.search-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--light-grey);
+}
+
+.search-loading i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--gold);
+    opacity: 0.8;
+}
+
+.search-loading p {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Responsive Filter Adjustments */
+@media (max-width: 768px) {
+    .filter-info div {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
     }
     
-    .search-result-item {
-        border-width: 2px;
+    .filter-info button {
+        align-self: center;
     }
     
-    .btn-primary,
-    .btn-secondary {
-        border-width: 2px;
+    .search-filters select {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .filter-info {
+        font-size: 0.8rem;
+    }
+    
+    .clear-filter-btn {
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+        width: 80%;
     }
 }
