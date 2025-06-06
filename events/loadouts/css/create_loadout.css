@@ -2,7 +2,7 @@
 
 /* Breadcrumb Styles */
 .breadcrumb-nav {
-    margin-bottom: 2rem;
+    margin-bottom: 6.5rem;
 }
 
 .breadcrumb {
@@ -53,7 +53,7 @@
 
 /* Main Container */
 .loadout-page-container {
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: 2rem;
     font-family: var(--font);
@@ -439,7 +439,6 @@
     background: var(--card-bg-2);
     border: 1px solid var(--border-1);
     border-radius: 6px;
-    margin-bottom: .3rem;
     padding: 0.75rem;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -454,7 +453,7 @@
 }
 
 .search-result-item.compatible {
-    border-color: var(--transparent-turquase);
+    border-color: var(--turquase);
 }
 
 .search-result-item.compatible:hover {

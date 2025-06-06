@@ -1,11 +1,11 @@
 <?php
-// public/forum/create_topic.php - Birleşik oluşturma/düzenleme sayfası
+// /forum/create_topic.php - Birleşik oluşturma/düzenleme sayfası
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once dirname(dirname(__DIR__)) . '/src/config/database.php';
+require_once '../src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/forum_functions.php';
@@ -23,7 +23,7 @@ if (!is_user_logged_in()) {
 
 if (!is_user_approved()) {
     $_SESSION['error_message'] = "Bu işlem için hesabınızın onaylanmış olması gerekmektedir.";
-    header('Location: /public/forum/');
+    header('Location: ');
     exit;
 }
 
@@ -40,14 +40,14 @@ if ($edit_topic_id) {
 
     if (!$editing_topic) {
         $_SESSION['error_message'] = "Düzenlenecek konu bulunamadı veya erişim yetkiniz bulunmuyor.";
-        header('Location: /public/forum/');
+        header('Location: ');
         exit;
     }
 
     // Düzenleme yetkisi kontrolü
     if (!can_user_edit_forum_topic($pdo, $edit_topic_id, $current_user_id)) {
         $_SESSION['error_message'] = "Bu konuyu düzenleme yetkiniz bulunmuyor.";
-        header('Location: /public/forum/topic.php?id=' . $edit_topic_id);
+        header('Location: topic.php?id=' . $edit_topic_id);
         exit;
     }
 
@@ -57,7 +57,7 @@ if ($edit_topic_id) {
     // Oluşturma modu
     if (!has_permission($pdo, 'forum.topic.create')) {
         $_SESSION['error_message'] = "Konu oluşturma yetkiniz bulunmuyor.";
-        header('Location: /public/forum/');
+        header('Location: ');
         exit;
     }
 
@@ -81,7 +81,7 @@ if ($selected_category_id) {
 
     if (!$selected_category && !$is_edit_mode) {
         $_SESSION['error_message'] = "Seçilen kategoride konu oluşturma yetkiniz bulunmuyor.";
-        header('Location: /public/forum/');
+        header('Location: ');
         exit;
     }
 }
@@ -227,7 +227,7 @@ if (empty($errors)) {
                     );
                     
                     $_SESSION['success_message'] = "Konu başarıyla güncellendi.";
-                    header('Location: /public/forum/topic.php?id=' . $edit_topic_id);
+                    header('Location: topic.php?id=' . $edit_topic_id);
                     exit;
                 } else {
                     $pdo->rollBack();
@@ -251,7 +251,7 @@ if (empty($errors)) {
             
             if ($topic_id) {
                 $_SESSION['success_message'] = "Konu başarıyla oluşturuldu.";
-                header('Location: /public/forum/topic.php?id=' . $topic_id);
+                header('Location: topic.php?id=' . $topic_id);
                 exit;
             } else {
                 $errors[] = "Konu oluşturulurken bir hata oluştu.";
@@ -303,15 +303,15 @@ $page_title = ($is_edit_mode ? "Konu Düzenle" : "Yeni Konu Oluştur") . " - For
 // Breadcrumb verileri
 $breadcrumb_items = [
     ['text' => 'Ana Sayfa', 'url' => '/public/index.php', 'icon' => 'fas fa-home'],
-    ['text' => 'Forum', 'url' => '/public/forum/', 'icon' => 'fas fa-comments'],
+    ['text' => 'Forum', 'url' => '', 'icon' => 'fas fa-comments'],
 ];
 
 if ($selected_category) {
-    $breadcrumb_items[] = ['text' => $selected_category['name'], 'url' => '/public/forum/category.php?slug=' . urlencode($selected_category['slug']), 'icon' => $selected_category['icon'] ?? 'fas fa-folder'];
+    $breadcrumb_items[] = ['text' => $selected_category['name'], 'url' => 'category.php?slug=' . urlencode($selected_category['slug']), 'icon' => $selected_category['icon'] ?? 'fas fa-folder'];
 }
 
 if ($is_edit_mode) {
-    $breadcrumb_items[] = ['text' => $editing_topic['title'], 'url' => '/public/forum/topic.php?id=' . $edit_topic_id, 'icon' => 'fas fa-comment-dots'];
+    $breadcrumb_items[] = ['text' => $editing_topic['title'], 'url' => 'topic.php?id=' . $edit_topic_id, 'icon' => 'fas fa-comment-dots'];
     $breadcrumb_items[] = ['text' => 'Düzenle', 'url' => '', 'icon' => 'fas fa-edit'];
 } else {
     $breadcrumb_items[] = ['text' => 'Yeni Konu', 'url' => '', 'icon' => 'fas fa-plus'];
@@ -321,9 +321,8 @@ include BASE_PATH . '/src/includes/header.php';
 include BASE_PATH . '/src/includes/navbar.php';
 ?>
 
-<link rel="stylesheet" href="/public/forum/css/forum.css">
-<link rel="stylesheet" href="/public/forum/css/create_topic.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="css/forum.css">
+<link rel="stylesheet" href="css/create_topic.css">
 
 <div class="forum-page-container">
     <!-- Breadcrumb -->
@@ -569,11 +568,11 @@ include BASE_PATH . '/src/includes/navbar.php';
 
                 <a href="<?php
                 if ($is_edit_mode) {
-                    echo '/public/forum/topic.php?id=' . $edit_topic_id;
+                    echo 'topic.php?id=' . $edit_topic_id;
                 } elseif ($selected_category) {
-                    echo '/public/forum/category.php?slug=' . urlencode($selected_category['slug']);
+                    echo 'category.php?slug=' . urlencode($selected_category['slug']);
                 } else {
-                    echo '/public/forum/';
+                    echo '';
                 }
                 ?>" class="btn-cancel">
                     <i class="fas fa-times"></i> İptal
@@ -605,8 +604,8 @@ include BASE_PATH . '/src/includes/navbar.php';
     </div>
 </div>
 
-<script src="/public/forum/js/forum.js"></script>
-<script src="/public/forum/js/create_topic.js"></script>
+<script src="js/forum.js"></script>
+<script src="js/create_topic.js"></script>
 <script>
     // Edit mode için özel ayarlamalar
     document.addEventListener('DOMContentLoaded', function () {

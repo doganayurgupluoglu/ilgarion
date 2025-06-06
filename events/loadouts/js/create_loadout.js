@@ -1,8 +1,9 @@
-// /events/loadouts/js/create_loadout.js - Tip Filtresi Düzeltildi
 
 // Global variables
 let currentSearchResults = [];
 let loadoutItems = new Map(); // slot_id -> item_data
+let weaponAttachments = new Map(); // parent_slot_id -> Map(attachment_slot_id -> attachment_data)
+let attachmentSlots = new Map(); // parent_slot_id -> [attachment_slot_definitions]
 let isSearching = false;
 
 // CSRF token
@@ -15,7 +16,7 @@ const API_CONFIG = {
     MAX_RESULTS: 50
 };
 
-// Item type mapping for slot compatibility
+// Item type mapping for slot compatibility - GÜNCELLENMIŞ
 const SLOT_TYPE_MAPPING = {
     'WeaponPersonal': ['Birincil Silah 1', 'Birincil Silah 2 (Sırtta)', 'İkincil Silah (Tabanca veya Medgun)', 'Yardımcı Modül/Gadget 1'],
     'Char_Armor_Helmet': ['Kask'],
@@ -31,8 +32,15 @@ const SLOT_TYPE_MAPPING = {
     'tool_multitool': ['Multi-Tool Attachment'],
     'tool': ['Multi-Tool Attachment'],
     'weaponattachment': ['Multi-Tool Attachment'],
-    'toolattachment': ['Multi-Tool Attachment']
+    'toolattachment': ['Multi-Tool Attachment'],
+    // WEAPON ATTACHMENTS - YENİ
+    'IronSight': [], // Dynamic - will be filled by getAttachmentSlots()
+    'Barrel': [], // Dynamic - will be filled by getAttachmentSlots()
+    'BottomAttachment': [] // Dynamic - will be filled by getAttachmentSlots()
 };
+
+// Weapon slots that support attachments
+const WEAPON_SLOTS = [7, 8, 9]; // Birincil Silah 1, Birincil Silah 2, İkincil Silah
 
 // DOM Elements
 const searchInput = document.getElementById('item_search');
@@ -310,13 +318,29 @@ function getCompatibleSlots(item) {
     
     console.log('Checking compatibility for:', itemType, itemSubType);
     
-    // Type-based compatibility
-    Object.entries(SLOT_TYPE_MAPPING).forEach(([type, slotNames]) => {
-        if (itemType.includes(type) || itemSubType.includes(type)) {
-            compatibleSlots.push(...slotNames);
-            console.log('Compatible with:', slotNames, 'due to type:', type);
+    // WEAPON ATTACHMENTS - ÖZEL KONTROL
+    if (itemType === 'WeaponAttachment') {
+        // API'den gelen sub_type'a göre mapping
+        const attachmentMapping = {
+            'Barrel': ['Namlu Eklentisi'],
+            'IronSight': ['Nişangah/Optik'], 
+            'BottomAttachment': ['Alt Bağlantı'],
+            'Utility': ['Alt Bağlantı'] // Utility'i de alt bağlantı olarak kabul et
+        };
+        
+        if (attachmentMapping[itemSubType]) {
+            compatibleSlots.push(...attachmentMapping[itemSubType]);
+            console.log('WeaponAttachment compatible with:', attachmentMapping[itemSubType], 'due to sub_type:', itemSubType);
         }
-    });
+    } else {
+        // Normal item type mapping (silahlar, zırhlar vs.)
+        Object.entries(SLOT_TYPE_MAPPING).forEach(([type, slotNames]) => {
+            if (itemType.includes(type) || itemSubType.includes(type)) {
+                compatibleSlots.push(...slotNames);
+                console.log('Compatible with:', slotNames, 'due to type:', type);
+            }
+        });
+    }
 
     // Multi-type compatibility
     if (item.slot_type) {
@@ -334,6 +358,13 @@ function getCompatibleSlots(item) {
 }
 
 function assignItemToFirstCompatibleSlot(item, compatibleSlots) {
+    // WEAPON ATTACHMENT ise attachment slotlarına yerleştir
+    if (item.type === 'WeaponAttachment') {
+        assignAttachmentToFirstCompatibleSlot(item, compatibleSlots);
+        return;
+    }
+    
+    // Normal item ise normal slotlara yerleştir
     // Find first empty compatible slot
     for (const slotName of compatibleSlots) {
         const slot = findSlotByName(slotName);
@@ -347,6 +378,27 @@ function assignItemToFirstCompatibleSlot(item, compatibleSlots) {
     showSlotSelectionModal(item, compatibleSlots);
 }
 
+function assignAttachmentToFirstCompatibleSlot(attachment, compatibleSlots) {
+    console.log('🎯 Looking for attachment slots:', compatibleSlots);
+    
+    // Find first empty compatible attachment slot
+    for (const slotName of compatibleSlots) {
+        const attachmentSlots = document.querySelectorAll(`[data-slot-name="${slotName}"].attachment-slot`);
+        
+        for (const attachmentSlot of attachmentSlots) {
+            if (!attachmentSlot.classList.contains('has-attachment')) {
+                const parentSlotId = parseInt(attachmentSlot.dataset.parentSlotId);
+                const attachmentSlotId = parseInt(attachmentSlot.dataset.attachmentSlotId);
+                
+                assignAttachmentToSlot(attachment, parentSlotId, attachmentSlotId);
+                return;
+            }
+        }
+    }
+    
+    showMessage(`${attachment.name || 'Bu attachment'} için uygun boş slot bulunamadı`, 'warning');
+}
+
 function findSlotByName(slotName) {
     const slots = document.querySelectorAll('.equipment-slot');
     for (const slot of slots) {
@@ -358,14 +410,14 @@ function findSlotByName(slotName) {
 }
 
 function assignItemToSlot(item, slot) {
-    const slotId = slot.dataset.slotId;
+    const slotId = parseInt(slot.dataset.slotId);
     const slotContent = slot.querySelector('.slot-content');
     const slotEmpty = slot.querySelector('.slot-empty');
     const slotItem = slot.querySelector('.slot-item');
     const clearBtn = slot.querySelector('.slot-clear-btn');
 
     // Store item data
-    loadoutItems.set(parseInt(slotId), item);
+    loadoutItems.set(slotId, item);
 
     // Update UI
     slot.classList.add('has-item');
@@ -373,12 +425,17 @@ function assignItemToSlot(item, slot) {
     slotItem.style.display = 'flex';
     clearBtn.style.display = 'inline-flex';
 
-    // Update item display - görsel olmadan
+    // Update item display
     const itemName = slotItem.querySelector('.item-name');
     const itemManufacturer = slotItem.querySelector('.item-manufacturer');
 
     itemName.textContent = item.name || 'Unknown Item';
     itemManufacturer.textContent = item.manufacturer?.name || 'Unknown Manufacturer';
+
+    // Check if this is a weapon slot and create attachment slots
+    if (WEAPON_SLOTS.includes(slotId) && item.type === 'WeaponPersonal') {
+        createAttachmentSlots(slotId);
+    }
 
     // Show success message
     showMessage(`${item.name || 'Item'} ${slot.dataset.slotName} slotuna eklendi`, 'success');
@@ -400,7 +457,12 @@ function clearSlot(slotId) {
     const clearBtn = slot.querySelector('.slot-clear-btn');
 
     // Remove from data
-    loadoutItems.delete(slotId);
+    loadoutItems.delete(parseInt(slotId));
+
+    // If this is a weapon slot, remove attachments too
+    if (WEAPON_SLOTS.includes(parseInt(slotId))) {
+        removeAttachmentSlots(parseInt(slotId));
+    }
 
     // Update UI
     slot.classList.remove('has-item');
@@ -564,7 +626,268 @@ function focusSearchForSlot(slot) {
     }, 2000);
 }
 
-// Form Submission
+// WEAPON ATTACHMENT FUNCTIONS - YENİ
+
+async function createAttachmentSlots(parentSlotId) {
+    console.log('Creating attachment slots for parent slot:', parentSlotId);
+    
+    try {
+        // Get attachment slot definitions from API
+        const response = await fetch(`api/get_attachment_slots.php?parent_slot_id=${parentSlotId}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('Failed to get attachment slots:', data.error);
+            return;
+        }
+        
+        const attachmentSlotDefs = data.data;
+        attachmentSlots.set(parentSlotId, attachmentSlotDefs);
+        
+        // Update slot type mapping for attachments
+        updateAttachmentSlotMapping(attachmentSlotDefs);
+        
+        // Create UI elements
+        createAttachmentSlotsUI(parentSlotId, attachmentSlotDefs);
+        
+    } catch (error) {
+        console.error('Error creating attachment slots:', error);
+    }
+}
+
+function updateAttachmentSlotMapping(attachmentSlotDefs) {
+    // Clear previous mappings
+    SLOT_TYPE_MAPPING['IronSight'] = [];
+    SLOT_TYPE_MAPPING['Barrel'] = [];
+    SLOT_TYPE_MAPPING['BottomAttachment'] = [];
+    
+    // Update mappings with dynamic slot names
+    attachmentSlotDefs.forEach(slotDef => {
+        if (SLOT_TYPE_MAPPING[slotDef.slot_type]) {
+            SLOT_TYPE_MAPPING[slotDef.slot_type].push(slotDef.slot_name);
+        }
+    });
+    
+    console.log('Updated attachment slot mappings:', SLOT_TYPE_MAPPING);
+}
+
+function createAttachmentSlotsUI(parentSlotId, attachmentSlotDefs) {
+    const parentSlot = document.querySelector(`[data-slot-id="${parentSlotId}"]`);
+    if (!parentSlot) return;
+    
+    // Remove existing attachment slots
+    removeAttachmentSlots(parentSlotId);
+    
+    // Create attachment slots container
+    const attachmentContainer = document.createElement('div');
+    attachmentContainer.className = 'attachment-slots-container';
+    attachmentContainer.id = `attachment-slots-${parentSlotId}`;
+    
+    attachmentSlotDefs.forEach(slotDef => {
+        const attachmentSlot = createAttachmentSlotElement(parentSlotId, slotDef);
+        attachmentContainer.appendChild(attachmentSlot);
+    });
+    
+    // Insert after parent slot
+    parentSlot.parentNode.insertBefore(attachmentContainer, parentSlot.nextSibling);
+    
+    // Initialize attachment slots data structure
+    if (!weaponAttachments.has(parentSlotId)) {
+        weaponAttachments.set(parentSlotId, new Map());
+    }
+}
+
+function createAttachmentSlotElement(parentSlotId, slotDef) {
+    const attachmentSlot = document.createElement('div');
+    attachmentSlot.className = 'attachment-slot';
+    attachmentSlot.dataset.parentSlotId = parentSlotId;
+    attachmentSlot.dataset.attachmentSlotId = slotDef.id;
+    attachmentSlot.dataset.slotType = slotDef.slot_type;
+    attachmentSlot.dataset.slotName = slotDef.slot_name;
+    
+    attachmentSlot.innerHTML = `
+        <div class="attachment-slot-header">
+            <span class="attachment-slot-name">
+                <i class="${slotDef.icon_class || 'fas fa-puzzle-piece'}"></i>
+                ${escapeHtml(slotDef.slot_name)}
+            </span>
+            <button type="button" class="attachment-clear-btn" onclick="clearAttachmentSlot(${parentSlotId}, ${slotDef.id})" style="display: none;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="attachment-slot-content">
+            <div class="attachment-empty">
+                <i class="${slotDef.icon_class || 'fas fa-puzzle-piece'}"></i>
+                <span>Boş</span>
+                <small>${escapeHtml(slotDef.slot_type)}</small>
+            </div>
+            <div class="attachment-item" style="display: none;">
+                <div class="attachment-info">
+                    <span class="attachment-name"></span>
+                    <small class="attachment-manufacturer"></small>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Event listeners
+    attachmentSlot.addEventListener('click', function() {
+        if (!this.classList.contains('has-attachment')) {
+            focusSearchForAttachment(this);
+        }
+    });
+    
+    // Drag and drop
+    attachmentSlot.addEventListener('dragover', handleAttachmentDragOver);
+    attachmentSlot.addEventListener('drop', handleAttachmentDrop);
+    attachmentSlot.addEventListener('dragleave', handleAttachmentDragLeave);
+    
+    return attachmentSlot;
+}
+
+function removeAttachmentSlots(parentSlotId) {
+    const existingContainer = document.getElementById(`attachment-slots-${parentSlotId}`);
+    if (existingContainer) {
+        existingContainer.remove();
+    }
+    
+    // Clear data
+    weaponAttachments.delete(parentSlotId);
+    attachmentSlots.delete(parentSlotId);
+}
+
+function assignAttachmentToSlot(attachment, parentSlotId, attachmentSlotId) {
+    const attachmentSlot = document.querySelector(
+        `[data-parent-slot-id="${parentSlotId}"][data-attachment-slot-id="${attachmentSlotId}"]`
+    );
+    
+    if (!attachmentSlot) {
+        console.error('Attachment slot not found');
+        return;
+    }
+    
+    // Store attachment data
+    if (!weaponAttachments.has(parentSlotId)) {
+        weaponAttachments.set(parentSlotId, new Map());
+    }
+    weaponAttachments.get(parentSlotId).set(attachmentSlotId, attachment);
+    
+    // Update UI
+    const attachmentEmpty = attachmentSlot.querySelector('.attachment-empty');
+    const attachmentItem = attachmentSlot.querySelector('.attachment-item');
+    const clearBtn = attachmentSlot.querySelector('.attachment-clear-btn');
+    
+    attachmentSlot.classList.add('has-attachment');
+    attachmentEmpty.style.display = 'none';
+    attachmentItem.style.display = 'flex';
+    clearBtn.style.display = 'inline-flex';
+    
+    // Update attachment display
+    const attachmentName = attachmentItem.querySelector('.attachment-name');
+    const attachmentManufacturer = attachmentItem.querySelector('.attachment-manufacturer');
+    
+    attachmentName.textContent = attachment.name || 'Unknown Attachment';
+    attachmentManufacturer.textContent = attachment.manufacturer?.name || 'Unknown Manufacturer';
+    
+    // Visual feedback
+    attachmentSlot.style.transform = 'scale(1.05)';
+    setTimeout(() => {
+        attachmentSlot.style.transform = '';
+    }, 200);
+    
+    showMessage(`${attachment.name || 'Attachment'} ${attachmentSlot.dataset.slotName} slotuna eklendi`, 'success');
+}
+
+function clearAttachmentSlot(parentSlotId, attachmentSlotId) {
+    const attachmentSlot = document.querySelector(
+        `[data-parent-slot-id="${parentSlotId}"][data-attachment-slot-id="${attachmentSlotId}"]`
+    );
+    
+    if (!attachmentSlot) return;
+    
+    // Remove from data
+    if (weaponAttachments.has(parentSlotId)) {
+        weaponAttachments.get(parentSlotId).delete(attachmentSlotId);
+    }
+    
+    // Update UI
+    const attachmentEmpty = attachmentSlot.querySelector('.attachment-empty');
+    const attachmentItem = attachmentSlot.querySelector('.attachment-item');
+    const clearBtn = attachmentSlot.querySelector('.attachment-clear-btn');
+    
+    attachmentSlot.classList.remove('has-attachment');
+    attachmentEmpty.style.display = 'block';
+    attachmentItem.style.display = 'none';
+    clearBtn.style.display = 'none';
+    
+    // Visual feedback
+    attachmentSlot.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        attachmentSlot.style.transform = '';
+    }, 200);
+}
+
+function focusSearchForAttachment(attachmentSlot) {
+    const slotType = attachmentSlot.dataset.slotType;
+    
+    // Set filter to attachment type
+    if (typeFilter) {
+        // Find matching filter option
+        const filterOptions = typeFilter.querySelectorAll('option');
+        for (const option of filterOptions) {
+            if (option.value === slotType || option.textContent.includes(slotType)) {
+                typeFilter.value = option.value;
+                break;
+            }
+        }
+    }
+    
+    // Focus search
+    searchInput.focus();
+    searchInput.placeholder = `${attachmentSlot.dataset.slotName} için arama yapın...`;
+    
+    // Highlight the attachment slot
+    attachmentSlot.style.borderColor = 'var(--turquase)';
+    attachmentSlot.style.boxShadow = '0 0 10px rgba(115, 228, 224, 0.3)';
+    
+    setTimeout(() => {
+        attachmentSlot.style.borderColor = '';
+        attachmentSlot.style.boxShadow = '';
+        searchInput.placeholder = 'Item adı yazın (örn: Morozov, Helmet)';
+    }, 3000);
+}
+
+// Attachment Drag and Drop Functions
+function handleAttachmentDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    this.classList.add('attachment-drag-over');
+}
+
+function handleAttachmentDrop(e) {
+    e.preventDefault();
+    this.classList.remove('attachment-drag-over');
+    
+    try {
+        const attachment = JSON.parse(e.dataTransfer.getData('application/json'));
+        const parentSlotId = parseInt(this.dataset.parentSlotId);
+        const attachmentSlotId = parseInt(this.dataset.attachmentSlotId);
+        const expectedType = this.dataset.slotType;
+        
+        if (attachment.type === expectedType) {
+            assignAttachmentToSlot(attachment, parentSlotId, attachmentSlotId);
+        } else {
+            showMessage(`${attachment.name || 'Bu attachment'} ${this.dataset.slotName} slotuna uyumlu değil (${expectedType} gerekli)`, 'error');
+        }
+    } catch (error) {
+        console.error('Attachment drop error:', error);
+        showMessage('Attachment yerleştirme hatası', 'error');
+    }
+}
+
+function handleAttachmentDragLeave(e) {
+    this.classList.remove('attachment-drag-over');
+}
 function handleFormSubmission(e) {
     e.preventDefault();
     
@@ -621,14 +944,15 @@ function handleFormSubmission(e) {
     });
 }
 
-// Load existing items (for edit mode)
-function loadExistingItems(existingItems) {
-    existingItems.forEach(itemData => {
+// Load existing items (for edit mode) - WEAPON ATTACHMENTS İLE GÜNCELLENMİŞ
+async function loadExistingItems(existingItems) {
+    // First load main items
+    for (const itemData of existingItems) {
         const slotId = itemData.equipment_slot_id;
-        if (!slotId) return;
+        if (!slotId) continue;
         
         const slot = document.querySelector(`[data-slot-id="${slotId}"]`);
-        if (!slot) return;
+        if (!slot) continue;
         
         // Create item object from existing data
         const item = {
@@ -641,7 +965,76 @@ function loadExistingItems(existingItems) {
         };
         
         assignItemToSlot(item, slot);
-    });
+    }
+    
+    // Then load existing attachments if in edit mode
+    const loadoutId = getLoadoutIdFromUrl();
+    if (loadoutId) {
+        await loadExistingAttachments(loadoutId);
+    }
+}
+
+async function loadExistingAttachments(loadoutSetId) {
+    try {
+        const response = await fetch('api/get_attachment_slots.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                loadout_set_id: loadoutSetId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('Failed to load existing attachments:', data.error);
+            return;
+        }
+        
+        // Load attachments grouped by parent slot
+        const groupedAttachments = data.grouped || {};
+        
+        for (const [parentSlotId, attachments] of Object.entries(groupedAttachments)) {
+            const parentSlotIdInt = parseInt(parentSlotId);
+            
+            // Ensure attachment slots are created first
+            if (WEAPON_SLOTS.includes(parentSlotIdInt) && loadoutItems.has(parentSlotIdInt)) {
+                // Wait a bit for attachment slots to be created
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Load each attachment
+                for (const attachmentData of attachments) {
+                    const attachment = {
+                        name: attachmentData.attachment_item_name,
+                        uuid: attachmentData.attachment_item_uuid,
+                        type: attachmentData.attachment_item_type,
+                        manufacturer: {
+                            name: attachmentData.attachment_item_manufacturer
+                        }
+                    };
+                    
+                    assignAttachmentToSlot(
+                        attachment,
+                        parentSlotIdInt,
+                        attachmentData.attachment_slot_id
+                    );
+                }
+            }
+        }
+        
+        console.log('Loaded existing attachments:', groupedAttachments);
+        
+    } catch (error) {
+        console.error('Error loading existing attachments:', error);
+    }
+}
+
+function getLoadoutIdFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const editParam = urlParams.get('edit');
+    return editParam ? parseInt(editParam) : null;
 }
 
 // Utility Functions
@@ -689,9 +1082,12 @@ function showMessage(message, type = 'info') {
     }, 5000);
 }
 
-// Export functions for global access
+// Export functions for global access - GÜNCELLENMİŞ
 window.clearSlot = clearSlot;
+window.clearAttachmentSlot = clearAttachmentSlot;
 window.closeModal = closeModal;
 window.searchItems = searchItems;
 window.loadExistingItems = loadExistingItems;
 window.clearFilter = clearFilter;
+window.createAttachmentSlots = createAttachmentSlots;
+window.assignAttachmentToSlot = assignAttachmentToSlot;

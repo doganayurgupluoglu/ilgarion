@@ -372,18 +372,19 @@ include BASE_PATH . '/src/includes/navbar.php';
                         <div class="post-body">
                             <?= parse_bbcode($post['content']) ?>
 
-                            <?php if ($post['is_edited']): ?>
-                                <div class="post-edited-info">
-                                    <i class="fas fa-edit"></i>
-                                    <em>Son düzenleme: <?= format_time_ago($post['edited_at']) ?></em>
-                                </div>
-                            <?php endif; ?>
+                            
                         </div>
 
                         <div class="post-footer">
                             <div class="post-date">
                                 <i class="fas fa-clock"></i>
                                 <?= format_time_ago($post['created_at']) ?>
+                                <?php if ($post['is_edited']): ?>
+                                <div class="post-edited-info">
+                                    <i class="fas fa-edit"></i>
+                                    <em>Son düzenleme: <?= format_time_ago($post['edited_at']) ?></em>
+                                </div>
+                            <?php endif; ?>
                             </div>
 
 

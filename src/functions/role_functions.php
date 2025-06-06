@@ -431,7 +431,7 @@ function require_permission(PDO $pdo, string $permission, ?string $redirect_url 
     if (!has_permission($pdo, $permission)) {
         $_SESSION['error_message'] = "Bu işlem için gerekli yetkiye sahip değilsiniz.";
         if ($redirect_url === null) {
-            $redirect_url = get_auth_base_url() . '/index.php?status=permission_denied';
+            $redirect_url =  '/index.php?status=permission_denied';
         }
         
         // Audit log - yetkisiz erişim girişimi

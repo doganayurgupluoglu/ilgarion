@@ -330,6 +330,49 @@ function generate_loadout_breadcrumb($items) {
 
 <script src="js/create_loadout.js"></script>
 
+<!-- ATTACHMENT DEBUG - Geçici -->
+<script>
+console.log('🔧 create_loadouts.php loaded');
+
+// Manual test fonksiyonu
+window.debugAttachments = function() {
+    console.log('🔧 Manual debug trigger');
+    if (typeof createAttachmentSlots === 'function') {
+        console.log('🔧 Testing createAttachmentSlots(7)');
+        createAttachmentSlots(7);
+    } else {
+        console.log('🔧 createAttachmentSlots function not found!');
+    }
+};
+
+// Manual API test
+window.testAttachmentAPI = async function() {
+    console.log('🔧 Testing Attachment API directly...');
+    try {
+        const response = await fetch('api/get_attachment_slots.php?parent_slot_id=7');
+        const text = await response.text();
+        console.log('🔧 API Raw Response:', text);
+        
+        try {
+            const data = JSON.parse(text);
+            console.log('🔧 API Parsed Response:', data);
+        } catch (e) {
+            console.log('❌ API returned invalid JSON:', e.message);
+        }
+    } catch (error) {
+        console.log('❌ API Request Failed:', error);
+    }
+};
+
+// Auto-run when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        console.log('🔧 Auto-testing attachment API...');
+        testAttachmentAPI();
+    }, 2000);
+});
+</script>
+
 <?php if ($edit_mode && !empty($existing_items)): ?>
 <script>
 // Mevcut itemleri yükle
