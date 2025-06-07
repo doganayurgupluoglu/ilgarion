@@ -1,5 +1,5 @@
 <?php
-// events/includes/events_sidebar.php - Events sayfaları için sidebar
+// events/includes/events_sidebar.php - Events sayfaları için sidebar (YETKİ KONTROLLÜ)
 
 // Mevcut sayfa tespiti
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
@@ -17,10 +17,14 @@ if ($current_dir === 'loadouts' || strpos($_SERVER['REQUEST_URI'], '/loadouts/')
     $main_section = 'events'; // Default
 }
 
-// Yetki kontrolleri
+// Yetki kontrolleri - YENİ YETKİLER
 $can_create_event = is_user_approved() && has_permission($pdo, 'event.create');
-$can_create_loadout = is_user_approved() && has_permission($pdo, 'loadout.manage_sets');
-$can_view_roles = is_user_approved(); // Roller henüz tasarlanmadığı için basit kontrol
+$can_create_loadout = is_user_approved() && has_permission($pdo, 'loadout.create_sets');
+$can_view_roles = is_user_approved() && has_permission($pdo, 'event_role.view_public');
+$can_create_role = is_user_approved() && has_permission($pdo, 'event_role.create');
+$can_manage_participants = has_permission($pdo, 'event_role.manage_participants');
+$can_view_statistics = has_permission($pdo, 'event_role.view_statistics');
+$can_manage_skill_tags = has_permission($pdo, 'skill_tag.verify_others');
 ?>
 
 <div class="events-sidebar">
@@ -37,12 +41,14 @@ $can_view_roles = is_user_approved(); // Roller henüz tasarlanmadığı için b
                     <span>Etkinlikler</span>
                 </a>
             </li>
-            <li class="menu-item <?= $main_section === 'roles' ? 'active' : '' ?>">
-                <a href="/events/roles/">
-                    <i class="fas fa-user-tag"></i>
-                    <span>Roller</span>
-                </a>
-            </li>
+            <?php if ($can_view_roles): ?>
+                <li class="menu-item <?= $main_section === 'roles' ? 'active' : '' ?>">
+                    <a href="/events/roles/">
+                        <i class="fas fa-user-tag"></i>
+                        <span>Roller</span>
+                    </a>
+                </li>
+            <?php endif; ?>
             <li class="menu-item <?= $main_section === 'loadouts' ? 'active' : '' ?>">
                 <a href="/events/loadouts/">
                     <i class="fas fa-user-astronaut"></i>
@@ -88,7 +94,7 @@ $can_view_roles = is_user_approved(); // Roller henüz tasarlanmadığı için b
         </div>
     <?php endif; ?>
 
-    <!-- Roller Alt Menüsü -->
+    <!-- Roller Alt Menüsü - YENİ YETKİ KONTROLLÜ -->
     <?php if ($main_section === 'roles'): ?>
         <div class="sidebar-section">
             <ul class="sidebar-submenu">
@@ -99,12 +105,28 @@ $can_view_roles = is_user_approved(); // Roller henüz tasarlanmadığı için b
                             <span>Tüm Roller</span>
                         </a>
                     </li>
-                    <li class="submenu-item <?= $current_page === 'create' ? 'active' : '' ?>">
-                        <a href="/events/roles/create.php">
-                            <i class="fas fa-plus"></i>
-                            <span>Yeni Rol Oluştur</span>
+                    <?php if ($can_create_role): ?>
+                        <li class="submenu-item <?= $current_page === 'create' ? 'active' : '' ?>">
+                            <a href="/events/roles/create.php">
+                                <i class="fas fa-plus"></i>
+                                <span>Yeni Rol Oluştur</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                    <li class="submenu-item <?= isset($_GET['filter']) && $_GET['filter'] === 'my_roles' ? 'active' : '' ?>">
+                        <a href="/events/roles/?filter=my_roles">
+                            <i class="fas fa-user"></i>
+                            <span>Oluşturduklarım</span>
                         </a>
                     </li>
+                    <?php if ($can_view_statistics): ?>
+                        <li class="submenu-item <?= $current_page === 'statistics' ? 'active' : '' ?>">
+                            <a href="/events/roles/statistics.php">
+                                <i class="fas fa-chart-bar"></i>
+                                <span>İstatistikler</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
                 <?php else: ?>
                     <li class="submenu-item disabled">
                         <span>
@@ -115,12 +137,39 @@ $can_view_roles = is_user_approved(); // Roller henüz tasarlanmadığı için b
                 <?php endif; ?>
             </ul>
         </div>
+
+        <!-- Roller için özel yönetim menüsü -->
+        <?php if ($can_manage_participants || $can_manage_skill_tags): ?>
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="fas fa-cogs"></i>
+                    Rol Yönetimi
+                </h3>
+                <ul class="sidebar-submenu">
+                    <?php if ($can_manage_participants): ?>
+                        <li class="submenu-item <?= $current_page === 'manage_participants' ? 'active' : '' ?>">
+                            <a href="/events/roles/manage_participants.php">
+                                <i class="fas fa-users-cog"></i>
+                                <span>Katılımcı Yönetimi</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                    <?php if ($can_manage_skill_tags): ?>
+                        <li class="submenu-item <?= $current_page === 'skill_tags' ? 'active' : '' ?>">
+                            <a href="/events/roles/skill_tags.php">
+                                <i class="fas fa-tags"></i>
+                                <span>Skill Tag Yönetimi</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 
-    <!-- Teçhizat Setleri Alt Menüsü -->
+    <!-- Teçhizat Setleri Alt Menüsü - GÜNCELLENECEK -->
     <?php if ($main_section === 'loadouts'): ?>
         <div class="sidebar-section">
-            
             <ul class="sidebar-submenu">
                 <li class="submenu-item <?= $current_page === 'index' && !isset($_GET['visibility']) ? 'active' : '' ?>">
                     <a href="/events/loadouts/">
@@ -128,33 +177,31 @@ $can_view_roles = is_user_approved(); // Roller henüz tasarlanmadığı için b
                         <span>Tüm Setler</span>
                     </a>
                 </li>
-                <li class="submenu-item <?= isset($_GET['visibility']) && $_GET['visibility'] === 'public' ? 'active' : '' ?>">
-                    <a href="/events/loadouts/?visibility=public">
-                        <i class="fas fa-globe"></i>
-                        <span>Herkese Açık</span>
-                    </a>
-                </li>
-                <?php if (is_user_approved()): ?>
-                    <li class="submenu-item <?= isset($_GET['visibility']) && $_GET['visibility'] === 'members_only' ? 'active' : '' ?>">
-                        <a href="/events/loadouts/?visibility=members_only">
-                            <i class="fas fa-users"></i>
-                            <span>Üyelere Özel</span>
+                <?php if ($can_create_loadout): ?>
+                    <li class="submenu-item <?= $current_page === 'create' ? 'active' : '' ?>">
+                        <a href="/events/loadouts/create.php">
+                            <i class="fas fa-plus"></i>
+                            <span>Yeni Set Oluştur</span>
                         </a>
                     </li>
                 <?php endif; ?>
                 <?php if (is_user_logged_in()): ?>
-                    <li class="submenu-item <?= isset($_GET['visibility']) && $_GET['visibility'] === 'my_sets' ? 'active' : '' ?>">
-                        <a href="/events/loadouts/?visibility=my_sets">
+                    <li class="submenu-item <?= isset($_GET['filter']) && $_GET['filter'] === 'my_loadouts' ? 'active' : '' ?>">
+                        <a href="/events/loadouts/?filter=my_loadouts">
                             <i class="fas fa-user"></i>
                             <span>Setlerim</span>
                         </a>
                     </li>
-                <?php endif; ?>
-                <?php if ($can_create_loadout): ?>
-                    <li class="submenu-item <?= $current_page === 'create_loadouts' ? 'active' : '' ?>">
-                        <a href="/events/loadouts/create_loadouts.php">
-                            <i class="fas fa-plus"></i>
-                            <span>Yeni Set Oluştur</span>
+                    <li class="submenu-item <?= isset($_GET['visibility']) && $_GET['visibility'] === 'public' ? 'active' : '' ?>">
+                        <a href="/events/loadouts/?visibility=public">
+                            <i class="fas fa-globe"></i>
+                            <span>Herkese Açık</span>
+                        </a>
+                    </li>
+                    <li class="submenu-item <?= isset($_GET['visibility']) && $_GET['visibility'] === 'members_only' ? 'active' : '' ?>">
+                        <a href="/events/loadouts/?visibility=members_only">
+                            <i class="fas fa-users"></i>
+                            <span>Sadece Üyeler</span>
                         </a>
                     </li>
                 <?php endif; ?>
@@ -162,49 +209,75 @@ $can_view_roles = is_user_approved(); // Roller henüz tasarlanmadığı için b
         </div>
     <?php endif; ?>
 
-    <!-- İstatistikler (Opsiyonel) -->
-    <?php if (is_user_logged_in()): ?>
+    <!-- İstatistikler - ROLLER İÇİN -->
+    <?php if ($main_section === 'roles' && $can_view_statistics): ?>
         <div class="sidebar-section sidebar-stats">
             <h3 class="sidebar-title">
                 <i class="fas fa-chart-line"></i>
-                Hızlı Bilgi
+                Rol İstatistikleri
             </h3>
             <div class="stats-grid">
                 <?php
+                // Basit istatistikler çek
                 try {
-                    // Aktif etkinlik sayısı
-                    $active_events_stmt = $pdo->prepare("
-                        SELECT COUNT(*) 
-                        FROM events 
-                        WHERE status = 'active' AND event_datetime > NOW()
-                    ");
-                    $active_events_stmt->execute();
-                    $active_events_count = $active_events_stmt->fetchColumn();
-
-                    // Teçhizat seti sayısı (kullanıcının görebileceği)
-                    $loadout_visibility = !is_user_logged_in() ? "visibility = 'public'" : 
-                                          (!is_user_approved() ? "visibility = 'public'" : 
-                                          "visibility IN ('public', 'members_only')");
+                    // Toplam rol sayısı
+                    $total_roles_stmt = $pdo->prepare("SELECT COUNT(*) FROM event_roles WHERE is_active = 1");
+                    $total_roles_stmt->execute();
+                    $total_roles = $total_roles_stmt->fetchColumn();
                     
-                    $loadouts_stmt = $pdo->prepare("
-                        SELECT COUNT(*) 
-                        FROM loadout_sets 
-                        WHERE status = 'published' AND $loadout_visibility
+                    // Kullanılan roller (etkinliklerde)
+                    $used_roles_stmt = $pdo->prepare("
+                        SELECT COUNT(DISTINCT event_role_id) 
+                        FROM event_role_slots ers 
+                        JOIN events e ON ers.event_id = e.id 
+                        WHERE e.status != 'cancelled'
                     ");
-                    $loadouts_stmt->execute();
-                    $loadouts_count = $loadouts_stmt->fetchColumn();
-                } catch (Exception $e) {
-                    $active_events_count = 0;
-                    $loadouts_count = 0;
+                    $used_roles_stmt->execute();
+                    $used_roles = $used_roles_stmt->fetchColumn();
+                    
+                    // Bu ay oluşturulan roller
+                    $this_month_stmt = $pdo->prepare("
+                        SELECT COUNT(*) FROM event_roles 
+                        WHERE is_active = 1 AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
+                        AND YEAR(created_at) = YEAR(CURRENT_DATE())
+                    ");
+                    $this_month_stmt->execute();
+                    $this_month_roles = $this_month_stmt->fetchColumn();
+                    
+                    // Aktif katılımcılar
+                    $active_participants_stmt = $pdo->prepare("
+                        SELECT COUNT(*) FROM event_role_participants erp
+                        JOIN event_role_slots ers ON erp.event_role_slot_id = ers.id
+                        JOIN events e ON ers.event_id = e.id
+                        WHERE erp.status = 'active' AND e.status = 'active'
+                    ");
+                    $active_participants_stmt->execute();
+                    $active_participants = $active_participants_stmt->fetchColumn();
+                    
+                } catch (PDOException $e) {
+                    error_log("Sidebar stats error: " . $e->getMessage());
+                    $total_roles = $used_roles = $this_month_roles = $active_participants = 0;
                 }
                 ?>
+                
                 <div class="stat-item-sidebar">
-                    <div class="stat-number"><?= $active_events_count ?></div>
-                    <div class="stat-label">Aktif Etkinlik</div>
+                    <div class="stat-number"><?= $total_roles ?></div>
+                    <div class="stat-label">Toplam Rol</div>
                 </div>
+                
                 <div class="stat-item-sidebar">
-                    <div class="stat-number"><?= $loadouts_count ?></div>
-                    <div class="stat-label">Teçhizat Seti</div>
+                    <div class="stat-number"><?= $used_roles ?></div>
+                    <div class="stat-label">Kullanılan</div>
+                </div>
+                
+                <div class="stat-item-sidebar">
+                    <div class="stat-number"><?= $this_month_roles ?></div>
+                    <div class="stat-label">Bu Ay</div>
+                </div>
+                
+                <div class="stat-item-sidebar">
+                    <div class="stat-number"><?= $active_participants ?></div>
+                    <div class="stat-label">Katılımcı</div>
                 </div>
             </div>
         </div>
