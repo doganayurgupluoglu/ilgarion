@@ -223,7 +223,7 @@ events_layout_start($breadcrumb_items, $page_title);
         </div>
         <div class="header-actions">
             <?php if (is_user_approved() && has_permission($pdo, 'loadout.manage_sets')): ?>
-                <a href="create_loadouts.php" class="btn-primary">
+                <a href="create.php" class="btn-primary">
                     <i class="fas fa-plus"></i>
                     Yeni Set Oluştur
                 </a>

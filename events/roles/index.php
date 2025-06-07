@@ -86,11 +86,6 @@ try {
             break;
     }
     
-    // Debug: Toplam aktif rol sayısı
-    $debug_stmt = $pdo->prepare("SELECT COUNT(*) FROM event_roles WHERE is_active = 1");
-    $debug_stmt->execute();
-    $total_roles_in_db = $debug_stmt->fetchColumn();
-    
     // COUNT sorgusu
     $count_sql = "
         SELECT COUNT(DISTINCT er.id)
@@ -135,29 +130,12 @@ try {
     // Sayfalama hesaplamaları
     $total_pages = ceil($total_count / $per_page);
     
-    // Debug bilgileri
-    $debug_info = [
-        'total_roles_in_db' => $total_roles_in_db,
-        'filtered_count' => $total_count,
-        'returned_roles' => count($roles),
-        'where_clause' => $where_clause,
-        'bind_params_count' => count($bind_params),
-        'search_term' => $search,
-        'filter' => $filter,
-        'user_permissions' => [
-            'is_logged_in' => $is_logged_in,
-            'is_approved' => $is_approved,
-            'create' => $can_create_role
-        ]
-    ];
-    
 } catch (PDOException $e) {
     error_log("Roles index error: " . $e->getMessage());
-    $_SESSION['error_message'] = "Roller yüklenirken bir hata oluştu: " . $e->getMessage();
+    $_SESSION['error_message'] = "Roller yüklenirken bir hata oluştu.";
     $roles = [];
     $total_count = 0;
     $total_pages = 0;
-    $debug_info = ['error' => $e->getMessage()];
 }
 
 // Sayfa başlığı ve breadcrumb
@@ -177,14 +155,6 @@ events_layout_start($breadcrumb_items, $page_title);
 <link rel="stylesheet" href="css/roles.css">
 
 <div class="loadout-view-container">
-    <!-- Debug Bilgileri (Geliştirme aşamasında) -->
-    <?php if (isset($_GET['debug'])): ?>
-        <div class="alert alert-info" style="background: var(--card-bg); border: 1px solid var(--border-1); color: var(--lighter-grey); padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
-            <h5>Debug Bilgileri:</h5>
-            <pre style="color: var(--lighter-grey); white-space: pre-wrap;"><?= htmlspecialchars(json_encode($debug_info, JSON_PRETTY_PRINT)) ?></pre>
-        </div>
-    <?php endif; ?>
-
     <!-- Sayfa Başlığı ve Eylemler -->
     <div class="set-meta">
         <div class="set-header">
@@ -202,13 +172,6 @@ events_layout_start($breadcrumb_items, $page_title);
                 <a href="create.php" class="btn-action-primary">
                     <i class="fas fa-plus"></i>
                     Yeni Rol Oluştur
-                </a>
-            <?php endif; ?>
-            
-            <?php if ($is_logged_in): ?>
-                <a href="?debug=1" class="btn-action-secondary">
-                    <i class="fas fa-bug"></i>
-                    Debug Bilgileri
                 </a>
             <?php endif; ?>
         </div>

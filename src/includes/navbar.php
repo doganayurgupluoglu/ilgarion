@@ -61,13 +61,6 @@ $nav_links_config_navbar = [
         'show_to_guests' => true // Herkese açık galeri için
     ],
     [
-        'title' => 'Teçhizat Setleri',
-        'url' => 'loadouts.php',
-        'icon' => 'fa-user-shield',
-        'permission' => null,
-        'show_to_guests' => true // Sadece üyeler
-    ],
-    [
         'title' => 'Üyeler',
         'url' => 'users',
         'icon' => 'fa-users',
