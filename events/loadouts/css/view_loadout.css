@@ -381,7 +381,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 0.75rem;
-    background: linear-gradient(135deg, var(--turquase), var(--light-turquase));
+    background: linear-gradient(45deg, var(--turquase), var(--gold));
     color: var(--charcoal);
     border-radius: 20px;
     font-weight: 600;

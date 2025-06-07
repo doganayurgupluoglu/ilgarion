@@ -1,8 +1,11 @@
 <?php
 // public/edit_hangar.php
 
-require_once '../src/config/database.php'; // $pdo ve BASE_PATH
+require_once 'src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
+require_once BASE_PATH . '/src/functions/role_functions.php';
+require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+
 
 require_approved_user();
 
