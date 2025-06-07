@@ -912,3 +912,220 @@
         max-width: 200px;
     }
 }
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border-1-featured);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-1);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--red);
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.modal-close {
+    background: transparent;
+    border: 1px solid var(--border-1);
+    color: var(--light-grey);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background: var(--red);
+    color: var(--white);
+    border-color: var(--red);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-1);
+}
+
+.btn-secondary {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    color: var(--light-grey);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: var(--card-bg-2);
+    color: var(--lighter-grey);
+}
+
+.btn-delete {
+    padding: 0.75rem 1.5rem;
+    background: var(--red);
+    color: var(--white);
+    border: 1px solid var(--red);
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-delete:hover {
+    background: var(--dark-red);
+    transform: translateY(-1px);
+}
+/* Search Section Styles */
+.search-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.search-form {
+    display: flex;
+    justify-content: center;
+}
+
+.search-input-container {
+    position: relative;
+    width: 100%;
+}
+
+.search-input-container input {
+    width: 100%;
+    padding: 0.75rem 3.5rem 0.75rem 1rem;
+    background: var(--card-bg-3);
+    border: 1px solid var(--border-1);
+    color: var(--lighter-grey);
+    font-family: var(--font);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    border-radius: 8px;
+}
+
+.search-input-container input:focus {
+    outline: none;
+    border-color: var(--light-gold);
+    box-shadow: 0 0 0 2px rgba(199, 150, 83, 0.2);
+}
+
+.search-input-container input::placeholder {
+    color: var(--light-grey);
+}
+
+.search-btn {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    background-color: transparent;
+    transform: translateY(-50%);
+    color: var(--light-gold);
+    border: none;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+    background: var(--gold);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.search-btn i {
+    font-size: 0.9rem;
+}
+
+/* Responsive Design for Search */
+@media (max-width: 768px) {
+    .search-section {
+        padding: 1rem;
+    }
+    
+    .search-input-container {
+        max-width: 100%;
+    }
+    
+    .search-input-container input {
+        font-size: 0.9rem;
+        padding: 0.7rem 3.2rem 0.7rem 0.9rem;
+    }
+    
+    .search-btn {
+        width: 32px;
+        height: 32px;
+        right: 4px;
+    }
+    
+    .search-btn i {
+        font-size: 0.8rem;
+    }
+}

@@ -1,5 +1,5 @@
 <?php
-// /events/loadouts/index.php - Teçhizat Setleri Listeleme Sayfası
+// /events/loadouts/index.php - DÜZELTİLMİŞ VERSİYON
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -67,23 +67,64 @@ $where_conditions[] = "ls.status = 'published'";
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
 try {
-    // Ana query - loadout setleri
-    $query = "
-        SELECT 
-            ls.*,
-            u.username,
-            u.avatar_path,
-            COUNT(DISTINCT lsi.id) as item_count,
-            COUNT(DISTINCT lwa.id) as attachment_count
-        FROM loadout_sets ls
-        LEFT JOIN users u ON ls.user_id = u.id
-        LEFT JOIN loadout_set_items lsi ON ls.id = lsi.loadout_set_id
-        LEFT JOIN loadout_weapon_attachments lwa ON ls.id = lwa.loadout_set_id
-        $where_clause
-        GROUP BY ls.id
-        ORDER BY ls.created_at DESC
-        LIMIT :offset, :per_page
-    ";
+    // Önce weapon attachments tablosunun var olup olmadığını kontrol et
+    $table_check = $pdo->query("SHOW TABLES LIKE 'loadout_weapon_attachments'");
+    $has_weapon_attachments_table = $table_check->rowCount() > 0;
+    
+    // Ana query - loadout setleri (DÜZELTEN SORGU)
+    if ($has_weapon_attachments_table) {
+        $query = "
+            SELECT 
+                ls.*,
+                u.username,
+                u.avatar_path,
+                r.name as primary_role_name,
+                r.color as primary_role_color,
+                COUNT(DISTINCT lsi.id) as item_count,
+                COUNT(DISTINCT lwa.id) as attachment_count
+            FROM loadout_sets ls
+            LEFT JOIN users u ON ls.user_id = u.id
+            LEFT JOIN user_roles ur ON u.id = ur.user_id
+            LEFT JOIN roles r ON ur.role_id = r.id AND r.priority = (
+                SELECT MIN(r2.priority) 
+                FROM user_roles ur2 
+                JOIN roles r2 ON ur2.role_id = r2.id 
+                WHERE ur2.user_id = u.id
+            )
+            LEFT JOIN loadout_set_items lsi ON ls.id = lsi.loadout_set_id
+            LEFT JOIN loadout_weapon_attachments lwa ON ls.id = lwa.loadout_set_id
+            $where_clause
+            GROUP BY ls.id, ls.set_name, ls.set_description, ls.visibility, ls.status, ls.created_at, ls.updated_at, ls.user_id, ls.set_image_path, u.username, u.avatar_path, r.name, r.color
+            ORDER BY ls.created_at DESC
+            LIMIT :offset, :per_page
+        ";
+    } else {
+        // Weapon attachments tablosu yoksa daha basit sorgu
+        $query = "
+            SELECT 
+                ls.*,
+                u.username,
+                u.avatar_path,
+                r.name as primary_role_name,
+                r.color as primary_role_color,
+                COUNT(DISTINCT lsi.id) as item_count,
+                0 as attachment_count
+            FROM loadout_sets ls
+            LEFT JOIN users u ON ls.user_id = u.id
+            LEFT JOIN user_roles ur ON u.id = ur.user_id
+            LEFT JOIN roles r ON ur.role_id = r.id AND r.priority = (
+                SELECT MIN(r2.priority) 
+                FROM user_roles ur2 
+                JOIN roles r2 ON ur2.role_id = r2.id 
+                WHERE ur2.user_id = u.id
+            )
+            LEFT JOIN loadout_set_items lsi ON ls.id = lsi.loadout_set_id
+            $where_clause
+            GROUP BY ls.id, ls.set_name, ls.set_description, ls.visibility, ls.status, ls.created_at, ls.updated_at, ls.user_id, ls.set_image_path, u.username, u.avatar_path, r.name, r.color
+            ORDER BY ls.created_at DESC
+            LIMIT :offset, :per_page
+        ";
+    }
     
     $stmt = $pdo->prepare($query);
     
@@ -97,7 +138,10 @@ try {
     $stmt->execute();
     $loadout_sets = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Toplam sayfa sayısı için count query
+    // DEBUG: Kaç sonuç bulundu?
+    error_log("Loadouts query executed. Found " . count($loadout_sets) . " results");
+    
+    // Toplam sayfa sayısı için count query (DÜZELTEN COUNT SORGU)
     $count_query = "
         SELECT COUNT(DISTINCT ls.id) as total
         FROM loadout_sets ls
@@ -115,11 +159,19 @@ try {
     $total_sets = $count_stmt->fetchColumn();
     $total_pages = ceil($total_sets / $per_page);
     
+    error_log("Total loadout sets found: $total_sets, Total pages: $total_pages");
+    
 } catch (PDOException $e) {
     error_log("Loadouts listing error: " . $e->getMessage());
+    error_log("Query: " . ($query ?? 'Query not set'));
+    error_log("Params: " . json_encode($query_params));
+    
     $loadout_sets = [];
     $total_sets = 0;
     $total_pages = 0;
+    
+    // Kullanıcıya hata mesajı göster
+    $_SESSION['error_message'] = "Teçhizat setleri yüklenirken bir hata oluştu.";
 }
 
 $page_title = "Teçhizat Setleri";
@@ -186,7 +238,6 @@ function get_visibility_icon($visibility) {
 <link rel="stylesheet" href="../../css/style.css">
 <link rel="stylesheet" href="css/loadouts.css">
 
-
 <div class="loadouts-page-container">
     <!-- Breadcrumb Navigation -->
     <?= generate_breadcrumb($breadcrumb_items) ?>
@@ -213,36 +264,33 @@ function get_visibility_icon($visibility) {
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="filters-section">
-            <form method="GET" action="" class="filters-form">
-                <div class="filters-row">
-                    <div class="filter-group">
-                        <label for="search">Arama</label>
-                        <input type="text" id="search" name="search" 
-                               value="<?= htmlspecialchars($search_query) ?>" 
-                               placeholder="Set adı, açıklama veya kullanıcı adı...">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label for="visibility">Görünürlük</label>
-                        <select id="visibility" name="visibility">
-                            <option value="all" <?= $visibility_filter === 'all' ? 'selected' : '' ?>>Tümü</option>
-                            <option value="public" <?= $visibility_filter === 'public' ? 'selected' : '' ?>>Herkese Açık</option>
-                            <?php if (is_user_approved()): ?>
-                                <option value="members_only" <?= $visibility_filter === 'members_only' ? 'selected' : '' ?>>Üyelere Özel</option>
-                                <option value="my_sets" <?= $visibility_filter === 'my_sets' ? 'selected' : '' ?>>Benim Setlerim</option>
-                            <?php endif; ?>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>&nbsp;</label>
-                        <button type="submit" class="btn-filter">
-                            <i class="fas fa-search"></i>
-                            Filtrele
-                        </button>
-                    </div>
+        <!-- DEBUG INFO (geçici) -->
+        <?php if (isset($_GET['debug']) && $_GET['debug'] === '1'): ?>
+            <div style="background: #333; color: #fff; padding: 1rem; margin: 1rem 0; border-radius: 4px; font-family: monospace;">
+                <strong>DEBUG INFO:</strong><br>
+                Total loadout sets: <?= $total_sets ?><br>
+                Current page: <?= $page ?><br>
+                Results per page: <?= $per_page ?><br>
+                Offset: <?= $offset ?><br>
+                Where conditions: <?= implode(' AND ', $where_conditions) ?><br>
+                Visibility filter: <?= $visibility_filter ?><br>
+                User logged in: <?= is_user_logged_in() ? 'Yes' : 'No' ?><br>
+                User approved: <?= is_user_approved() ? 'Yes' : 'No' ?><br>
+                Has weapon attachments table: <?= isset($has_weapon_attachments_table) && $has_weapon_attachments_table ? 'Yes' : 'No' ?><br>
+                Loadout sets found: <?= count($loadout_sets) ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <form method="GET" action="" class="search-form">
+                <div class="search-input-container">
+                    <input type="text" id="search" name="search" 
+                           value="<?= htmlspecialchars($search_query) ?>" 
+                           placeholder="Set adı, açıklama veya kullanıcı adı arayın...">
+                    <button type="submit" class="search-btn">
+                        <i class="fas fa-search"></i>
+                    </button>
                 </div>
             </form>
         </div>
@@ -316,7 +364,11 @@ function get_visibility_icon($visibility) {
                                              alt="<?= htmlspecialchars($set['username']) ?>" 
                                              class="creator-avatar"
                                              onerror="this.src='/assets/logo.png'">
-                                        <span class="creator-name"><?= htmlspecialchars($set['username']) ?></span>
+                                        <span class="user-link creator-name" 
+                                              data-user-id="<?= $set['user_id'] ?>"
+                                              style="color: <?= $set['primary_role_color'] ?? '#bd912a' ?>; cursor: pointer;">
+                                            <?= htmlspecialchars($set['username']) ?>
+                                        </span>
                                     </div>
                                 </td>
 
@@ -488,278 +540,12 @@ function get_visibility_icon($visibility) {
     </div>
 </div>
 
-<style>
-/* Modal Styles */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 
-.modal-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(5px);
-}
+<!-- User Popover Include -->
+<script src="js/delete_modal.js"></script>
+<?php include BASE_PATH . '/src/includes/user_popover.php'; ?>
 
-.modal-content {
-    position: relative;
-    background: var(--card-bg);
-    border: 1px solid var(--border-1-featured);
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    animation: modalFadeIn 0.3s ease;
-}
-
-@keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border-1);
-}
-
-.modal-header h3 {
-    margin: 0;
-    color: var(--red);
-    font-size: 1.2rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.modal-close {
-    background: transparent;
-    border: 1px solid var(--border-1);
-    color: var(--light-grey);
-    padding: 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.modal-close:hover {
-    background: var(--red);
-    color: var(--white);
-    border-color: var(--red);
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.modal-footer {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-    padding: 1.5rem;
-    border-top: 1px solid var(--border-1);
-}
-
-.btn-secondary {
-    padding: 0.75rem 1.5rem;
-    background: transparent;
-    color: var(--light-grey);
-    border: 1px solid var(--border-1);
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-    background: var(--card-bg-2);
-    color: var(--lighter-grey);
-}
-
-.btn-delete {
-    padding: 0.75rem 1.5rem;
-    background: var(--red);
-    color: var(--white);
-    border: 1px solid var(--red);
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.btn-delete:hover {
-    background: var(--dark-red);
-    transform: translateY(-1px);
-}
-</style>
-
-<script>
-let deleteSetId = null;
-
-function confirmDelete(setId, setName) {
-    deleteSetId = setId;
-    document.getElementById('deleteSetName').textContent = setName;
-    document.getElementById('deleteModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeDeleteModal() {
-    deleteSetId = null;
-    document.getElementById('deleteModal').style.display = 'none';
-    document.body.style.overflow = '';
-}
-
-document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-    if (!deleteSetId) return;
-    
-    const btn = this;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Siliniyor...';
-    btn.disabled = true;
-    
-    // CSRF token al
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    
-    fetch('actions/delete_loadout.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({
-            loadout_id: deleteSetId,
-            csrf_token: csrfToken
-        }),
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Başarılı silme - sayfayı yenile
-            showMessage(data.message || 'Teçhizat seti başarıyla silindi', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-        } else {
-            showMessage(data.message || 'Silme işlemi başarısız', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Delete error:', error);
-        showMessage('Silme sırasında bir hata oluştu', 'error');
-    })
-    .finally(() => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        closeDeleteModal();
-    });
-});
-
-// Modal dışına tıklayınca kapat
-document.addEventListener('click', function(e) {
-    if (e.target.matches('.modal-overlay')) {
-        closeDeleteModal();
-    }
-});
-
-// Escape tuşu ile kapat
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeDeleteModal();
-    }
-});
-
-// Message gösterme fonksiyonu
-function showMessage(message, type = 'info') {
-    // Mevcut mesajları kaldır
-    const existingMessages = document.querySelectorAll('.message');
-    existingMessages.forEach(msg => msg.remove());
-    
-    // Yeni mesaj oluştur
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-    messageDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 10001;
-        padding: 1rem 1.5rem;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-family: var(--font);
-        font-weight: 500;
-        animation: slideInRight 0.3s ease;
-        min-width: 300px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    `;
-    
-    if (type === 'success') {
-        messageDiv.style.background = 'rgba(40, 167, 69, 0.9)';
-        messageDiv.style.color = '#fff';
-        messageDiv.style.border = '1px solid #28a745';
-        messageDiv.innerHTML = '<i class="fas fa-check-circle"></i><span>' + message + '</span>';
-    } else if (type === 'error') {
-        messageDiv.style.background = 'rgba(220, 53, 69, 0.9)';
-        messageDiv.style.color = '#fff';
-        messageDiv.style.border = '1px solid #dc3545';
-        messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>' + message + '</span>';
-    } else {
-        messageDiv.style.background = 'rgba(23, 162, 184, 0.9)';
-        messageDiv.style.color = '#fff';
-        messageDiv.style.border = '1px solid #17a2b8';
-        messageDiv.innerHTML = '<i class="fas fa-info-circle"></i><span>' + message + '</span>';
-    }
-    
-    document.body.appendChild(messageDiv);
-    
-    // 5 saniye sonra kaldır
-    setTimeout(() => {
-        messageDiv.style.opacity = '0';
-        setTimeout(() => {
-            messageDiv.remove();
-        }, 300);
-    }, 5000);
-}
-
-// CSS animasyonu ekle
-const style = document.createElement('style');
-style.textContent = `
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(100%);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-`;
-document.head.appendChild(style);
-</script>
+<!-- CSRF Token için meta tag ekle -->
+<meta name="csrf-token" content="<?= generate_csrf_token() ?>">
 
 <?php include BASE_PATH . '/src/includes/footer.php'; ?>
