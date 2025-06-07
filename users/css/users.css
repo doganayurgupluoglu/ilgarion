@@ -3,7 +3,6 @@
 .users-page-container {
     width: 100%;
     margin: 0 auto;
-    padding: 4.9rem 0rem;
     color: var(--lighter-grey);
 }
 .breadcrumb {
