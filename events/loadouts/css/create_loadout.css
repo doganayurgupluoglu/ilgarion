@@ -1,55 +1,5 @@
 /* /events/loadouts/css/create_loadout.css - Güncellenmiş Layout */
 
-/* Breadcrumb Styles */
-.breadcrumb-nav {
-    margin-top: 6.5rem;
-}
-
-.breadcrumb {
-    background-color: var(--card-bg-2);
-    border: 1px solid var(--border-1);
-    border-radius: 6px;
-    padding: 0.75rem 1rem;
-    margin: 0;
-    list-style: none;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font);
-    font-size: 0.9rem;
-}
-
-.breadcrumb-item {
-    display: flex;
-    align-items: center;
-}
-
-.breadcrumb-item a {
-    color: var(--gold);
-    text-decoration: none;
-    transition: color 0.2s ease;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.breadcrumb-item a:hover {
-    color: var(--light-gold);
-}
-
-.breadcrumb-item.active {
-    color: var(--light-grey);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.breadcrumb-item + .breadcrumb-item::before {
-    content: '>';
-    margin: 0 0.5rem;
-    color: var(--light-grey);
-}
 
 /* Main Container */
 .loadout-page-container {
@@ -57,6 +7,7 @@
     margin: 0 auto;
     font-family: var(--font);
     color: var(--lighter-grey);
+    padding: 2rem 0;
 }
 
 /* Page Header */

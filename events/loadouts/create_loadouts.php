@@ -1,5 +1,5 @@
 <?php
-// /events/loadouts/create_loadouts.php
+// /events/loadouts/create_loadouts.php - Düzeltilmiş versiyon
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -30,6 +30,7 @@ $current_user_id = $_SESSION['user_id'];
 $edit_mode = false;
 $loadout_set = null;
 $loadout_id = 0;
+$existing_items = []; // JavaScript'e geçirmek için
 
 if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
     $loadout_id = (int)$_GET['edit'];
@@ -59,6 +60,9 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
             ");
             $items_stmt->execute([':set_id' => $loadout_id]);
             $existing_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Debug: Mevcut itemleri logla
+            error_log("Existing items for loadout $loadout_id: " . json_encode($existing_items));
         }
     } catch (PDOException $e) {
         error_log("Loadout edit error: " . $e->getMessage());
@@ -120,14 +124,13 @@ function generate_loadout_breadcrumb($items) {
 ?>
 
 <link rel="stylesheet" href="css/create_loadout.css">
-<link rel="stylesheet" href="../../css/style.css">
 <meta name="csrf-token" content="<?= generate_csrf_token() ?>">
 
-<div class="site-container">
+<div class="loadout-page-container">
     <!-- Breadcrumb Navigation -->
     <?= generate_loadout_breadcrumb($breadcrumb_items) ?>
 
-    <div class="loadout-page-container">
+    <div class="create-loadout-container">
         <!-- Page Header -->
         <div class="page-header">
             <div class="header-content">
@@ -154,9 +157,9 @@ function generate_loadout_breadcrumb($items) {
                     <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                     <?php if ($edit_mode): ?>
                         <input type="hidden" name="loadout_id" value="<?= $loadout_id ?>">
-                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="form_action" value="update">
                     <?php else: ?>
-                        <input type="hidden" name="action" value="create">
+                        <input type="hidden" name="form_action" value="create">
                     <?php endif; ?>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1.5rem; align-items: end;">
@@ -191,7 +194,7 @@ function generate_loadout_breadcrumb($items) {
                     
                     <?php if ($edit_mode && !empty($loadout_set['set_image_path'])): ?>
                         <div class="current-image" style="margin-top: 1rem;">
-                            <img src="<?= htmlspecialchars($loadout_set['set_image_path']) ?>" alt="Mevcut görsel" style="max-width: 200px; max-height: 150px; border-radius: 4px;">
+                            <img src="/<?= htmlspecialchars($loadout_set['set_image_path']) ?>" alt="Mevcut görsel" style="max-width: 200px; max-height: 150px; border-radius: 4px;">
                             <p>Mevcut görsel - Yeni yükleyerek değiştirebilirsiniz</p>
                         </div>
                     <?php endif; ?>
@@ -328,9 +331,15 @@ function generate_loadout_breadcrumb($items) {
     </div>
 </div>
 
+<!-- JavaScript: Mevcut verileri geçir -->
+<?php if ($edit_mode && !empty($existing_items)): ?>
+<script>
+// Mevcut itemleri JavaScript'e geçir
+window.existingItems = <?= json_encode($existing_items) ?>;
+console.log('Existing items loaded from PHP:', window.existingItems);
+</script>
+<?php endif; ?>
+
 <script src="js/create_loadout.js"></script>
-
-
-
 
 <?php include BASE_PATH . '/src/includes/footer.php'; ?>

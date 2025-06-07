@@ -1,5 +1,13 @@
 <?php
-// /events/loadouts/actions/save_loadout.php - Weapon Attachments ile güncellenmiş
+// /events/loadouts/actions/save_loadout.php - Düzeltilmiş versiyon
+
+// Error reporting için
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // JSON response bozulmasın diye
+ini_set('log_errors', 1);
+
+// JSON response header
+header('Content-Type: application/json');
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -11,26 +19,43 @@ require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_role_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 
-// Session kontrolü
-check_user_session_validity();
-require_approved_user();
-
-// CSRF kontrolü
-if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-    echo json_encode(['success' => false, 'message' => 'Güvenlik hatası']);
-    exit;
+// Debug logging function
+function debug_log($message, $data = null) {
+    $log_message = "[LOADOUT_SAVE] " . $message;
+    if ($data !== null) {
+        $log_message .= " Data: " . json_encode($data);
+    }
+    error_log($log_message);
 }
 
-// Yetki kontrolü
-if (!has_permission($pdo, 'loadout.manage_sets')) {
-    echo json_encode(['success' => false, 'message' => 'Bu işlem için yetkiniz bulunmuyor']);
-    exit;
-}
-
-$current_user_id = $_SESSION['user_id'];
-$action = $_POST['action'] ?? '';
+debug_log("Save loadout request started", $_POST);
 
 try {
+    // Session kontrolü
+    check_user_session_validity();
+    require_approved_user();
+
+    // Method kontrolü
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Sadece POST istekleri kabul edilir');
+    }
+
+    // CSRF kontrolü
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        throw new Exception('Güvenlik hatası - CSRF token geçersiz');
+    }
+
+    // Yetki kontrolü
+    if (!has_permission($pdo, 'loadout.manage_sets')) {
+        throw new Exception('Bu işlem için yetkiniz bulunmuyor');
+    }
+
+    $current_user_id = $_SESSION['user_id'];
+    $action = $_POST['form_action'] ?? ''; // 'action' yerine 'form_action' kullan
+
+    debug_log("Action: $action, User ID: $current_user_id");
+
+    // PDO transaction başlat
     $pdo->beginTransaction();
     
     if ($action === 'create') {
@@ -38,35 +63,61 @@ try {
     } elseif ($action === 'update') {
         $result = updateLoadoutSet($pdo, $current_user_id, $_POST, $_FILES);
     } else {
-        throw new Exception('Geçersiz işlem');
+        throw new Exception('Geçersiz işlem: ' . $action);
     }
     
     $pdo->commit();
+    debug_log("Transaction committed successfully", $result);
+    
     echo json_encode($result);
     
 } catch (Exception $e) {
-    $pdo->rollBack();
-    error_log("Loadout save error: " . $e->getMessage());
+    if ($pdo && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    
+    $error_message = $e->getMessage();
+    debug_log("Error occurred: " . $error_message);
+    
     echo json_encode([
         'success' => false, 
-        'message' => 'Kaydetme sırasında bir hata oluştu: ' . $e->getMessage()
+        'message' => 'Kaydetme sırasında bir hata oluştu: ' . $error_message
     ]);
 }
 
 function createLoadoutSet($pdo, $user_id, $post_data, $files) {
+    debug_log("Creating new loadout set");
+    
     // Temel validasyon
     $set_name = trim($post_data['set_name'] ?? '');
     $set_description = trim($post_data['set_description'] ?? '');
     $visibility = $post_data['visibility'] ?? 'private';
     
-    if (empty($set_name) || empty($set_description)) {
-        throw new Exception('Set adı ve açıklama gereklidir');
+    if (empty($set_name)) {
+        throw new Exception('Set adı gereklidir');
     }
+    
+    if (empty($set_description)) {
+        throw new Exception('Set açıklaması gereklidir');
+    }
+    
+    // Visibility validation
+    $valid_visibility = ['private', 'members_only', 'public', 'faction_only'];
+    if (!in_array($visibility, $valid_visibility)) {
+        $visibility = 'private';
+    }
+    
+    debug_log("Basic validation passed", [
+        'set_name' => $set_name,
+        'set_description' => $set_description,
+        'visibility' => $visibility
+    ]);
     
     // Görsel yükleme
     $image_path = null;
     if (!empty($files['set_image']['tmp_name'])) {
         $image_path = uploadSetImage($files['set_image'], $user_id);
+        debug_log("Image uploaded successfully", ['path' => $image_path]);
     }
     
     // Loadout set oluştur
@@ -75,7 +126,7 @@ function createLoadoutSet($pdo, $user_id, $post_data, $files) {
         VALUES (:user_id, :set_name, :set_description, :image_path, :visibility, 'published')
     ");
     
-    $stmt->execute([
+    $result = $stmt->execute([
         ':user_id' => $user_id,
         ':set_name' => $set_name,
         ':set_description' => $set_description,
@@ -83,16 +134,23 @@ function createLoadoutSet($pdo, $user_id, $post_data, $files) {
         ':visibility' => $visibility
     ]);
     
+    if (!$result) {
+        throw new Exception('Loadout set kaydedilemedi');
+    }
+    
     $loadout_set_id = $pdo->lastInsertId();
+    debug_log("Loadout set created with ID: $loadout_set_id");
     
     // Items kaydet
     if (!empty($post_data['loadout_items'])) {
         saveLoadoutItems($pdo, $loadout_set_id, $post_data['loadout_items']);
+        debug_log("Items saved successfully");
     }
     
     // Weapon attachments kaydet
     if (!empty($post_data['weapon_attachments'])) {
         saveWeaponAttachments($pdo, $loadout_set_id, $post_data['weapon_attachments']);
+        debug_log("Weapon attachments saved successfully");
     }
     
     return [
@@ -103,6 +161,8 @@ function createLoadoutSet($pdo, $user_id, $post_data, $files) {
 }
 
 function updateLoadoutSet($pdo, $user_id, $post_data, $files) {
+    debug_log("Updating existing loadout set");
+    
     $loadout_id = (int)($post_data['loadout_id'] ?? 0);
     
     if ($loadout_id <= 0) {
@@ -118,13 +178,25 @@ function updateLoadoutSet($pdo, $user_id, $post_data, $files) {
         throw new Exception('Set bulunamadı veya düzenleme yetkiniz yok');
     }
     
+    debug_log("Ownership verified for loadout ID: $loadout_id");
+    
     // Temel validasyon
     $set_name = trim($post_data['set_name'] ?? '');
     $set_description = trim($post_data['set_description'] ?? '');
     $visibility = $post_data['visibility'] ?? 'private';
     
-    if (empty($set_name) || empty($set_description)) {
-        throw new Exception('Set adı ve açıklama gereklidir');
+    if (empty($set_name)) {
+        throw new Exception('Set adı gereklidir');
+    }
+    
+    if (empty($set_description)) {
+        throw new Exception('Set açıklaması gereklidir');
+    }
+    
+    // Visibility validation
+    $valid_visibility = ['private', 'members_only', 'public', 'faction_only'];
+    if (!in_array($visibility, $valid_visibility)) {
+        $visibility = 'private';
     }
     
     // Görsel güncelleme
@@ -132,16 +204,17 @@ function updateLoadoutSet($pdo, $user_id, $post_data, $files) {
     if (!empty($files['set_image']['tmp_name'])) {
         $new_image_path = uploadSetImage($files['set_image'], $user_id);
         
-        // Eski görseli sil - düzeltilmiş path
+        // Eski görseli sil
         if ($image_path) {
-            $web_root = dirname(dirname(dirname(__DIR__))); // 3 seviye yukarı
-            $old_image_full_path = $web_root . '/' . $image_path;
+            $old_image_full_path = BASE_PATH . '/' . $image_path;
             if (file_exists($old_image_full_path)) {
                 unlink($old_image_full_path);
+                debug_log("Old image deleted: $old_image_full_path");
             }
         }
         
         $image_path = $new_image_path;
+        debug_log("New image uploaded: $image_path");
     }
     
     // Set bilgilerini güncelle
@@ -152,7 +225,7 @@ function updateLoadoutSet($pdo, $user_id, $post_data, $files) {
         WHERE id = :id AND user_id = :user_id
     ");
     
-    $stmt->execute([
+    $result = $stmt->execute([
         ':set_name' => $set_name,
         ':set_description' => $set_description,
         ':image_path' => $image_path,
@@ -161,22 +234,32 @@ function updateLoadoutSet($pdo, $user_id, $post_data, $files) {
         ':user_id' => $user_id
     ]);
     
+    if (!$result) {
+        throw new Exception('Loadout set güncellenemedi');
+    }
+    
+    debug_log("Loadout set updated successfully");
+    
     // Mevcut itemleri sil
     $stmt = $pdo->prepare("DELETE FROM loadout_set_items WHERE loadout_set_id = :set_id");
     $stmt->execute([':set_id' => $loadout_id]);
+    debug_log("Existing items deleted");
     
     // Mevcut weapon attachments'ları sil
     $stmt = $pdo->prepare("DELETE FROM loadout_weapon_attachments WHERE loadout_set_id = :set_id");
     $stmt->execute([':set_id' => $loadout_id]);
+    debug_log("Existing weapon attachments deleted");
     
     // Yeni itemleri kaydet
     if (!empty($post_data['loadout_items'])) {
         saveLoadoutItems($pdo, $loadout_id, $post_data['loadout_items']);
+        debug_log("New items saved");
     }
     
     // Yeni weapon attachments kaydet
     if (!empty($post_data['weapon_attachments'])) {
         saveWeaponAttachments($pdo, $loadout_id, $post_data['weapon_attachments']);
+        debug_log("New weapon attachments saved");
     }
     
     return [
@@ -187,14 +270,30 @@ function updateLoadoutSet($pdo, $user_id, $post_data, $files) {
 }
 
 function saveLoadoutItems($pdo, $loadout_set_id, $items_json) {
+    debug_log("Saving loadout items", ['loadout_set_id' => $loadout_set_id, 'items_json' => $items_json]);
+    
+    if (empty($items_json)) {
+        debug_log("No items to save");
+        return;
+    }
+    
     $items_data = json_decode($items_json, true);
     
     if (!is_array($items_data)) {
-        throw new Exception('Geçersiz items verisi');
+        throw new Exception('Geçersiz items verisi - JSON decode failed');
     }
     
+    if (empty($items_data)) {
+        debug_log("Items data is empty array");
+        return;
+    }
+    
+    $saved_count = 0;
     foreach ($items_data as $slot_id => $item_data) {
-        if (empty($item_data['item_name'])) continue;
+        if (empty($item_data['item_name'])) {
+            debug_log("Skipping empty item for slot: $slot_id");
+            continue;
+        }
         
         $stmt = $pdo->prepare("
             INSERT INTO loadout_set_items 
@@ -202,7 +301,7 @@ function saveLoadoutItems($pdo, $loadout_set_id, $items_json) {
             VALUES (:set_id, :slot_id, :item_name, :uuid, :type, :manufacturer, :notes)
         ");
         
-        $stmt->execute([
+        $result = $stmt->execute([
             ':set_id' => $loadout_set_id,
             ':slot_id' => (int)$slot_id,
             ':item_name' => $item_data['item_name'] ?? '',
@@ -211,21 +310,57 @@ function saveLoadoutItems($pdo, $loadout_set_id, $items_json) {
             ':manufacturer' => $item_data['item_manufacturer_api'] ?? null,
             ':notes' => $item_data['item_notes'] ?? null
         ]);
+        
+        if ($result) {
+            $saved_count++;
+            debug_log("Saved item for slot $slot_id: " . ($item_data['item_name'] ?? 'Unknown'));
+        } else {
+            debug_log("Failed to save item for slot $slot_id");
+        }
     }
+    
+    debug_log("Saved $saved_count items total");
 }
 
 function saveWeaponAttachments($pdo, $loadout_set_id, $attachments_json) {
+    debug_log("Saving weapon attachments", ['loadout_set_id' => $loadout_set_id, 'attachments_json' => $attachments_json]);
+    
+    if (empty($attachments_json)) {
+        debug_log("No attachments to save");
+        return;
+    }
+    
     $attachments_data = json_decode($attachments_json, true);
     
     if (!is_array($attachments_data)) {
-        throw new Exception('Geçersiz attachments verisi');
+        throw new Exception('Geçersiz attachments verisi - JSON decode failed');
     }
     
+    if (empty($attachments_data)) {
+        debug_log("Attachments data is empty array");
+        return;
+    }
+    
+    // Weapon attachment tablosunun var olup olmadığını kontrol et
+    try {
+        $pdo->query("SELECT 1 FROM loadout_weapon_attachments LIMIT 1");
+    } catch (PDOException $e) {
+        debug_log("loadout_weapon_attachments table does not exist, skipping attachment save");
+        return;
+    }
+    
+    $saved_count = 0;
     foreach ($attachments_data as $parent_slot_id => $attachment_slots) {
-        if (!is_array($attachment_slots)) continue;
+        if (!is_array($attachment_slots)) {
+            debug_log("Invalid attachment slots for parent $parent_slot_id");
+            continue;
+        }
         
         foreach ($attachment_slots as $attachment_slot_id => $attachment_data) {
-            if (empty($attachment_data['attachment_item_name'])) continue;
+            if (empty($attachment_data['attachment_item_name'])) {
+                debug_log("Skipping empty attachment for parent $parent_slot_id, slot $attachment_slot_id");
+                continue;
+            }
             
             $stmt = $pdo->prepare("
                 INSERT INTO loadout_weapon_attachments 
@@ -234,7 +369,7 @@ function saveWeaponAttachments($pdo, $loadout_set_id, $attachments_json) {
                 VALUES (:set_id, :parent_slot_id, :attachment_slot_id, :item_name, :uuid, :type, :manufacturer, :notes)
             ");
             
-            $stmt->execute([
+            $result = $stmt->execute([
                 ':set_id' => $loadout_set_id,
                 ':parent_slot_id' => (int)$parent_slot_id,
                 ':attachment_slot_id' => (int)$attachment_slot_id,
@@ -244,13 +379,24 @@ function saveWeaponAttachments($pdo, $loadout_set_id, $attachments_json) {
                 ':manufacturer' => $attachment_data['attachment_item_manufacturer'] ?? null,
                 ':notes' => $attachment_data['attachment_notes'] ?? null
             ]);
+            
+            if ($result) {
+                $saved_count++;
+                debug_log("Saved attachment for parent $parent_slot_id, slot $attachment_slot_id: " . ($attachment_data['attachment_item_name'] ?? 'Unknown'));
+            } else {
+                debug_log("Failed to save attachment for parent $parent_slot_id, slot $attachment_slot_id");
+            }
         }
     }
+    
+    debug_log("Saved $saved_count attachments total");
 }
 
 function uploadSetImage($file, $user_id) {
+    debug_log("Starting image upload for user: $user_id");
+    
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        throw new Exception('Dosya yükleme hatası');
+        throw new Exception('Dosya yükleme hatası: ' . $file['error']);
     }
     
     // Dosya boyutu kontrolü (5MB)
@@ -265,8 +411,14 @@ function uploadSetImage($file, $user_id) {
     finfo_close($finfo);
     
     if (!in_array($mime_type, $allowed_types)) {
-        throw new Exception('Sadece JPG, JPEG ve PNG dosyaları kabul edilir');
+        throw new Exception('Sadece JPG, JPEG ve PNG dosyaları kabul edilir. Dosya tipi: ' . $mime_type);
     }
+    
+    debug_log("File validation passed", [
+        'size' => $file['size'],
+        'mime_type' => $mime_type,
+        'original_name' => $file['name']
+    ]);
     
     // Unique dosya adı oluştur
     $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
@@ -274,22 +426,33 @@ function uploadSetImage($file, $user_id) {
     $random = bin2hex(random_bytes(4));
     $filename = "loadout_user{$user_id}_{$timestamp}_{$random}.{$extension}";
     
-    // Upload klasörünü mevcut dizin yapısına göre düzenle
-    // BASE_PATH'den çıkarak web root'a ulaş
-    $web_root = dirname(dirname(dirname(__DIR__))); // 3 seviye yukarı
-    $upload_dir = $web_root . '/uploads/loadouts/';
+    // Upload klasörünü BASE_PATH kullanarak oluştur
+    $upload_dir = BASE_PATH . '/uploads/loadouts/';
     
+    // Klasörü oluştur
     if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0755, true);
+        if (!mkdir($upload_dir, 0755, true)) {
+            throw new Exception('Upload klasörü oluşturulamadı: ' . $upload_dir);
+        }
+        debug_log("Created upload directory: $upload_dir");
     }
     
     $upload_path = $upload_dir . $filename;
     
+    debug_log("Attempting to move uploaded file", [
+        'from' => $file['tmp_name'],
+        'to' => $upload_path,
+        'filename' => $filename
+    ]);
+    
     if (!move_uploaded_file($file['tmp_name'], $upload_path)) {
-        throw new Exception('Dosya yükleme başarısız');
+        throw new Exception('Dosya yükleme başarısız - move_uploaded_file failed');
     }
     
     // Web'den erişilebilir relative path döndür
-    return 'uploads/loadouts/' . $filename;
+    $relative_path = 'uploads/loadouts/' . $filename;
+    debug_log("File uploaded successfully", ['relative_path' => $relative_path, 'full_path' => $upload_path]);
+    
+    return $relative_path;
 }
 ?>

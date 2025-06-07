@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require_once '../src/config/database.php'; // $pdo ve BASE_PATH
+require_once 'src/config/database.php'; // $pdo ve BASE_PATH
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php'; // Rol fonksiyonları eklendi
 require_once BASE_PATH . '/src/functions/formatting_functions.php'; // render_user_info_with_popover için
@@ -466,7 +466,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                 <div class="loadout-visual-column-ld">
                     <?php if (!empty($loadout_set_details['set_image_path'])): ?>
                         <div class="loadout-set-image-display-ld">
-                            <img src="/public/<?php echo htmlspecialchars($loadout_set_details['set_image_path']); ?>" alt="<?php echo htmlspecialchars($loadout_set_details['set_name']); ?> Görseli">
+                            <img src="<?php echo htmlspecialchars($loadout_set_details['set_image_path']); ?>" alt="<?php echo htmlspecialchars($loadout_set_details['set_name']); ?> Görseli">
                         </div>
                     <?php else: ?>
                         <p class="no-set-image-text-ld">Bu teçhizat seti için bir görsel yüklenmemiş.</p>

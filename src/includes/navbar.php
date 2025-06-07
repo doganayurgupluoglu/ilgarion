@@ -203,11 +203,9 @@ $logo_path_navbar = '/assets/logo.png';
 <style>
     :root {
         --font-main: 'Roboto', sans-serif;
-        --navbar-height: 70px;
     }
 
     body {
-        padding-top: var(--navbar-height); 
     }
 
     .dynamic-navbar {
