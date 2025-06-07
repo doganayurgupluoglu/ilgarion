@@ -113,12 +113,14 @@ $can_manage_skill_tags = has_permission($pdo, 'skill_tag.verify_others');
                             </a>
                         </li>
                     <?php endif; ?>
+                    <?php if ($can_create_role): ?>
                     <li class="submenu-item <?= isset($_GET['filter']) && $_GET['filter'] === 'my_roles' ? 'active' : '' ?>">
                         <a href="/events/roles/?filter=my_roles">
                             <i class="fas fa-user"></i>
                             <span>Oluşturduklarım</span>
                         </a>
                     </li>
+                    <?php endif; ?>
                     <?php if ($can_view_statistics): ?>
                         <li class="submenu-item <?= $current_page === 'statistics' ? 'active' : '' ?>">
                             <a href="/events/roles/statistics.php">

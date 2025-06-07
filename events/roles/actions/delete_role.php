@@ -14,6 +14,9 @@ require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 
 // JSON response için header ayarla
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Headers: Content-Type');
 
 // Hata raporlama
 function send_error($message, $code = 400) {
@@ -35,18 +38,27 @@ try {
     
     // Sadece POST isteklerini kabul et
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        send_error('Geçersiz istek metodu');
+        send_error('Geçersiz istek metodu', 405);
     }
     
     // JSON verisini al
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input_raw = file_get_contents('php://input');
+    if (empty($input_raw)) {
+        send_error('Boş istek verisi');
+    }
     
+    $input = json_decode($input_raw, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
-        send_error('Geçersiz JSON verisi');
+        send_error('Geçersiz JSON verisi: ' . json_last_error_msg());
     }
     
     // CSRF token kontrolü
-    if (!verify_csrf_token($input['csrf_token'] ?? '')) {
+    $csrf_token = $input['csrf_token'] ?? '';
+    if (empty($csrf_token)) {
+        send_error('CSRF token eksik', 403);
+    }
+    
+    if (!verify_csrf_token($csrf_token)) {
         send_error('Güvenlik hatası - CSRF token geçersiz', 403);
     }
     
@@ -66,9 +78,10 @@ try {
     $stmt = $pdo->prepare("
         SELECT er.*, 
                u.username as creator_username,
-               (SELECT COUNT(*) FROM event_role_assignments era WHERE era.event_role_id = er.id) as assignment_count,
-               (SELECT COUNT(*) FROM event_participants ep 
-                WHERE ep.event_role_id = er.id AND ep.status = 'confirmed') as active_participants
+               (SELECT COUNT(*) FROM event_role_slots ers WHERE ers.event_role_id = er.id) as slot_count,
+               (SELECT COUNT(*) FROM event_role_participants erp 
+                JOIN event_role_slots ers2 ON erp.event_role_slot_id = ers2.id 
+                WHERE ers2.event_role_id = er.id AND erp.status = 'active') as active_participants
         FROM event_roles er
         LEFT JOIN users u ON er.created_by_user_id = u.id
         WHERE er.id = :role_id
@@ -103,25 +116,19 @@ try {
         $delete_requirements->execute([':role_id' => $role_id]);
         $deleted_requirements = $delete_requirements->rowCount();
         
-        // 2. Geçmiş atamaları sil (sadece tamamlanmış/iptal edilmiş etkinlikler için)
-        $delete_assignments = $pdo->prepare("
-            DELETE era FROM event_role_assignments era
-            INNER JOIN events e ON era.event_id = e.id
-            WHERE era.event_role_id = :role_id 
-            AND e.status IN ('completed', 'cancelled')
-        ");
-        $delete_assignments->execute([':role_id' => $role_id]);
-        $deleted_assignments = $delete_assignments->rowCount();
-        
-        // 3. Aktif olmayan katılımcı kayıtlarını sil
+        // 2. Katılımcı kayıtlarını sil (sadece aktif olmayan)
         $delete_participants = $pdo->prepare("
-            DELETE ep FROM event_participants ep
-            INNER JOIN events e ON ep.event_id = e.id
-            WHERE ep.event_role_id = :role_id 
-            AND (ep.status IN ('cancelled', 'rejected') OR e.status IN ('completed', 'cancelled'))
+            DELETE erp FROM event_role_participants erp
+            JOIN event_role_slots ers ON erp.event_role_slot_id = ers.id
+            WHERE ers.event_role_id = :role_id AND erp.status != 'active'
         ");
         $delete_participants->execute([':role_id' => $role_id]);
         $deleted_participants = $delete_participants->rowCount();
+        
+        // 3. Rol slotlarını sil
+        $delete_slots = $pdo->prepare("DELETE FROM event_role_slots WHERE event_role_id = :role_id");
+        $delete_slots->execute([':role_id' => $role_id]);
+        $deleted_slots = $delete_slots->rowCount();
         
         // 4. Son olarak rolü sil
         $delete_role = $pdo->prepare("DELETE FROM event_roles WHERE id = :role_id");
@@ -135,19 +142,19 @@ try {
         
         // Log kaydı
         error_log(sprintf(
-            "Role deleted by user %d: Role ID %d ('%s'), Requirements: %d, Assignments: %d, Participants: %d",
+            "Role deleted by user %d: Role ID %d ('%s'), Requirements: %d, Slots: %d, Participants: %d",
             $current_user_id,
             $role_id,
             $role['role_name'],
             $deleted_requirements,
-            $deleted_assignments,
+            $deleted_slots,
             $deleted_participants
         ));
         
         send_success('Rol başarıyla silindi', [
             'deleted_role_id' => $role_id,
             'deleted_requirements' => $deleted_requirements,
-            'deleted_assignments' => $deleted_assignments,
+            'deleted_slots' => $deleted_slots,
             'deleted_participants' => $deleted_participants
         ]);
         
@@ -172,7 +179,7 @@ try {
         );
     }
     
-    send_error('Veritabanı hatası oluştu');
+    send_error('Veritabanı hatası oluştu: ' . $e->getMessage());
     
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) {

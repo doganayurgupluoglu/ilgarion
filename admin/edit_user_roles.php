@@ -1,7 +1,7 @@
 <?php
 // public/admin/edit_user_roles.php - Hiyerarşik Rol Sistemi ile Revize Edilmiş
 
-require_once '../../src/config/database.php';
+require_once '../src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_role_security.php';

@@ -5,7 +5,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once dirname(__DIR__) . '/../src/config/database.php';
+require_once dirname(__DIR__) . '../src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_role_security.php';
@@ -371,8 +371,8 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     display: none;
     position: fixed;
     z-index: 1000;
-    left: 50%;
-    top: 50%;
+    left: 0;
+    top: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.8);

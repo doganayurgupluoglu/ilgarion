@@ -372,3 +372,32 @@ body {
     text-decoration: none;
     color: var(--light-gold);
 }
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--card-bg-2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-1);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-1-hover);
+}
+
+/* Selection Styling */
+::selection {
+    background: var(--gold);
+    color: var(--charcoal);
+}
+
+::-moz-selection {
+    background: var(--gold);
+    color: var(--charcoal);
+}
