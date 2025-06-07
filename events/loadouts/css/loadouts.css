@@ -718,17 +718,6 @@
     font-size: 0.85rem;
 }
 
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--light-grey);
-}
-
-.stat-item i {
-    width: 12px;
-    color: var(--gold);
-}
 
 /* Visibility Badge */
 .visibility-badge {

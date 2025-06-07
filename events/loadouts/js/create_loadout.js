@@ -25,13 +25,11 @@ const SLOT_TYPE_MAPPING = {
     'Char_Armor_Backpack': ['Sırt Çantası'],
     'Char_Clothing_Undersuit': ['Alt Giyim'],
     'Char_Armor_Undersuit': ['Alt Giyim'],
-    'fps_consumable': ['Medikal Araç'],
-    'medical': ['Medikal Araç'],
+    'FPS_Consumable': ['Medikal Araç'],
+    'Medpack': ['Medikal Araç'],
     'gadget': ['Yardımcı Modül/Gadget 1', 'Medikal Araç'],
-    'tool_multitool': ['Multi-Tool Attachment'],
-    'tool': ['Multi-Tool Attachment'],
-    'weaponattachment': ['Multi-Tool Attachment'],
-    'toolattachment': ['Multi-Tool Attachment'],
+    'Utility': ['Multi-Tool Attachment'],
+    'WeaponAttachment': ['Multi-Tool Attachment'],
     // WEAPON ATTACHMENTS - YENİ
     'IronSight': [], // Dynamic - will be filled by getAttachmentSlots()
     'Barrel': [], // Dynamic - will be filled by getAttachmentSlots()
