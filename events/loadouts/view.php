@@ -472,4 +472,9 @@ style.textContent = `
 document.head.appendChild(style);
 </script>
 
-<?php include BASE_PATH . '/src/includes/footer.php'; ?>
+<?php
+// Layout bitir
+events_layout_end();
+
+include BASE_PATH . '/src/includes/footer.php';
+?>

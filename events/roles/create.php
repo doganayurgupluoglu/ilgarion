@@ -80,8 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $visibility = $_POST['visibility'] ?? 'public';
     $suggested_loadout_id = !empty($_POST['suggested_loadout_id']) ? (int)$_POST['suggested_loadout_id'] : null;
     
-    // Gereksinimler
-    $requirements = $_POST['requirements'] ?? [];
+    // Gereksinimler - Yeni yapı
+    $skill_tag_requirements = $_POST['skill_tag_requirements'] ?? [];
     
     // Validasyon
     $errors = [];
@@ -143,6 +143,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
+    // Skill tag gereksinimlerini validate et
+    if (!empty($skill_tag_requirements)) {
+        try {
+            $valid_tag_ids = [];
+            $tag_check_stmt = $pdo->prepare("SELECT id FROM skill_tags WHERE id = ?");
+            
+            foreach ($skill_tag_requirements as $requirement) {
+                if (!empty($requirement['skill_tag_ids'])) {
+                    $tag_ids = array_map('intval', array_filter($requirement['skill_tag_ids']));
+                    
+                    foreach ($tag_ids as $tag_id) {
+                        $tag_check_stmt->execute([$tag_id]);
+                        if ($tag_check_stmt->fetch()) {
+                            $valid_tag_ids[] = $tag_id;
+                        }
+                    }
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Skill tag validation error: " . $e->getMessage());
+            $errors[] = "Skill tag kontrolü yapılamadı.";
+        }
+    }
+    
     if (empty($errors)) {
         try {
             $pdo->beginTransaction();
@@ -190,22 +214,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Etkinlik rolü başarıyla oluşturuldu.";
             }
             
-            // Gereksinimleri kaydet
-            if (!empty($requirements)) {
+            // Skill tag gereksinimlerini kaydet
+            if (!empty($skill_tag_requirements)) {
                 $req_stmt = $pdo->prepare("
                     INSERT INTO event_role_requirements 
-                    (event_role_id, requirement_type, requirement_value, is_required)
-                    VALUES (:role_id, :type, :value, :required)
+                    (event_role_id, skill_tag_ids, is_required)
+                    VALUES (:role_id, :skill_tag_ids, :required)
                 ");
                 
-                foreach ($requirements as $req) {
-                    if (!empty($req['type']) && !empty($req['value'])) {
-                        $req_stmt->execute([
-                            ':role_id' => $role_id,
-                            ':type' => $req['type'],
-                            ':value' => $req['value'],
-                            ':required' => isset($req['required']) ? 1 : 0
-                        ]);
+                foreach ($skill_tag_requirements as $requirement) {
+                    if (!empty($requirement['skill_tag_ids'])) {
+                        $tag_ids = array_map('intval', array_filter($requirement['skill_tag_ids']));
+                        if (!empty($tag_ids)) {
+                            $skill_tag_ids_str = implode(',', $tag_ids);
+                            $req_stmt->execute([
+                                ':role_id' => $role_id,
+                                ':skill_tag_ids' => $skill_tag_ids_str,
+                                ':required' => isset($requirement['required']) ? 1 : 0
+                            ]);
+                        }
                     }
                 }
             }
@@ -244,14 +271,33 @@ try {
     $available_loadouts = [];
 }
 
+// Skill tags'leri çek
+try {
+    $skill_tags_stmt = $pdo->prepare("
+        SELECT id, tag_name 
+        FROM skill_tags 
+        ORDER BY tag_name ASC
+    ");
+    $skill_tags_stmt->execute();
+    $available_skill_tags = $skill_tags_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Skill tags fetch error: " . $e->getMessage());
+    $available_skill_tags = [];
+}
+
 // Mevcut rol gereksinimlerini çek (düzenleme modu için)
 $existing_requirements = [];
 if ($edit_mode) {
     try {
         $req_stmt = $pdo->prepare("
-            SELECT * FROM event_role_requirements 
-            WHERE event_role_id = :role_id 
-            ORDER BY requirement_type, requirement_value
+            SELECT err.*, 
+                   GROUP_CONCAT(st.tag_name ORDER BY st.tag_name ASC) as tag_names,
+                   err.skill_tag_ids
+            FROM event_role_requirements err
+            LEFT JOIN skill_tags st ON FIND_IN_SET(st.id, err.skill_tag_ids) > 0
+            WHERE err.event_role_id = :role_id 
+            GROUP BY err.id
+            ORDER BY err.id
         ");
         $req_stmt->execute([':role_id' => $role_id]);
         $existing_requirements = $req_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -395,31 +441,35 @@ events_layout_start($breadcrumb_items, $page_title);
             </div>
         </div>
 
-        <!-- Rol Gereksinimleri -->
+        <!-- Skill Tag Gereksinimleri -->
         <div class="form-section">
-            <h3><i class="fas fa-clipboard-check"></i> Rol Gereksinimleri (Opsiyonel)</h3>
-            <p class="section-description">Bu role katılabilmek için gerekli yetenek tag'leri veya roller</p>
+            <h3><i class="fas fa-clipboard-check"></i> Skill Tag Gereksinimleri (Opsiyonel)</h3>
+            <p class="section-description">Bu role katılabilmek için gerekli yetenek tag'leri</p>
             
             <div id="requirements-container">
                 <?php if ($edit_mode && !empty($existing_requirements)): ?>
                     <?php foreach ($existing_requirements as $req): ?>
                         <div class="requirement-item">
                             <div class="form-row">
-                                <div class="form-group">
-                                    <select name="requirements[<?= uniqid() ?>][type]">
-                                        <option value="skill_tag" <?= $req['requirement_type'] === 'skill_tag' ? 'selected' : '' ?>>Yetenek Tag'i</option>
-                                        <option value="user_role" <?= $req['requirement_type'] === 'user_role' ? 'selected' : '' ?>>Kullanıcı Rolü</option>
-                                        <option value="experience_level" <?= $req['requirement_type'] === 'experience_level' ? 'selected' : '' ?>>Deneyim Seviyesi</option>
+                                <div class="form-group" style="flex: 2;">
+                                    <label>Skill Tag'ler:</label>
+                                    <select name="skill_tag_requirements[<?= uniqid() ?>][skill_tag_ids][]" 
+                                            class="skill-tag-select" multiple style="min-height: 80px;">
+                                        <?php 
+                                        $selected_tag_ids = explode(',', $req['skill_tag_ids']);
+                                        foreach ($available_skill_tags as $tag): ?>
+                                            <option value="<?= $tag['id'] ?>" 
+                                                    <?= in_array($tag['id'], $selected_tag_ids) ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($tag['tag_name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
                                     </select>
-                                </div>
-                                <div class="form-group">
-                                    <input type="text" name="requirements[<?= uniqid() ?>][value]" 
-                                           value="<?= htmlspecialchars($req['requirement_value']) ?>"
-                                           placeholder="Gereksinim değeri">
+                                    <small>Birden fazla seçim için Ctrl+Click kullanın</small>
                                 </div>
                                 <div class="form-group checkbox-group">
                                     <label>
-                                        <input type="checkbox" name="requirements[<?= uniqid() ?>][required]" 
+                                        <input type="checkbox" 
+                                               name="skill_tag_requirements[<?= uniqid() ?>][required]" 
                                                <?= $req['is_required'] ? 'checked' : '' ?>>
                                         Zorunlu
                                     </label>
@@ -434,7 +484,7 @@ events_layout_start($breadcrumb_items, $page_title);
             </div>
             
             <button type="button" id="add-requirement" class="btn-secondary">
-                <i class="fas fa-plus"></i> Gereksinim Ekle
+                <i class="fas fa-plus"></i> Skill Tag Gereksinimi Ekle
             </button>
         </div>
 
@@ -454,6 +504,9 @@ events_layout_start($breadcrumb_items, $page_title);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Available skill tags data from PHP
+    const availableSkillTags = <?= json_encode($available_skill_tags) ?>;
+    
     // Gereksinim ekleme
     let requirementCounter = 0;
     
@@ -464,20 +517,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const requirementHtml = `
             <div class="requirement-item">
                 <div class="form-row">
-                    <div class="form-group">
-                        <select name="requirements[${requirementId}][type]">
-                            <option value="skill_tag">Yetenek Tag'i</option>
-                            <option value="user_role">Kullanıcı Rolü</option>
-                            <option value="experience_level">Deneyim Seviyesi</option>
+                    <div class="form-group" style="flex: 2;">
+                        <label>Skill Tag'ler:</label>
+                        <select name="skill_tag_requirements[${requirementId}][skill_tag_ids][]" 
+                                class="skill-tag-select" multiple style="min-height: 80px;">
+                            ${availableSkillTags.map(tag => 
+                                `<option value="${tag.id}">${tag.tag_name}</option>`
+                            ).join('')}
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <input type="text" name="requirements[${requirementId}][value]" 
-                               placeholder="Gereksinim değeri (örn: pilot, medic, advanced)">
+                        <small>Birden fazla seçim için Ctrl+Click kullanın</small>
                     </div>
                     <div class="form-group checkbox-group">
                         <label>
-                            <input type="checkbox" name="requirements[${requirementId}][required]">
+                            <input type="checkbox" name="skill_tag_requirements[${requirementId}][required]">
                             Zorunlu
                         </label>
                     </div>
