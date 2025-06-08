@@ -1,0 +1,662 @@
+/* events/css/create_event.css - Etkinlik oluşturma sayfası stilleri */
+
+/* Page Layout */
+.create-event-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+/* Page Header */
+.page-header {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.header-info h1 {
+    color: var(--gold);
+    margin: 0 0 0.5rem 0;
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header-info p {
+    color: var(--light-grey);
+    margin: 0;
+    font-size: 1rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Event Form */
+.event-form {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Sections */
+.form-section {
+    padding: 2rem;
+    border-bottom: 1px solid var(--border-1);
+}
+
+.form-section:last-child {
+    border-bottom: none;
+}
+
+.form-section h3 {
+    color: var(--gold);
+    margin: 0 0 1.5rem 0;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    color: var(--lighter-grey);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    color: var(--lighter-grey);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--turquase);
+    box-shadow: 0 0 0 2px rgba(115, 228, 224, 0.2);
+}
+
+.form-group small {
+    display: block;
+    color: var(--light-grey);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+/* Form Rows */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* Checkbox Groups */
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+/* Markdown Editor */
+.markdown-editor {
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--card-bg-2);
+}
+
+.editor-toolbar {
+    background: var(--card-bg-3);
+    border-bottom: 1px solid var(--border-1);
+    padding: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
+}
+
+.editor-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 4px;
+    color: var(--lighter-grey);
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.editor-btn:hover {
+    background: var(--turquase);
+    color: var(--dark-bg);
+    border-color: var(--turquase);
+}
+
+.editor-btn.active {
+    background: var(--gold);
+    color: var(--dark-bg);
+    border-color: var(--gold);
+}
+
+.markdown-editor textarea {
+    border: none;
+    border-radius: 0;
+    resize: vertical;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9rem;
+}
+
+.preview-area {
+    padding: 0.75rem;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-1);
+    color: var(--lighter-grey);
+    min-height: 100px;
+}
+
+/* Current Thumbnail */
+.current-thumbnail {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    text-align: center;
+}
+
+.current-thumbnail img {
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Roles Grid */
+.roles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.role-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.role-checkbox:hover {
+    background: var(--card-bg-3);
+    border-color: var(--turquase);
+}
+
+.role-checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.role-name {
+    font-weight: 500;
+}
+
+/* Event Roles Container */
+#event-roles-container {
+    margin-top: 1rem;
+    padding: 1.5rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+}
+
+.roles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.roles-header h4 {
+    color: var(--turquase);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+/* Existing Roles Section */
+.existing-roles-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+}
+
+.existing-roles-section h5 {
+    color: var(--gold);
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-text {
+    color: var(--light-grey);
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+    font-style: italic;
+}
+
+.existing-roles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.existing-role-item {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    padding: 1rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: center;
+}
+
+.existing-role-item .role-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.existing-role-item .role-info i {
+    color: var(--turquase);
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.existing-role-item .role-name {
+    color: var(--lighter-grey);
+    font-weight: 500;
+    margin-right: 1rem;
+}
+
+.existing-role-item .participant-count {
+    background: var(--turquase);
+    color: var(--dark-bg);
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.role-limit-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 200px;
+}
+
+.role-limit-control label {
+    color: var(--lighter-grey);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.limit-input {
+    padding: 0.5rem;
+    border: 1px solid var(--border-1);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--lighter-grey);
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.limit-input:focus {
+    outline: none;
+    border-color: var(--turquase);
+    box-shadow: 0 0 0 2px rgba(115, 228, 224, 0.2);
+}
+
+.role-limit-control small {
+    color: var(--light-grey);
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+/* Info text improvements */
+.info-text {
+    color: var(--light-grey);
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+}
+
+.info-text i {
+    color: var(--gold);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .existing-role-item {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .role-limit-control {
+        min-width: auto;
+    }
+}
+
+/* Role Items */
+.role-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.role-item:last-child {
+    margin-bottom: 0;
+}
+
+.role-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto;
+    gap: 1rem;
+    align-items: center;
+}
+
+.role-select,
+.participant-limit {
+    margin: 0;
+}
+
+.role-description {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 4px;
+    color: var(--light-grey);
+    font-size: 0.9rem;
+    display: none;
+}
+
+.role-description.show {
+    display: block;
+}
+
+/* Remove Role Button */
+.remove-role {
+    background: var(--red);
+    border: 1px solid var(--red);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-role:hover {
+    background: var(--dark-red);
+    border-color: var(--dark-red);
+    transform: translateY(-1px);
+}
+
+/* Form Actions */
+.form-actions {
+    padding: 2rem;
+    background: var(--card-bg-3);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid;
+    font-size: 0.95rem;
+}
+
+.btn-primary {
+    background: var(--turquase);
+    color: var(--dark-bg);
+    border-color: var(--turquase);
+}
+
+.btn-primary:hover {
+    background: var(--light-turquase);
+    border-color: var(--light-turquase);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--card-bg-2);
+    color: var(--lighter-grey);
+    border-color: var(--border-1);
+}
+
+.btn-secondary:hover {
+    background: var(--card-bg-3);
+    border-color: var(--turquase);
+    color: var(--turquase);
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: var(--red);
+    color: white;
+    border-color: var(--red);
+}
+
+.btn-danger:hover {
+    background: var(--dark-red);
+    border-color: var(--dark-red);
+    transform: translateY(-1px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .create-event-container {
+        padding: 1rem;
+    }
+    
+    .page-header {
+        padding: 1.5rem;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .form-section {
+        padding: 1.5rem;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .roles-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .role-header {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .roles-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .form-actions {
+        padding: 1.5rem;
+        flex-direction: column;
+    }
+    
+    .editor-toolbar {
+        flex-wrap: wrap;
+    }
+}
+
+/* File Input Styling */
+input[type="file"] {
+    padding: 0.5rem;
+    background: var(--card-bg);
+    border: 2px dashed var(--border-1);
+    border-radius: 6px;
+    color: var(--lighter-grey);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+input[type="file"]:hover {
+    border-color: var(--turquase);
+    background: var(--card-bg-2);
+}
+
+/* Datetime Input Styling */
+input[type="datetime-local"] {
+    color-scheme: dark;
+}
+
+/* Select Styling */
+select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%2373e4e0' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px;
+    padding-right: 2.5rem;
+}
+
+/* Number Input Styling */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Focus States */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--turquase);
+    box-shadow: 0 0 0 2px rgba(115, 228, 224, 0.2);
+}
+
+/* Invalid States */
+.form-group input:invalid,
+.form-group select:invalid,
+.form-group textarea:invalid {
+    border-color: var(--red);
+}
+
+/* Loading States */
+.btn-primary:disabled,
+.btn-secondary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Dark Mode Adjustments */
+@media (prefers-color-scheme: dark) {
+    input[type="datetime-local"] {
+        color-scheme: dark;
+    }
+    
+    .markdown-editor textarea {
+        color-scheme: dark;
+    }
+}
