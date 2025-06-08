@@ -1,5 +1,5 @@
 <?php
-// events/create.php - Etkinlik oluşturma sayfası
+// events/create.php - Etkinlik oluşturma sayfası (TAM DÜZELTİLMİŞ VERSİYON)
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -30,6 +30,9 @@ $current_user_id = $_SESSION['user_id'];
 $edit_mode = false;
 $event_data = null;
 $event_id = 0;
+
+// CSRF token oluştur
+$csrf_token = generate_csrf_token();
 
 // Düzenleme modu kontrolü
 if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
@@ -68,7 +71,7 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF kontrolü
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        $_SESSION['error_message'] = "Güvenlik hatası - CSRF token geçersiz";
+        $_SESSION['error_message'] = "Güvenlik hatası - CSRF token geçersiz. Lütfen sayfayı yenileyin ve tekrar deneyin.";
         header('Location: ' . $_SERVER['PHP_SELF'] . ($edit_mode ? "?edit=$event_id" : ''));
         exit;
     }
@@ -83,50 +86,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $max_participants = !empty($_POST['max_participants']) ? (int)$_POST['max_participants'] : null;
     $suggested_loadout_id = !empty($_POST['suggested_loadout_id']) ? (int)$_POST['suggested_loadout_id'] : null;
     $requires_role_selection = isset($_POST['requires_role_selection']) ? 1 : 0;
+    $visibility_roles = $_POST['visibility_roles'] ?? [];
+    $event_roles = $_POST['event_roles'] ?? [];
     
-    // Thumbnail upload işlemi
-    $thumbnail_path = null;
-    if (isset($_FILES['thumbnail']) && $_FILES['thumbnail']['error'] === UPLOAD_ERR_OK) {
-        $upload_dir = BASE_PATH . '/uploads/events/thumbnails/';
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
-        }
-        
-        $file_extension = strtolower(pathinfo($_FILES['thumbnail']['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        if (in_array($file_extension, $allowed_extensions)) {
-            $filename = uniqid('event_thumb_') . '.' . $file_extension;
-            $upload_path = $upload_dir . $filename;
-            
-            if (move_uploaded_file($_FILES['thumbnail']['tmp_name'], $upload_path)) {
-                $thumbnail_path = '/uploads/events/thumbnails/' . $filename;
-            }
-        }
-    }
+    // YENI: Mevcut rol güncellemeleri ve silme işlemleri
+    $existing_roles = $_POST['existing_roles'] ?? [];
+    $remove_roles = $_POST['remove_roles'] ?? [];
     
-    // Rol görünürlüğü
-    $visibility_roles = [];
-    if ($visibility === 'role_restricted' && !empty($_POST['visibility_roles'])) {
-        $visibility_roles = array_map('intval', $_POST['visibility_roles']);
-    }
-    
-    // Etkinlik rolleri
-    $event_roles = [];
-    if ($requires_role_selection && !empty($_POST['event_roles'])) {
-        foreach ($_POST['event_roles'] as $role_data) {
-            if (!empty($role_data['role_id'])) {
-                $event_roles[] = [
-                    'role_id' => (int)$role_data['role_id'],
-                    'participant_limit' => !empty($role_data['participant_limit']) ? (int)$role_data['participant_limit'] : null
-                ];
-            }
-        }
-    }
-    
-    // Validasyon
     $errors = [];
     
+    // Validasyon
     if (empty($title)) {
         $errors[] = "Etkinlik başlığı gereklidir.";
     } elseif (strlen($title) > 200) {
@@ -152,19 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Maksimum katılımcı sayısı 1'den az olamaz.";
     }
     
-    if ($requires_role_selection && empty($event_roles)) {
+    if ($requires_role_selection && empty($event_roles) && empty($existing_roles)) {
         $errors[] = "Rol seçimi zorunlu işaretlendiğinde en az bir rol eklemelisiniz.";
     }
     
     // Rol sınır kontrolleri
     foreach ($event_roles as $role) {
-        if (isset($role['protected']) && $role['protected']) {
-            // Korumalı roller için ek kontrol yok, zaten yukarıda yapıldı
-            continue;
-        }
-        
-        if (isset($role['participant_limit']) && $role['participant_limit'] < 1) {
-            $errors[] = "Rol katılımcı sınırı 1'den az olamaz.";
+        if (isset($role['slot_count']) && $role['slot_count'] < 1) {
+            $errors[] = "Rol katılımcı sayısı 1'den az olamaz.";
         }
     }
     
@@ -186,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } catch (PDOException $e) {
             error_log("Loadout check error: " . $e->getMessage());
-            $suggested_loadout_id = null;
+            $errors[] = "Teçhizat seti kontrolünde hata oluştu.";
         }
     }
     
@@ -195,18 +159,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
             
             if ($edit_mode) {
-                // Güncelleme
-                $stmt = $pdo->prepare("
-                    UPDATE events 
-                    SET title = :title, description = :description, location = :location,
-                        event_type = :event_type, event_datetime = :event_datetime,
-                        visibility = :visibility, max_participants = :max_participants,
-                        suggested_loadout_id = :loadout_id, requires_role_selection = :requires_role_selection,
-                        thumbnail_path = COALESCE(:thumbnail_path, thumbnail_path),
-                        updated_at = NOW()
+                // Etkinlik güncelleme
+                $update_stmt = $pdo->prepare("
+                    UPDATE events SET 
+                    title = :title, description = :description, location = :location,
+                    event_type = :event_type, event_datetime = :event_datetime, 
+                    visibility = :visibility, max_participants = :max_participants,
+                    suggested_loadout_id = :suggested_loadout_id,
+                    requires_role_selection = :requires_role_selection,
+                    updated_at = NOW()
                     WHERE id = :id
                 ");
-                $stmt->execute([
+                
+                $update_stmt->execute([
                     ':title' => $title,
                     ':description' => $description,
                     ':location' => $location,
@@ -214,25 +179,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':event_datetime' => $event_datetime,
                     ':visibility' => $visibility,
                     ':max_participants' => $max_participants,
-                    ':loadout_id' => $suggested_loadout_id,
+                    ':suggested_loadout_id' => $suggested_loadout_id,
                     ':requires_role_selection' => $requires_role_selection,
-                    ':thumbnail_path' => $thumbnail_path,
                     ':id' => $event_id
                 ]);
                 
-                $message = "Etkinlik başarıyla güncellendi.";
+                // YENI: Silinecek rolleri işle
+                if (!empty($remove_roles)) {
+                    foreach ($remove_roles as $slot_id) {
+                        try {
+                            // Önce katılımcıları kaldır
+                            $remove_participants_stmt = $pdo->prepare("
+                                DELETE FROM event_role_participants 
+                                WHERE event_role_slot_id = :slot_id
+                            ");
+                            $remove_participants_stmt->execute([':slot_id' => $slot_id]);
+                            
+                            // event_participants tablosundan da kaldır
+                            $remove_event_participants_stmt = $pdo->prepare("
+                                DELETE FROM event_participants 
+                                WHERE event_id = :event_id 
+                                AND event_role_slot_id = :slot_id
+                            ");
+                            $remove_event_participants_stmt->execute([
+                                ':event_id' => $event_id,
+                                ':slot_id' => $slot_id
+                            ]);
+                            
+                            // Sonra rol slotunu sil
+                            $remove_slot_stmt = $pdo->prepare("
+                                DELETE FROM event_role_slots 
+                                WHERE id = :slot_id AND event_id = :event_id
+                            ");
+                            $remove_slot_stmt->execute([
+                                ':slot_id' => $slot_id,
+                                ':event_id' => $event_id
+                            ]);
+                            
+                        } catch (PDOException $e) {
+                            error_log("Role removal error: " . $e->getMessage());
+                            $errors[] = "Rol silme işleminde hata oluştu.";
+                        }
+                    }
+                }
+                
+                // YENI: Mevcut rol güncellemeleri
+                foreach ($existing_roles as $slot_id => $role_data) {
+                    try {
+                        $update_stmt = $pdo->prepare("
+                            UPDATE event_role_slots 
+                            SET slot_count = :slot_count
+                            WHERE id = :slot_id AND event_id = :event_id
+                        ");
+                        $update_stmt->execute([
+                            ':slot_count' => (int)$role_data['slot_count'],
+                            ':slot_id' => $slot_id,
+                            ':event_id' => $event_id
+                        ]);
+                        
+                    } catch (PDOException $e) {
+                        error_log("Role update error: " . $e->getMessage());
+                        $errors[] = "Rol güncelleme işleminde hata oluştu.";
+                    }
+                }
+                
             } else {
-                // Yeni oluşturma
-                $stmt = $pdo->prepare("
-                    INSERT INTO events 
-                    (title, description, location, event_type, event_datetime, visibility, 
-                     max_participants, suggested_loadout_id, requires_role_selection, 
-                     thumbnail_path, created_by_user_id)
+                // Yeni etkinlik oluşturma
+                $insert_stmt = $pdo->prepare("
+                    INSERT INTO events (title, description, location, event_type, event_datetime, 
+                                      visibility, max_participants, suggested_loadout_id, 
+                                      requires_role_selection, created_by_user_id, created_at)
                     VALUES (:title, :description, :location, :event_type, :event_datetime, 
-                           :visibility, :max_participants, :loadout_id, :requires_role_selection,
-                           :thumbnail_path, :user_id)
+                            :visibility, :max_participants, :suggested_loadout_id, 
+                            :requires_role_selection, :user_id, NOW())
                 ");
-                $stmt->execute([
+                
+                $insert_stmt->execute([
                     ':title' => $title,
                     ':description' => $description,
                     ':location' => $location,
@@ -240,42 +262,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':event_datetime' => $event_datetime,
                     ':visibility' => $visibility,
                     ':max_participants' => $max_participants,
-                    ':loadout_id' => $suggested_loadout_id,
+                    ':suggested_loadout_id' => $suggested_loadout_id,
                     ':requires_role_selection' => $requires_role_selection,
-                    ':thumbnail_path' => $thumbnail_path,
                     ':user_id' => $current_user_id
                 ]);
                 
                 $event_id = $pdo->lastInsertId();
-                $message = "Etkinlik başarıyla oluşturuldu.";
+            }
+            
+            // Görünürlük rolleri işleme
+            if ($visibility === 'role_restricted') {
+                // Mevcut rolleri temizle
+                $delete_visibility_stmt = $pdo->prepare("DELETE FROM event_visibility_roles WHERE event_id = ?");
+                $delete_visibility_stmt->execute([$event_id]);
+                
+                // Yeni rolleri ekle
+                if (!empty($visibility_roles)) {
+                    $visibility_insert_stmt = $pdo->prepare("
+                        INSERT INTO event_visibility_roles (event_id, role_id) VALUES (?, ?)
+                    ");
+                    foreach ($visibility_roles as $role_id) {
+                        $visibility_insert_stmt->execute([$event_id, $role_id]);
+                    }
+                }
+            }
+            
+            // Etkinlik rolleri işleme (yeni roller)
+            if (!empty($event_roles)) {
+                foreach ($event_roles as $role) {
+                    if (!empty($role['role_id'])) {
+                        $role_insert_stmt = $pdo->prepare("
+                            INSERT INTO event_role_slots (event_id, event_role_id, slot_count, display_order)
+                            VALUES (:event_id, :role_id, :slot_count, 0)
+                        ");
+                        $role_insert_stmt->execute([
+                            ':event_id' => $event_id,
+                            ':role_id' => $role['role_id'],
+                            ':slot_count' => $role['slot_count'] ?? 1
+                        ]);
+                    }
+                }
             }
             
             $pdo->commit();
-            $_SESSION['success_message'] = $message;
-            header('Location: view.php?id=' . $event_id);
+            
+            $_SESSION['success_message'] = $edit_mode ? "Etkinlik başarıyla güncellendi!" : "Etkinlik başarıyla oluşturuldu!";
+            header("Location: view.php?id=$event_id");
             exit;
             
         } catch (PDOException $e) {
             $pdo->rollBack();
             error_log("Event save error: " . $e->getMessage());
-            $errors[] = "Etkinlik kaydedilirken bir hata oluştu.";
+            $errors[] = "Etkinlik kaydedilirken bir hata oluştu: " . $e->getMessage();
         }
-    }
-    
-    if (!empty($errors)) {
-        $_SESSION['error_message'] = implode('<br>', $errors);
     }
 }
 
-// Mevcut teçhizat setlerini çek
+// Teçhizat setlerini çek
 try {
     $loadouts_stmt = $pdo->prepare("
-        SELECT ls.id, ls.set_name, u.username
-        FROM loadout_sets ls
-        LEFT JOIN users u ON ls.user_id = u.id
-        WHERE ls.status = 'published' 
-        AND (ls.visibility = 'public' OR (ls.visibility = 'members_only' AND :is_member = 1))
-        ORDER BY ls.set_name ASC
+        SELECT id, set_name, description 
+        FROM loadout_sets 
+        WHERE status = 'published' 
+        AND (visibility = 'public' OR (visibility = 'members_only' AND :is_member = 1))
+        ORDER BY set_name ASC
     ");
     $loadouts_stmt->execute([':is_member' => is_user_approved() ? 1 : 0]);
     $available_loadouts = $loadouts_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -299,27 +349,48 @@ try {
     $available_event_roles = [];
 }
 
-// Mevcut etkinlik rolleri (düzenleme modu için)
+// GÜNCELLENEN: Mevcut etkinlik rolleri (düzenleme modu için) - DOĞRU TABLO YAPISI
 $existing_event_roles = [];
+$all_event_roles = []; // Tüm roller için yeni array
 if ($edit_mode) {
     try {
-        $event_roles_stmt = $pdo->prepare("
-            SELECT er.id, er.role_name, er.icon_class,
-                   COUNT(ep.id) as participant_count
-            FROM event_participants ep
-            JOIN event_roles er ON ep.event_role_id = er.id
-            WHERE ep.event_id = ? AND ep.status = 'joined'
-            GROUP BY er.id, er.role_name, er.icon_class
-            HAVING COUNT(ep.id) > 0
-            ORDER BY er.role_name ASC
-        ");
-        $event_roles_stmt->execute([$event_id]);
-        $existing_event_roles = $event_roles_stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Önce bu etkinlik için tanımlanmış TÜM rolleri getir - DOĞRU TABLO YAPISINA GÖRE
+        $all_roles_stmt = $pdo->prepare("
+    SELECT 
+        ers.id as slot_id,
+        ers.event_role_id,
+        ers.slot_count,
+        ers.filled_count,
+        ers.display_order,
+        er.role_name,
+        er.icon_class,
+        er.role_description,
+        COALESCE(ers.filled_count, 0) as participant_count,
+        CASE 
+            WHEN ers.filled_count > 0 THEN 1 
+            ELSE 0 
+        END as has_participants
+    FROM event_role_slots ers
+    JOIN event_roles er ON ers.event_role_id = er.id
+    WHERE ers.event_id = :event_id
+    ORDER BY ers.display_order ASC, er.role_name ASC
+");
+        $all_roles_stmt->execute([':event_id' => $event_id]);
+        $all_event_roles = $all_roles_stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Katılımcısı olan rolleri ayrı olarak da tut (eski sistem uyumluluğu için)
+        $existing_event_roles = array_filter($all_event_roles, function($role) {
+            return $role['participant_count'] > 0;
+        });
+        
     } catch (PDOException $e) {
-        error_log("Existing event roles fetch error: " . $e->getMessage());
+        error_log("All event roles fetch error: " . $e->getMessage());
+        $all_event_roles = [];
         $existing_event_roles = [];
     }
 }
+
+// Sistem rollerini çek
 try {
     $system_roles_stmt = $pdo->prepare("
         SELECT id, role_name, color 
@@ -361,19 +432,28 @@ events_layout_start($breadcrumb_items, $page_title);
                 <i class="fas fa-calendar-plus"></i>
                 <?= $edit_mode ? 'Etkinlik Düzenle' : 'Yeni Etkinlik Oluştur' ?>
             </h1>
-            <p>Star Citizen operasyonları ve topluluk etkinlikleri düzenleyin</p>
-        </div>
-        <div class="header-actions">
-            <a href="index.php" class="btn-secondary">
-                <i class="fas fa-arrow-left"></i> Geri Dön
-            </a>
+            <p>Topluluk için yeni bir etkinlik planla</p>
         </div>
     </div>
 </div>
 
+<!-- Error Messages -->
+<?php if (!empty($errors)): ?>
+    <div class="alert alert-danger">
+        <h4><i class="fas fa-exclamation-triangle"></i> Hata!</h4>
+        <ul>
+            <?php foreach ($errors as $error): ?>
+                <li><?= htmlspecialchars($error) ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
+
+<!-- Event Form -->
 <div class="create-event-container">
-    <form id="eventForm" method="POST" enctype="multipart/form-data" class="event-form">
-        <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+    <form id="eventForm" method="POST" enctype="multipart/form-data">
+        <!-- CSRF Token -->
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
         
         <!-- Temel Bilgiler -->
         <div class="form-section">
@@ -381,102 +461,77 @@ events_layout_start($breadcrumb_items, $page_title);
             
             <div class="form-group">
                 <label for="title">Etkinlik Başlığı *</label>
-                <input type="text" id="title" name="title" required 
+                <input type="text" id="title" name="title" required maxlength="200"
                        value="<?= $edit_mode ? htmlspecialchars($event_data['title']) : '' ?>"
-                       placeholder="örn: Operation Reclaim, Weekly Training, Community Mining">
-                <small>Açıklayıcı ve çekici bir başlık seçin</small>
+                       placeholder="Etkinlik başlığını girin">
             </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="event_type">Etkinlik Türü *</label>
-                    <select id="event_type" name="event_type" required>
-                        <option value="Genel" <?= ($edit_mode && $event_data['event_type'] === 'Genel') ? 'selected' : '' ?>>Genel</option>
-                        <option value="Operasyon" <?= ($edit_mode && $event_data['event_type'] === 'Operasyon') ? 'selected' : '' ?>>Operasyon</option>
-                        <option value="Eğitim" <?= ($edit_mode && $event_data['event_type'] === 'Eğitim') ? 'selected' : '' ?>>Eğitim</option>
-                        <option value="Topluluk" <?= ($edit_mode && $event_data['event_type'] === 'Topluluk') ? 'selected' : '' ?>>Topluluk</option>
-                        <option value="Yarışma" <?= ($edit_mode && $event_data['event_type'] === 'Yarışma') ? 'selected' : '' ?>>Yarışma</option>
-                        <option value="Keşif" <?= ($edit_mode && $event_data['event_type'] === 'Keşif') ? 'selected' : '' ?>>Keşif</option>
-                        <option value="Ticaret" <?= ($edit_mode && $event_data['event_type'] === 'Ticaret') ? 'selected' : '' ?>>Ticaret</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="event_datetime">Etkinlik Zamanı *</label>
-                    <input type="datetime-local" id="event_datetime" name="event_datetime" required
-                           value="<?= $edit_mode ? date('Y-m-d\TH:i', strtotime($event_data['event_datetime'])) : '' ?>">
-                    <small>Türkiye saati (UTC+3) olarak girin</small>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="location">Etkinlik Yeri</label>
-                <input type="text" id="location" name="location" 
-                       value="<?= $edit_mode ? htmlspecialchars($event_data['location']) : '' ?>"
-                       placeholder="örn: Stanton System, Crusader, Port Olisar">
-                <small>Star Citizen evrenindeki konum (opsiyonel)</small>
-            </div>
-            
-            <div class="form-group">
-                <label for="thumbnail">Etkinlik Thumbnail'i</label>
-                <input type="file" id="thumbnail" name="thumbnail" accept="image/*">
-                <small>Etkinlik için küçük bir görsel yükleyin (JPG, PNG, GIF, WebP)</small>
-                <?php if ($edit_mode && $event_data['thumbnail_path']): ?>
-                    <div class="current-thumbnail">
-                        <img src="<?= htmlspecialchars($event_data['thumbnail_path']) ?>" alt="Mevcut thumbnail" style="max-width: 200px; max-height: 100px; margin-top: 10px;">
-                        <p><small>Mevcut thumbnail (yeni yüklerseniz değiştirilir)</small></p>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- Açıklama -->
-        <div class="form-section">
-            <h3><i class="fas fa-file-text"></i> Etkinlik Açıklaması</h3>
             
             <div class="form-group">
                 <label for="description">Açıklama *</label>
                 <div class="markdown-editor">
                     <div class="editor-toolbar">
-                        <button type="button" class="editor-btn" data-action="bold" title="Kalın">
+                        <button type="button" class="toolbar-btn" data-action="bold" title="Kalın">
                             <i class="fas fa-bold"></i>
                         </button>
-                        <button type="button" class="editor-btn" data-action="italic" title="İtalik">
+                        <button type="button" class="toolbar-btn" data-action="italic" title="İtalik">
                             <i class="fas fa-italic"></i>
                         </button>
-                        <button type="button" class="editor-btn" data-action="heading" title="Başlık">
-                            <i class="fas fa-heading"></i>
-                        </button>
-                        <button type="button" class="editor-btn" data-action="list" title="Liste">
-                            <i class="fas fa-list-ul"></i>
-                        </button>
-                        <button type="button" class="editor-btn" data-action="link" title="Link">
+                        <button type="button" class="toolbar-btn" data-action="link" title="Link">
                             <i class="fas fa-link"></i>
                         </button>
-                        <button type="button" class="editor-btn" data-action="preview" title="Önizleme">
+                        <button type="button" class="toolbar-btn" data-action="list" title="Liste">
+                            <i class="fas fa-list"></i>
+                        </button>
+                        <span class="toolbar-separator">|</span>
+                        <button type="button" class="toolbar-btn" data-action="preview" title="Önizleme">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
-                    <textarea id="description" name="description" required rows="8" 
-                              placeholder="Etkinliğinizi detaylı şekilde açıklayın... Markdown formatını kullanabilirsiniz."><?= $edit_mode ? htmlspecialchars($event_data['description']) : '' ?></textarea>
-                    <div id="preview-area" class="preview-area" style="display: none;"></div>
+                    <textarea id="description" name="description" required rows="8"
+                              placeholder="Etkinlik açıklamasını girin (Markdown desteklenir)"><?= $edit_mode ? htmlspecialchars($event_data['description']) : '' ?></textarea>
+                    <div id="preview-area" style="display: none;"></div>
                 </div>
-                <small>Markdown formatını kullanabilirsiniz. **kalın**, *italik*, # başlık, - liste</small>
             </div>
-        </div>
-
-        <!-- Görünürlük ve Katılım -->
-        <div class="form-section">
-            <h3><i class="fas fa-users"></i> Görünürlük ve Katılım</h3>
             
             <div class="form-row">
                 <div class="form-group">
-                    <label for="visibility">Etkinlik Görünürlüğü *</label>
-                    <select id="visibility" name="visibility" required>
+                    <label for="location">Konum</label>
+                    <input type="text" id="location" name="location" 
+                           value="<?= $edit_mode ? htmlspecialchars($event_data['location']) : '' ?>"
+                           placeholder="Etkinlik konumu">
+                </div>
+                
+                <div class="form-group">
+                    <label for="event_type">Etkinlik Türü</label>
+                    <select id="event_type" name="event_type">
+                        <option value="Genel" <?= ($edit_mode && $event_data['event_type'] === 'Genel') ? 'selected' : '' ?>>Genel</option>
+                        <option value="Operasyon" <?= ($edit_mode && $event_data['event_type'] === 'Operasyon') ? 'selected' : '' ?>>Operasyon</option>
+                        <option value="Antrenman" <?= ($edit_mode && $event_data['event_type'] === 'Antrenman') ? 'selected' : '' ?>>Antrenman</option>
+                        <option value="Sosyal" <?= ($edit_mode && $event_data['event_type'] === 'Sosyal') ? 'selected' : '' ?>>Sosyal</option>
+                        <option value="Turnuva" <?= ($edit_mode && $event_data['event_type'] === 'Turnuva') ? 'selected' : '' ?>>Turnuva</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="event_datetime">Etkinlik Tarihi ve Saati *</label>
+                <input type="datetime-local" id="event_datetime" name="event_datetime" required
+                       value="<?= $edit_mode ? date('Y-m-d\TH:i', strtotime($event_data['event_datetime'])) : '' ?>">
+            </div>
+        </div>
+
+        <!-- Katılım Ayarları -->
+        <div class="form-section">
+            <h3><i class="fas fa-users"></i> Katılım Ayarları</h3>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="visibility">Görünürlük</label>
+                    <select id="visibility" name="visibility">
                         <option value="public" <?= ($edit_mode && $event_data['visibility'] === 'public') ? 'selected' : '' ?>>
                             Herkese Açık
                         </option>
-                        <option value="members_only" <?= ($edit_mode && $event_data['visibility'] === 'members_only') ? 'selected' : '' ?>>
+                        <option value="members_only" <?= ($edit_mode && $event_data['visibility'] === 'members_only') || !$edit_mode ? 'selected' : '' ?>>
                             Sadece Üyeler
                         </option>
                         <option value="role_restricted" <?= ($edit_mode && $event_data['visibility'] === 'role_restricted') ? 'selected' : '' ?>>
@@ -512,7 +567,7 @@ events_layout_start($breadcrumb_items, $page_title);
             </div>
         </div>
 
-        <!-- Etkinlik Rolleri -->
+        <!-- GÜNCELLENEN: Etkinlik Rolleri -->
         <div class="form-section">
             <h3><i class="fas fa-user-tag"></i> Etkinlik Rolleri</h3>
             <p class="section-description">Etkinlik için roller belirleyin. Rol eklerseniz kullanıcılar sadece rollerle katılabilir.</p>
@@ -525,65 +580,140 @@ events_layout_start($breadcrumb_items, $page_title);
                     </button>
                 </div>
                 
-                <!-- Bilgi Mesajı (Düzenleme Modu) -->
-                <?php if ($edit_mode && !empty($existing_event_roles)): ?>
-                    <div class="existing-roles-info">
-                        <h5><i class="fas fa-info-circle"></i> Mevcut Katılımcılı Roller</h5>
+                <!-- Mevcut Roller (Düzenleme Modu) -->
+                <?php if ($edit_mode && !empty($all_event_roles)): ?>
+                    <div class="existing-roles-section">
+                        <h5><i class="fas fa-list"></i> Mevcut Etkinlik Rolleri</h5>
                         <p class="info-text">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            Aşağıdaki roller şu anda aktif katılımcılara sahip.
+                            <i class="fas fa-info-circle"></i>
+                            Aşağıda bu etkinlik için tanımlanmış tüm roller gösterilmektedir. 
+                            Katılımcısı olan roller <span class="text-warning">sarı</span> ile işaretlenmiştir.
                         </p>
                         
                         <div class="existing-roles-list">
-                            <?php foreach ($existing_event_roles as $role): ?>
-                                <div class="existing-role-item">
+                            <?php foreach ($all_event_roles as $index => $role): ?>
+                                <div class="existing-role-item <?= $role['has_participants'] ? 'has-participants' : '' ?>" data-role-id="<?= $role['slot_id'] ?>">
                                     <div class="role-info">
                                         <i class="<?= htmlspecialchars($role['icon_class']) ?>"></i>
                                         <span class="role-name"><?= htmlspecialchars($role['role_name']) ?></span>
-                                        <span class="participant-count">
-                                            <i class="fas fa-users"></i>
-                                            <?= $role['participant_count'] ?> aktif katılımcı
-                                        </span>
+                                        
+                                        <?php if ($role['has_participants']): ?>
+                                            <span class="participant-count"><?= $role['participant_count'] ?>/<?= $role['slot_count'] ?> katılımcı</span>
+                                            <span class="protected-badge">
+                                                <i class="fas fa-shield-alt"></i> Aktif
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="empty-badge">
+                                                <i class="fas fa-circle"></i> Boş (0/<?= $role['slot_count'] ?>)
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div class="role-actions">
+                                        <!-- Katılımcı sayısı düzenleme -->
+                                        <div class="participant-limit-edit">
+                                            <label>Limit:</label>
+                                            <input type="number" 
+                                                   name="existing_roles[<?= $role['slot_id'] ?>][slot_count]" 
+                                                   value="<?= $role['slot_count'] ?>" 
+                                                   min="<?= $role['participant_count'] ?>" 
+                                                   class="participant-limit-input"
+                                                   data-original-value="<?= $role['slot_count'] ?>">
+                                            <input type="hidden" 
+                                                   name="existing_roles[<?= $role['slot_id'] ?>][event_role_id]" 
+                                                   value="<?= $role['event_role_id'] ?>">
+                                        </div>
+                                        
+                                        <!-- Silme butonu -->
+                                        <?php if ($role['has_participants']): ?>
+                                            <button type="button" class="btn-warning btn-small" 
+                                                    onclick="showParticipantWarning('<?= htmlspecialchars($role['role_name']) ?>', <?= $role['participant_count'] ?>, '<?= $role['slot_id'] ?>')">
+                                                <i class="fas fa-exclamation-triangle"></i> 
+                                                Kaldır
+                                            </button>
+                                        <?php else: ?>
+                                            <button type="button" class="btn-danger btn-small remove-existing-role" 
+                                                    data-slot-id="<?= $role['slot_id'] ?>"
+                                                    data-role-name="<?= htmlspecialchars($role['role_name']) ?>">
+                                                <i class="fas fa-trash"></i> 
+                                                Sil
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
+                        
+                        <!-- Katılımcılı rol uyarı modalı -->
+                        <div id="participantWarningModal" class="modal" style="display: none;">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h3><i class="fas fa-exclamation-triangle text-warning"></i> Dikkat</h3>
+                                    <span class="close" onclick="closeParticipantModal()">&times;</span>
+                                </div>
+                                <div class="modal-body">
+                                    <p id="participantWarningText"></p>
+                                    <div class="warning-options">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="forceRemoveRole">
+                                            <span>Bu rolü ve tüm katılımcılarını etkinlikten kaldırmayı onaylıyorum</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn-secondary" onclick="closeParticipantModal()">İptal</button>
+                                    <button type="button" class="btn-danger" onclick="confirmRoleRemoval()">
+                                        <i class="fas fa-trash"></i> Rolü Kaldır
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 <?php endif; ?>
                 
-                <div id="roles-list" class="roles-list">
-                    <!-- Yeni roller dinamik olarak eklenecek -->
+                <!-- Yeni Rol Ekleme Alanı -->
+                <div class="new-roles-section">
+                    <h5><i class="fas fa-plus"></i> Yeni Rol Ekle</h5>
+                    <div id="roles-list"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Önerilen Teçhizat -->
+        <!-- Ek Seçenekler -->
         <div class="form-section">
-            <h3><i class="fas fa-shield-alt"></i> Önerilen Teçhizat</h3>
+            <h3><i class="fas fa-cog"></i> Ek Seçenekler</h3>
             
             <div class="form-group">
                 <label for="suggested_loadout_id">Önerilen Teçhizat Seti</label>
                 <select id="suggested_loadout_id" name="suggested_loadout_id">
-                    <option value="">Teçhizat seti seçin (opsiyonel)</option>
+                    <option value="">Seçiniz</option>
                     <?php foreach ($available_loadouts as $loadout): ?>
                         <option value="<?= $loadout['id'] ?>" 
                                 <?= ($edit_mode && $event_data['suggested_loadout_id'] == $loadout['id']) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($loadout['set_name']) ?> 
-                            (<?= htmlspecialchars($loadout['username']) ?>)
+                            <?= htmlspecialchars($loadout['set_name']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
                 <small>Katılımcılar için önerilen teçhizat seti</small>
             </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="requires_role_selection" value="1"
+                           <?= ($edit_mode && $event_data['requires_role_selection']) ? 'checked' : '' ?>>
+                    <span>Rol seçimi zorunlu</span>
+                </label>
+                <small>İşaretlenirse, kullanıcılar sadece belirlenen rollerle katılabilir</small>
+            </div>
         </div>
 
         <!-- Form Actions -->
         <div class="form-actions">
-            <button type="button" onclick="window.location.href='index.php'" class="btn-secondary">
+            <a href="index.php" class="btn-secondary">
                 <i class="fas fa-times"></i> İptal
-            </button>
+            </a>
             <button type="submit" class="btn-primary">
-                <i class="fas fa-save"></i> 
+                <i class="fas fa-save"></i>
                 <?= $edit_mode ? 'Güncelle' : 'Oluştur' ?>
             </button>
         </div>
@@ -602,8 +732,8 @@ events_layout_start($breadcrumb_items, $page_title);
                     </option>
                 <?php endforeach; ?>
             </select>
-            <input type="number" class="participant-limit" name="event_roles[{{INDEX}}][participant_limit]" 
-                   placeholder="Katılımcı sayısı" min="1">
+            <input type="number" class="participant-limit" name="event_roles[{{INDEX}}][slot_count]" 
+                   placeholder="Katılımcı sayısı" min="1" value="1">
             <button type="button" class="btn-danger remove-role">
                 <i class="fas fa-trash"></i>
             </button>
@@ -611,6 +741,142 @@ events_layout_start($breadcrumb_items, $page_title);
         <div class="role-description"></div>
     </div>
 </template>
+
+<script>
+// Mevcut rol silme JavaScript fonksiyonları
+let roleToRemove = null;
+
+function showParticipantWarning(roleName, participantCount, slotId) {
+    const modal = document.getElementById('participantWarningModal');
+    const warningText = document.getElementById('participantWarningText');
+    
+    warningText.innerHTML = `
+        <strong>"${roleName}"</strong> rolünde <strong>${participantCount}</strong> aktif katılımcı bulunmaktadır. 
+        Bu rolü kaldırırsanız, bu katılımcılar etkinlikten çıkarılacaktır.
+        <br><br>
+        Bu işlemi yapmak istediğinizden emin misiniz?
+    `;
+    
+    modal.style.display = 'block';
+    roleToRemove = { name: roleName, count: participantCount, slotId: slotId };
+}
+
+function closeParticipantModal() {
+    const modal = document.getElementById('participantWarningModal');
+    modal.style.display = 'none';
+    document.getElementById('forceRemoveRole').checked = false;
+    roleToRemove = null;
+}
+
+function confirmRoleRemoval() {
+    const forceRemove = document.getElementById('forceRemoveRole').checked;
+    
+    if (!forceRemove) {
+        alert('Rolü kaldırmak için onay kutusunu işaretlemeniz gerekiyor.');
+        return;
+    }
+    
+    if (roleToRemove) {
+        // Form'a hidden input ekleyerek işaretleyelim
+        const form = document.getElementById('eventForm');
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'remove_roles[]';
+        input.value = roleToRemove.slotId;
+        form.appendChild(input);
+        
+        // Görsel olarak rolü kaldır
+        const roleElement = document.querySelector(`[data-role-id="${roleToRemove.slotId}"]`);
+        if (roleElement) {
+            roleElement.style.opacity = '0.5';
+            roleElement.innerHTML += '<div class="removal-notice"><i class="fas fa-times"></i> Kaldırılacak</div>';
+        }
+        
+        closeParticipantModal();
+        
+        // Başarı mesajı
+        showNotification(`"${roleToRemove.name}" rolü kaldırılmak üzere işaretlendi.`, 'success');
+    }
+}
+
+// Boş rol silme
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-existing-role') || 
+        e.target.closest('.remove-existing-role')) {
+        
+        const button = e.target.classList.contains('remove-existing-role') ? 
+                      e.target : e.target.closest('.remove-existing-role');
+        const slotId = button.dataset.slotId;
+        const roleName = button.dataset.roleName;
+        const roleItem = button.closest('.existing-role-item');
+        
+        if (confirm(`"${roleName}" rolünü silmek istediğinizden emin misiniz?`)) {
+            // Form'a silme işareti ekle
+            const form = document.getElementById('eventForm');
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'remove_roles[]';
+            input.value = slotId;
+            form.appendChild(input);
+            
+            // Görsel olarak rolü kaldır
+            roleItem.style.opacity = '0.5';
+            roleItem.innerHTML += '<div class="removal-notice"><i class="fas fa-times"></i> Silinecek</div>';
+            
+            showNotification(`"${roleName}" rolü silinmek üzere işaretlendi.`, 'success');
+        }
+    }
+});
+
+// Form gönderiminde rol güncellemelerini işle
+document.getElementById('eventForm').addEventListener('submit', function(e) {
+    // Mevcut rol güncellemelerini kontrol et
+    const participantLimits = document.querySelectorAll('.participant-limit-input');
+    let hasChanges = false;
+    
+    participantLimits.forEach(input => {
+        const originalValue = input.getAttribute('data-original-value');
+        if (originalValue && originalValue !== input.value) {
+            hasChanges = true;
+        }
+    });
+    
+    // Rol kaldırma işlemleri var mı kontrol et
+    const removeInputs = document.querySelectorAll('input[name="remove_roles[]"]');
+    if (removeInputs.length > 0) {
+        hasChanges = true;
+    }
+    
+    if (hasChanges) {
+        const confirmMsg = 'Roller üzerinde değişiklikler yaptınız. Bu değişiklikleri kaydetmek istediğinizden emin misiniz?';
+        if (!confirm(confirmMsg)) {
+            e.preventDefault();
+            return false;
+        }
+    }
+});
+
+// Utility function for notifications
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span>${message}</span>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
 
 <script src="js/create_event.js"></script>
 

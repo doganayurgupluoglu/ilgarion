@@ -1,522 +1,558 @@
-// events/js/event_view.js - Etkinlik detay sayfası JavaScript (Yenilendi)
+// events/js/event_view.js - Etkinlik Detay Sayfası JavaScript
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeEventView();
 });
 
 function initializeEventView() {
-    // Modal elements
-    const deleteModal = document.getElementById('deleteEventModal');
-    const closeModalBtn = deleteModal?.querySelector('.close');
+    // Initialize all components
+    initializeParticipationButtons();
+    initializeRoleButtons();
+    initializeDeleteModal();
     
-    // Button elements
-    const deleteEventBtn = document.querySelector('.delete-event');
-    const roleStatusBtns = document.querySelectorAll('.btn-role-status');
-    const statusBtns = document.querySelectorAll('.btn-status');
-    const tabBtns = document.querySelectorAll('.tab-btn');
+    // Get CSRF token and event ID
+    const csrfToken = document.getElementById('csrf-token')?.value;
+    const eventId = document.getElementById('current-event-id')?.value;
     
-    // Initialize event listeners
-    initializeModalHandlers();
-    initializeRoleHandlers();
-    initializeStatusHandlers();
-    initializeTabHandlers();
+    if (!csrfToken || !eventId) {
+        console.log('CSRF token or event ID not found - some features may be disabled');
+        return;
+    }
     
-    // Functions
-    function initializeModalHandlers() {
-        if (deleteEventBtn) {
-            deleteEventBtn.addEventListener('click', function() {
-                const eventId = this.dataset.eventId;
-                const eventTitle = this.dataset.eventTitle;
-                showDeleteModal(eventId, eventTitle);
-            });
-        }
-        
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', closeDeleteModal);
-        }
-        
-        if (deleteModal) {
-            deleteModal.addEventListener('click', function(e) {
-                if (e.target === deleteModal) {
-                    closeDeleteModal();
-                }
-            });
-        }
-        
-        // Escape key to close modal
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && deleteModal && deleteModal.style.display === 'block') {
-                closeDeleteModal();
+    // Store globally for use in functions
+    window.eventData = {
+        csrfToken: csrfToken,
+        eventId: parseInt(eventId)
+    };
+}
+
+// Participation Status Buttons
+function initializeParticipationButtons() {
+    const statusButtons = document.querySelectorAll('.btn-status');
+    
+    statusButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const status = this.dataset.status;
+            const eventId = this.dataset.eventId;
+            
+            if (!window.eventData?.csrfToken) {
+                showNotification('Oturum hatası - lütfen sayfayı yenileyin', 'error');
+                return;
+            }
+            
+            updateParticipationStatus(eventId, status, this);
+        });
+    });
+}
+
+// Role Participation Buttons
+function initializeRoleButtons() {
+    // Join role buttons
+    const joinButtons = document.querySelectorAll('.join-role');
+    joinButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const slotId = this.dataset.slotId;
+            const roleName = this.dataset.roleName;
+            
+            if (!window.eventData?.csrfToken) {
+                showNotification('Oturum hatası - lütfen sayfayı yenileyin', 'error');
+                return;
+            }
+            
+            joinEventRole(slotId, roleName, this);
+        });
+    });
+    
+    // Leave role buttons
+    const leaveButtons = document.querySelectorAll('.leave-role');
+    leaveButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const slotId = this.dataset.slotId;
+            
+            if (!window.eventData?.csrfToken) {
+                showNotification('Oturum hatası - lütfen sayfayı yenileyin', 'error');
+                return;
+            }
+            
+            if (confirm('Bu rolden ayrılmak istediğinizden emin misiniz?')) {
+                leaveEventRole(slotId, this);
             }
         });
-    }
+    });
+}
+
+// Delete Modal
+function initializeDeleteModal() {
+    const deleteButton = document.querySelector('.delete-event');
+    const modal = document.getElementById('deleteEventModal');
+    const closeButtons = modal?.querySelectorAll('.close, .close-modal');
+    const confirmButton = modal?.querySelector('.confirm-delete');
     
-    function initializeRoleHandlers() {
-        roleStatusBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const action = this.dataset.action;
-                const roleId = this.dataset.roleId;
-                const eventId = this.closest('.role-card').dataset.eventId;
-                
-                if (action === 'join') {
-                    joinEventRole(eventId, roleId, this);
-                } else if (action === 'leave') {
-                    leaveEventRole(eventId, roleId, this);
-                }
-            });
-        });
-    }
+    if (!deleteButton || !modal) return;
     
-    function initializeStatusHandlers() {
-        statusBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const status = this.dataset.status;
-                const eventId = this.dataset.eventId;
-                updateParticipationStatus(eventId, status, this);
-            });
-        });
-    }
-    
-    function initializeTabHandlers() {
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const tabName = this.dataset.tab;
-                switchTab(tabName);
-            });
-        });
-    }
-    
-    function showDeleteModal(eventId, eventTitle) {
-        if (!deleteModal) return;
+    deleteButton.addEventListener('click', function() {
+        const eventId = this.dataset.eventId;
+        const eventTitle = this.dataset.eventTitle;
         
-        document.getElementById('deleteEventName').textContent = eventTitle;
-        deleteModal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
+        document.getElementById('eventTitle').textContent = eventTitle;
+        modal.style.display = 'block';
         
-        // Store event ID for deletion
-        window.currentDeleteEventId = eventId;
-    }
+        // Store event ID for confirmation
+        confirmButton.dataset.eventId = eventId;
+    });
     
-    function closeDeleteModal() {
-        if (!deleteModal) return;
-        
-        deleteModal.style.display = 'none';
-        document.body.style.overflow = '';
-        window.currentDeleteEventId = null;
-    }
-    
-    function joinEventRole(eventId, roleId, btn) {
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Katılınıyor...';
-        
-        fetch('actions/join_event_role.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                event_id: eventId,
-                role_id: roleId,
-                csrf_token: getCSRFToken()
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification(data.message, 'success');
-                
-                // Update button state
-                btn.dataset.action = 'leave';
-                btn.className = 'btn-role-status joined';
-                btn.innerHTML = '<i class="fas fa-check"></i> Katıldınız';
-                
-                // Update role card
-                const roleCard = btn.closest('.role-card');
-                roleCard.classList.add('user-joined');
-                
-                // Update role count
-                updateRoleCount(roleId, 1);
-                
-                // Update participation status to joined
-                updateStatusButtonsState('joined');
-                
-                // Refresh participants if needed
-                setTimeout(() => {
-                    updateParticipantCounts();
-                }, 500);
-                
-            } else {
-                showNotification(data.message, 'error');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Role katılım işlemi sırasında bir hata oluştu.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+    // Close modal handlers
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            modal.style.display = 'none';
         });
-    }
+    });
     
-    function leaveEventRole(eventId, roleId, btn) {
-        if (!confirm('Bu rolden ayrılmak istediğinizden emin misiniz?')) {
+    // Click outside to close
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+    
+    // Confirm delete
+    confirmButton?.addEventListener('click', function() {
+        const eventId = this.dataset.eventId;
+        
+        if (!window.eventData?.csrfToken) {
+            showNotification('Oturum hatası - lütfen sayfayı yenileyin', 'error');
             return;
         }
         
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ayrılınıyor...';
-        
-        fetch('actions/leave_event_role.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                event_id: eventId,
-                role_id: roleId,
-                csrf_token: getCSRFToken()
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification(data.message, 'success');
-                
-                // Update button state
-                btn.dataset.action = 'join';
-                btn.className = 'btn-role-status available';
-                btn.innerHTML = '<i class="fas fa-user-plus"></i> Katıl';
-                
-                // Update role card
-                const roleCard = btn.closest('.role-card');
-                roleCard.classList.remove('user-joined');
-                
-                // Update role count
-                updateRoleCount(roleId, -1);
-                
-                // Update participation status
-                updateStatusButtonsState('not_responded');
-                
-                // Refresh participants if needed
-                setTimeout(() => {
-                    updateParticipantCounts();
-                }, 500);
-                
-            } else {
-                showNotification(data.message, 'error');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Rolden ayrılma işlemi sırasında bir hata oluştu.', 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        });
-    }
+        deleteEvent(eventId);
+    });
     
-    function updateParticipationStatus(eventId, status, btn) {
-        const originalState = btn.classList.contains('active');
-        
-        // Temporarily update UI
-        document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        btn.disabled = true;
-        
-        fetch('actions/update_participation_status.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                event_id: eventId,
-                status: status,
-                csrf_token: getCSRFToken()
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification(data.message, 'success');
-                
-                // Update current status display
-                updateCurrentStatusDisplay(status);
-                
-                // Update participant counts
-                setTimeout(() => {
-                    updateParticipantCounts();
-                }, 500);
-                
-            } else {
-                showNotification(data.message, 'error');
-                
-                // Revert UI state
-                document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
-                if (originalState) {
-                    btn.classList.add('active');
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Durum güncelleme işlemi sırasında bir hata oluştu.', 'error');
-            
-            // Revert UI state
-            document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
-            if (originalState) {
-                btn.classList.add('active');
-            }
-        })
-        .finally(() => {
-            btn.disabled = false;
-        });
-    }
-    
-    function switchTab(tabName) {
-        // Update tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-        
-        // Update tab content
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
-        });
-        document.getElementById(`${tabName}-tab`).classList.add('active');
-    }
-    
-    function updateRoleCount(roleId, change) {
-        const roleCard = document.querySelector(`[data-role-id="${roleId}"]`);
-        if (roleCard) {
-            const countElement = roleCard.querySelector('.role-count .current');
-            if (countElement) {
-                const currentCount = parseInt(countElement.textContent) || 0;
-                countElement.textContent = Math.max(0, currentCount + change);
-            }
+    // ESC key to close
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.style.display === 'block') {
+            modal.style.display = 'none';
         }
-    }
-    
-    function updateStatusButtonsState(status) {
-        document.querySelectorAll('.btn-status').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        if (status !== 'not_responded') {
-            const statusBtn = document.querySelector(`[data-status="${status}"]`);
-            if (statusBtn) {
-                statusBtn.classList.add('active');
-            }
-        }
-    }
-    
-    function updateCurrentStatusDisplay(status) {
-        const statusDisplay = document.querySelector('.current-status');
-        if (!statusDisplay) return;
-        
-        let message = '';
-        switch(status) {
-            case 'joined':
-                message = '<i class="fas fa-check-circle" style="color: var(--turquase);"></i> Bu etkinliğe katılacağınızı bildirdiniz.';
-                break;
-            case 'maybe':
-                message = '<i class="fas fa-question-circle" style="color: var(--gold);"></i> Bu etkinliğe belki katılacağınızı bildirdiniz.';
-                break;
-            case 'declined':
-                message = '<i class="fas fa-times-circle" style="color: var(--red);"></i> Bu etkinliğe katılmayacağınızı bildirdiniz.';
-                break;
-        }
-        
-        statusDisplay.querySelector('p').innerHTML = message;
-        
-        // Show status display if hidden
-        statusDisplay.style.display = 'block';
-    }
-    
-    function updateParticipantCounts() {
-        // This could fetch updated counts via AJAX if needed
-        // For now, we'll refresh the page after a delay to show updated participants
-        setTimeout(() => {
-            window.location.reload();
-        }, 2000);
-    }
+    });
 }
 
-// Global functions accessible from HTML
-window.confirmDeleteEvent = function() {
-    const eventId = window.currentDeleteEventId;
-    if (!eventId) return;
+// API Functions
+function updateParticipationStatus(eventId, status, buttonElement) {
+    // Show loading state
+    const originalHTML = buttonElement.innerHTML;
+    buttonElement.disabled = true;
+    buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Güncelleniyor...';
     
-    const btn = document.querySelector('#deleteEventModal .btn-action-danger');
-    const originalText = btn.innerHTML;
-    
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Siliniyor...';
-    
-    fetch('actions/delete_event.php', {
+    fetch('actions/update_participation_status.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({
-            event_id: eventId,
-            csrf_token: getCSRFToken()
+            event_id: parseInt(eventId),
+            status: status,
+            csrf_token: window.eventData.csrfToken
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update UI
+            updateStatusButtons(status);
+            showNotification(data.message, 'success');
+            
+            // Refresh page after short delay to show updated participant counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Bir hata oluştu. Lütfen tekrar deneyin.', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        buttonElement.disabled = false;
+        buttonElement.innerHTML = originalHTML;
+    });
+}
+
+function joinEventRole(slotId, roleName, buttonElement) {
+    // Show loading state
+    const originalHTML = buttonElement.innerHTML;
+    buttonElement.disabled = true;
+    buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Katılıyor...';
+    
+    fetch('actions/join_event_role.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            event_id: window.eventData.eventId,
+            slot_id: parseInt(slotId),
+            csrf_token: window.eventData.csrfToken
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             showNotification(data.message, 'success');
+            
+            // Refresh page to show updated role participation
             setTimeout(() => {
-                window.location.href = '/events/';
+                window.location.reload();
             }, 1500);
         } else {
             showNotification(data.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('Silme işlemi sırasında bir hata oluştu.', 'error');
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        showNotification('Rol katılımı sırasında bir hata oluştu.', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        buttonElement.disabled = false;
+        buttonElement.innerHTML = originalHTML;
     });
-};
+}
 
-window.closeDeleteModal = function() {
-    const deleteModal = document.getElementById('deleteEventModal');
-    if (deleteModal) {
-        deleteModal.style.display = 'none';
-        document.body.style.overflow = '';
-        window.currentDeleteEventId = null;
-    }
-};
+function leaveEventRole(slotId, buttonElement) {
+    // Show loading state
+    const originalHTML = buttonElement.innerHTML;
+    buttonElement.disabled = true;
+    buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ayrılıyor...';
+    
+    fetch('actions/leave_event_role.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            event_id: window.eventData.eventId,
+            slot_id: parseInt(slotId),
+            csrf_token: window.eventData.csrfToken
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            
+            // Refresh page to show updated role participation
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Rolden ayrılma sırasında bir hata oluştu.', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        buttonElement.disabled = false;
+        buttonElement.innerHTML = originalHTML;
+    });
+}
 
-// Utility functions
-function getCSRFToken() {
-    const metaTag = document.querySelector('meta[name="csrf-token"]');
-    return metaTag ? metaTag.getAttribute('content') : '';
+function deleteEvent(eventId) {
+    const modal = document.getElementById('deleteEventModal');
+    const confirmButton = modal.querySelector('.confirm-delete');
+    
+    // Show loading state
+    const originalHTML = confirmButton.innerHTML;
+    confirmButton.disabled = true;
+    confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Siliniyor...';
+    
+    fetch('actions/delete_event.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            event_id: parseInt(eventId),
+            csrf_token: window.eventData.csrfToken
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            modal.style.display = 'none';
+            
+            // Redirect to events list after short delay
+            setTimeout(() => {
+                window.location.href = 'index.php';
+            }, 2000);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Etkinlik silme sırasında bir hata oluştu.', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        confirmButton.disabled = false;
+        confirmButton.innerHTML = originalHTML;
+    });
+}
+
+// UI Helper Functions
+function updateStatusButtons(activeStatus) {
+    const statusButtons = document.querySelectorAll('.btn-status');
+    
+    statusButtons.forEach(button => {
+        const buttonStatus = button.dataset.status;
+        
+        if (buttonStatus === activeStatus) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
 }
 
 function showNotification(message, type = 'info') {
     // Remove existing notifications
     const existingNotifications = document.querySelectorAll('.notification');
-    existingNotifications.forEach(n => n.remove());
+    existingNotifications.forEach(notification => notification.remove());
     
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
+    
+    // Icon based on type
+    let icon = 'fas fa-info-circle';
+    switch (type) {
+        case 'success':
+            icon = 'fas fa-check-circle';
+            break;
+        case 'error':
+            icon = 'fas fa-exclamation-triangle';
+            break;
+        case 'warning':
+            icon = 'fas fa-exclamation-circle';
+            break;
+    }
+    
     notification.innerHTML = `
         <div class="notification-content">
-            <div class="notification-icon">
-                <i class="fas fa-${getNotificationIcon(type)}"></i>
-            </div>
-            <span class="notification-message">${message}</span>
+            <i class="${icon}"></i>
+            <span>${message}</span>
             <button class="notification-close" onclick="this.parentElement.parentElement.remove()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
     `;
     
-    // Add styles
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: var(--card-bg);
-        border: 1px solid var(--border-1);
-        border-radius: 8px;
-        padding: 1rem;
-        max-width: 400px;
-        z-index: 1001;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        animation: slideInRight 0.3s ease;
-    `;
-    
-    const content = notification.querySelector('.notification-content');
-    content.style.cssText = `
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        color: var(--lighter-grey);
-    `;
-    
-    const icon = notification.querySelector('.notification-icon');
-    icon.style.cssText = `
-        color: ${getNotificationColor(type)};
-        font-size: 1.2rem;
-    `;
-    
-    const closeBtn = notification.querySelector('.notification-close');
-    closeBtn.style.cssText = `
-        background: none;
-        border: none;
-        color: var(--light-grey);
-        cursor: pointer;
-        padding: 0.25rem;
-        margin-left: auto;
-    `;
-    
+    // Add to page
     document.body.appendChild(notification);
     
     // Auto remove after 5 seconds
     setTimeout(() => {
         if (notification.parentElement) {
-            notification.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
+            notification.remove();
         }
     }, 5000);
+    
+    // Slide in animation
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 100);
 }
 
-function getNotificationIcon(type) {
-    switch (type) {
-        case 'success': return 'check-circle';
-        case 'error': return 'exclamation-circle';
-        case 'warning': return 'exclamation-triangle';
-        default: return 'info-circle';
+// Utility Functions
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Enhanced error handling
+window.addEventListener('error', function(e) {
+    console.error('JavaScript Error:', e.error);
+    
+    // Show user-friendly error for critical failures
+    if (e.error && e.error.message.includes('fetch')) {
+        showNotification('Bağlantı hatası. İnternet bağlantınızı kontrol edin.', 'error');
     }
-}
+});
 
-function getNotificationColor(type) {
-    switch (type) {
-        case 'success': return '#28a745';
-        case 'error': return 'var(--red)';
-        case 'warning': return 'var(--gold)';
-        default: return 'var(--turquase)';
+// Handle visibility change (tab switching)
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        // Page became visible again - could refresh data if needed
+        console.log('Page became visible again');
     }
-}
+});
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + R to refresh (allow default behavior)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+        // Let default refresh happen
+        return;
     }
     
-    @keyframes slideOutRight {
-        from {
+    // ESC to close any open modals
+    if (e.key === 'Escape') {
+        const openModal = document.querySelector('.modal[style*="block"]');
+        if (openModal) {
+            openModal.style.display = 'none';
+        }
+    }
+});
+
+// Touch device enhancements
+if ('ontouchstart' in window) {
+    // Add touch-friendly classes
+    document.body.classList.add('touch-device');
+    
+    // Improve button interactions on touch devices
+    const buttons = document.querySelectorAll('button, .btn-status, .join-role, .leave-role');
+    buttons.forEach(button => {
+        button.addEventListener('touchstart', function() {
+            this.classList.add('touch-active');
+        });
+        
+        button.addEventListener('touchend', function() {
+            setTimeout(() => {
+                this.classList.remove('touch-active');
+            }, 150);
+        });
+    });
+}
+
+// Performance monitoring
+if ('PerformanceObserver' in window) {
+    const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+            if (entry.entryType === 'navigation') {
+                console.log(`Page load time: ${entry.loadEventEnd - entry.loadEventStart}ms`);
+            }
+        }
+    });
+    
+    observer.observe({ entryTypes: ['navigation'] });
+}
+
+// Add notification styles if not already present
+if (!document.querySelector('#notification-styles')) {
+    const style = document.createElement('style');
+    style.id = 'notification-styles';
+    style.textContent = `
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            opacity: 0;
+        }
+        
+        .notification.show {
             transform: translateX(0);
             opacity: 1;
         }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
+        
+        .notification-success {
+            background: var(--green, #28a745);
+            color: white;
         }
-    }
-`;
-document.head.appendChild(style);
+        
+        .notification-error {
+            background: var(--red, #dc3545);
+            color: white;
+        }
+        
+        .notification-warning {
+            background: var(--gold, #ffc107);
+            color: var(--dark-bg, #1a1a1a);
+        }
+        
+        .notification-info {
+            background: var(--turquase, #17a2b8);
+            color: white;
+        }
+        
+        .notification-content {
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .notification-content i {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        
+        .notification-content span {
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        .notification-close {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
+            flex-shrink: 0;
+        }
+        
+        .notification-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .touch-device .notification {
+            right: 10px;
+            left: 10px;
+            max-width: none;
+        }
+        
+        @media (max-width: 480px) {
+            .notification {
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+console.log('Event view initialized successfully');
