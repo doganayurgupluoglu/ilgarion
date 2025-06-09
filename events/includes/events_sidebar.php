@@ -148,14 +148,6 @@ $can_manage_skill_tags = has_permission($pdo, 'skill_tag.verify_others');
                     Rol Yönetimi
                 </h3>
                 <ul class="sidebar-submenu">
-                    <?php if ($can_manage_participants): ?>
-                        <li class="submenu-item <?= $current_page === 'manage_participants' ? 'active' : '' ?>">
-                            <a href="/events/roles/manage_participants.php">
-                                <i class="fas fa-users-cog"></i>
-                                <span>Katılımcı Yönetimi</span>
-                            </a>
-                        </li>
-                    <?php endif; ?>
                     <?php if ($can_manage_skill_tags): ?>
                         <li class="submenu-item <?= $current_page === 'skill_tags' ? 'active' : '' ?>">
                             <a href="/events/roles/skill_tags.php">

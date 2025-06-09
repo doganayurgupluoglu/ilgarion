@@ -1,5 +1,5 @@
 <?php
-// /events/roles/view.php - Etkinlik rol detay sayfası
+// /events/roles/view.php - Etkinlik rol detay sayfası - MEVCUT DB YAPISINA GÖRE
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -46,52 +46,24 @@ $can_delete_all = $is_logged_in && has_permission($pdo, 'event_role.delete_all')
 $can_view_private = $is_logged_in && has_permission($pdo, 'event_role.view_private');
 
 try {
-    // Rol detaylarını getir
+    // MEVCUT TABLO YAPISINA GÖRE rol detayları sorgusu
     $role_stmt = $pdo->prepare("
-        SELECT er.*, 
-               u.username as creator_username,
-               u.id as creator_user_id
+        SELECT er.id, er.role_name, er.role_description, er.role_icon, 
+               er.suggested_loadout_id, er.created_at
         FROM event_roles er
-        LEFT JOIN users u ON er.created_by_user_id = u.id
-        WHERE er.id = :role_id AND er.is_active = 1
+        WHERE er.id = :role_id
     ");
     
     $role_stmt->execute([':role_id' => $role_id]);
     $role = $role_stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$role) {
-        $_SESSION['error_message'] = "Rol bulunamadı veya aktif değil.";
+        $_SESSION['error_message'] = "Rol bulunamadı.";
         header('Location: index.php');
         exit;
     }
     
-    // Görünürlük kontrolü
-    if ($role['visibility'] === 'members_only' && !$is_logged_in) {
-        $_SESSION['error_message'] = "Bu rolü görüntülemek için giriş yapmanız gerekiyor.";
-        header('Location: ../../auth/login.php');
-        exit;
-    }
-    
-    // Creator role color
-    $creator_role_color = '#bd912a';
-    if ($role['creator_user_id']) {
-        $color_stmt = $pdo->prepare("
-            SELECT r.color 
-            FROM roles r 
-            JOIN user_roles ur ON r.id = ur.role_id 
-            WHERE ur.user_id = :user_id 
-            ORDER BY r.priority ASC 
-            LIMIT 1
-        ");
-        $color_stmt->execute([':user_id' => $role['creator_user_id']]);
-        $color_result = $color_stmt->fetch(PDO::FETCH_ASSOC);
-        if ($color_result) {
-            $creator_role_color = $color_result['color'];
-        }
-    }
-    $role['creator_role_color'] = $creator_role_color;
-    
-    // Teçhizat seti bilgisi - BASIT!
+    // Teçhizat seti bilgisi
     $role['loadout_name'] = null;
     if ($role['suggested_loadout_id']) {
         $loadout_stmt = $pdo->prepare("SELECT set_name FROM loadout_sets WHERE id = :id");
@@ -103,92 +75,60 @@ try {
     }
     
     // Usage count
-    $usage_stmt = $pdo->prepare("SELECT COUNT(*) as count FROM event_role_slots WHERE event_role_id = :role_id");
+    $usage_stmt = $pdo->prepare("SELECT COUNT(*) as count FROM event_role_slots WHERE role_id = :role_id");
     $usage_stmt->execute([':role_id' => $role_id]);
     $role['usage_count'] = $usage_stmt->fetchColumn();
     
     // Requirements count
-    $req_stmt = $pdo->prepare("SELECT COUNT(*) as count FROM event_role_requirements WHERE event_role_id = :role_id");
+    $req_stmt = $pdo->prepare("SELECT COUNT(*) as count FROM event_role_requirements WHERE role_id = :role_id");
     $req_stmt->execute([':role_id' => $role_id]);
     $role['requirements_count'] = $req_stmt->fetchColumn();
     
-    // Rol gereksinimlerini getir - YENİ YAPI
+    // MEVCUT TABLO YAPISINA GÖRE rol gereksinimlerini getir
     $requirements = [];
     try {
         $requirements_stmt = $pdo->prepare("
-            SELECT err.*, 
-                   GROUP_CONCAT(st.tag_name ORDER BY st.tag_name ASC SEPARATOR ', ') as tag_names
+            SELECT err.role_id, err.skill_tag_id, st.tag_name
             FROM event_role_requirements err
-            LEFT JOIN skill_tags st ON FIND_IN_SET(st.id, err.skill_tag_ids) > 0
-            WHERE err.event_role_id = :role_id
-            GROUP BY err.id
-            ORDER BY err.is_required DESC, err.id ASC
+            JOIN skill_tags st ON err.skill_tag_id = st.id
+            WHERE err.role_id = :role_id
+            ORDER BY st.tag_name ASC
         ");
         $requirements_stmt->execute([':role_id' => $role_id]);
         $requirements = $requirements_stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
+        error_log("Requirements fetch error: " . $e->getMessage());
         $requirements = [];
     }
     
-    // Kullanıcının skill tag'lerini kontrol et (giriş yapmışsa)
+    // MEVCUT TABLO YAPISINA GÖRE kullanıcının skill tag'lerini kontrol et
     $user_skill_tags = [];
     $user_meets_requirements = true;
-    $debug_user_query_result = null;
     
     if ($is_logged_in && !empty($requirements)) {
         try {
-            // Yeni tablo yapısına göre user tag'leri çek
+            // Kullanıcının sahip olduğu skill tag'leri al
             $user_tags_stmt = $pdo->prepare("
-                SELECT tag_ids 
-                FROM user_skill_tags 
-                WHERE user_id = :user_id
+                SELECT ust.skill_tag_id
+                FROM user_skill_tags ust
+                WHERE ust.user_id = :user_id
             ");
             $user_tags_stmt->execute([':user_id' => $current_user_id]);
-            $user_tags_result = $user_tags_stmt->fetch(PDO::FETCH_ASSOC);
+            $user_tag_results = $user_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
             
-            // Debug için sorgu sonucunu sakla
-            $debug_user_query_result = $user_tags_result;
+            $user_skill_tags = array_map('intval', $user_tag_results);
             
-            if ($user_tags_result && !empty($user_tags_result['tag_ids'])) {
-                // String'leri integer'a çevir ve trim'le
-                $user_skill_tags = array_map('intval', array_map('trim', explode(',', $user_tags_result['tag_ids'])));
-            }
+            // Gereksinimleri kontrol et - Her gereksinim için ayrı kontrol
+            $required_tag_ids = array_column($requirements, 'skill_tag_id');
+            $required_tag_ids = array_map('intval', $required_tag_ids);
             
-            // Debug için - geliştirme aşamasında silinebilir
-            error_log("User skill tags: " . print_r($user_skill_tags, true));
-            
-            // Gereksinimleri kontrol et - HER ZORUNLU GEREKSİNİM AYRI AYRI KONTROL EDİLMELİ
-            foreach ($requirements as $requirement) {
-                if ($requirement['is_required']) {
-                    // Gereksinim tag'lerini de integer'a çevir
-                    $required_tag_ids = array_map('intval', array_map('trim', explode(',', $requirement['skill_tag_ids'])));
-                    $has_required_tags = false;
-                    
-                    // Debug için - geliştirme aşamasında silinebilir
-                    error_log("Required tag IDs for requirement: " . print_r($required_tag_ids, true));
-                    
-                    // TÜM TAG'LERE SAHİP OLMA KONTROLÜ
-                    $has_required_tags = count(array_intersect($required_tag_ids, $user_skill_tags)) === count($required_tag_ids);
-                    
-                    // Debug için
-                    $intersect_count = count(array_intersect($required_tag_ids, $user_skill_tags));
-                    $required_count = count($required_tag_ids);
-                    error_log("Intersection count: $intersect_count, Required count: $required_count, Has all tags: " . ($has_required_tags ? 'YES' : 'NO'));
-                    
-                    // Eğer bu zorunlu gereksinimi karşılamıyorsa, tümünü karşılamıyor
-                    if (!$has_required_tags) {
-                        $user_meets_requirements = false;
-                        error_log("User does NOT meet requirement with tags: " . print_r($required_tag_ids, true));
-                        break; // Artık kontrol etmeye gerek yok
-                    }
-                }
-            }
-            
-            error_log("Final user_meets_requirements: " . ($user_meets_requirements ? 'true' : 'false'));
+            // Kullanıcının tüm gerekli tag'lere sahip olup olmadığını kontrol et
+            $missing_tags = array_diff($required_tag_ids, $user_skill_tags);
+            $user_meets_requirements = empty($missing_tags);
             
         } catch (PDOException $e) {
             error_log("User skill tags fetch error: " . $e->getMessage());
-            $user_meets_requirements = false; // Hata durumunda false yap
+            $user_meets_requirements = false;
         }
     }
     
@@ -196,27 +136,31 @@ try {
     $recent_events = [];
     try {
         $events_stmt = $pdo->prepare("
-            SELECT DISTINCT e.id, e.title, e.event_datetime, e.status,
-                   ers.slot_count, ers.filled_count,
-                   (SELECT COUNT(*) FROM event_role_participants erp 
-                    WHERE erp.event_role_slot_id = ers.id AND erp.status = 'active') as active_participants
+            SELECT DISTINCT e.id, e.event_title as title, e.event_date as event_datetime, e.status,
+                   ers.slot_count, 
+                   (SELECT COUNT(*) FROM event_participations ep 
+                    WHERE ep.event_id = e.id AND ep.role_slot_id = ers.id 
+                    AND ep.participation_status = 'confirmed') as active_participants
             FROM events e
             JOIN event_role_slots ers ON e.id = ers.event_id
-            WHERE ers.event_role_id = :role_id
-            ORDER BY e.event_datetime DESC
+            WHERE ers.role_id = :role_id
+            ORDER BY e.event_date DESC
             LIMIT 10
         ");
         $events_stmt->execute([':role_id' => $role_id]);
         $recent_events = $events_stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
+        error_log("Recent events fetch error: " . $e->getMessage());
         $recent_events = [];
     }
     
 } catch (PDOException $e) {
+    error_log("Role view PDO error: " . $e->getMessage());
     $_SESSION['error_message'] = "Rol detayları yüklenirken bir hata oluştu.";
     header('Location: index.php');
     exit;
 } catch (Exception $e) {
+    error_log("Role view general error: " . $e->getMessage());
     $_SESSION['error_message'] = "Beklenmeyen bir hata oluştu.";
     header('Location: index.php');
     exit;
@@ -228,7 +172,7 @@ $breadcrumb_items = [
     ['text' => 'Ana Sayfa', 'url' => '/index.php', 'icon' => 'fas fa-home'],
     ['text' => 'Etkinlikler', 'url' => '/events/', 'icon' => 'fas fa-calendar'],
     ['text' => 'Roller', 'url' => '/events/roles/', 'icon' => 'fas fa-user-tag'],
-    ['text' => $role['role_name'], 'url' => '', 'icon' => $role['icon_class'] ?? 'fas fa-user']
+    ['text' => $role['role_name'], 'url' => '', 'icon' => $role['role_icon'] ?? 'fas fa-user']
 ];
 
 include BASE_PATH . '/src/includes/header.php';
@@ -246,7 +190,7 @@ events_layout_start($breadcrumb_items, $page_title);
         <div class="set-header">
             <div class="set-info">
                 <div class="set-title-group">
-                    <h1><i class="<?= htmlspecialchars($role['icon_class']) ?>"></i><?= htmlspecialchars($role['role_name']) ?></h1>
+                    <h1><i class="<?= htmlspecialchars($role['role_icon']) ?>"></i><?= htmlspecialchars($role['role_name']) ?></h1>
                     <div class="set-meta-info">
                         <?php if ($role['usage_count'] > 0): ?>
                             <span class="usage-count">
@@ -254,28 +198,11 @@ events_layout_start($breadcrumb_items, $page_title);
                                 <?= $role['usage_count'] ?> etkinlikte kullanıldı
                             </span>
                         <?php endif; ?>
-                        <span class="creator-info">
-                            <i class="fas fa-user"></i>
-                            Oluşturan: 
-                            <?php if ($is_logged_in): ?>
-                                <span class="user-link" 
-                                      data-user-id="<?= $role['creator_user_id'] ?>"
-                                      style="color: <?= htmlspecialchars($role['creator_role_color'] ?? '#bd912a') ?>; cursor: pointer; font-weight: 500;">
-                                    <?= htmlspecialchars($role['creator_username'] ?? 'Bilinmeyen') ?>
-                                </span>
-                            <?php else: ?>
-                                <span style="color: #bd912a; font-weight: 500;">
-                                    <?= htmlspecialchars($role['creator_username'] ?? 'Bilinmeyen') ?>
-                                </span>
-                            <?php endif; ?>
-                        </span>
 
                         <span class="creation-date">
                             <i class="fas fa-clock"></i>
                             <?= date('d.m.Y H:i', strtotime($role['created_at'])) ?>
                         </span>
-                        
-                        
                         
                         <?php if (!empty($role['loadout_name'])): ?>
                             <span class="loadout-info">
@@ -291,17 +218,17 @@ events_layout_start($breadcrumb_items, $page_title);
                 </div>
             </div>
             
-            <!-- Eylem Butonları -->
+            <!-- Eylem Butonları - Şimdilik basit yetki kontrolleri -->
             <?php if ($is_logged_in): ?>
                 <div class="set-actions">
-                    <?php if ($role['created_by_user_id'] == $current_user_id || $can_edit_all): ?>
-                        <a href="edit.php?id=<?= $role['id'] ?>" class="btn-action-secondary">
+                    <?php if ($can_edit_all): ?>
+                        <a href="create.php?id=<?= $role['id'] ?>" class="btn-action-secondary">
                             <i class="fas fa-edit"></i>
                             Düzenle
                         </a>
                     <?php endif; ?>
                     
-                    <?php if ($role['created_by_user_id'] == $current_user_id || $can_delete_all): ?>
+                    <?php if ($can_delete_all): ?>
                         <button type="button" 
                                 class="btn-action-secondary delete-role" 
                                 data-role-id="<?= $role['id'] ?>"
@@ -326,7 +253,7 @@ events_layout_start($breadcrumb_items, $page_title);
             </div>
         </div>
 
-        <!-- Rol Gereksinimleri - YENİ YAPI -->
+        <!-- MEVCUT TABLO YAPISINA GÖRE Rol Gereksinimleri -->
         <?php if (!empty($requirements)): ?>
             <div class="content-section">
                 <h2>
@@ -339,66 +266,25 @@ events_layout_start($breadcrumb_items, $page_title);
                     <?php endif; ?>
                 </h2>
                 
-                <!-- DEBUG BİLGİLERİ -->
-                <?php if ($is_logged_in): ?>
-                    <div style="background: #1a1a1a; color: #00ff00; padding: 1rem; margin: 1rem 0; border-radius: 5px; font-family: monospace; font-size: 12px;">
-                        <strong>DEBUG BİLGİLERİ:</strong><br>
-                        Kullanıcı ID: <?= $current_user_id ?><br>
-                        SQL Sorgu Sonucu: <?= $debug_user_query_result ? json_encode($debug_user_query_result) : 'NULL (kayıt yok)' ?><br>
-                        Ham tag_ids: "<?= $debug_user_query_result['tag_ids'] ?? 'YOK' ?>"<br>
-                        Kullanıcı Tag'leri: [<?= implode(', ', $user_skill_tags) ?>]<br>
-                        Gereksinim sayısı: <?= count($requirements) ?><br>
-                        Son durum: <?= $user_meets_requirements ? 'TRUE' : 'FALSE' ?><br><br>
-                        
-                        <?php foreach ($requirements as $index => $req): ?>
-                            <?php 
-                            $req_tag_ids = array_map('intval', array_map('trim', explode(',', $req['skill_tag_ids'])));
-                            $has_match = false;
-                            $matching_tags = [];
-                            
-                            // TÜM TAG'LER KONTROLÜ
-                            $intersection = array_intersect($req_tag_ids, $user_skill_tags);
-                            $matching_tags = array_values($intersection);
-                            $has_match = count($intersection) === count($req_tag_ids); // TÜM tag'lere sahip mi?
-                            ?>
-                            Gereksinim <?= $index + 1 ?>:<br>
-                            - Gerekli Tag'ler: [<?= implode(', ', $req_tag_ids) ?>]<br>
-                            - Sahip Olunan Tag'ler: [<?= implode(', ', $matching_tags) ?>]<br>
-                            - Eksik Tag'ler: [<?= implode(', ', array_diff($req_tag_ids, $user_skill_tags)) ?>]<br>
-                            - Zorunlu: <?= $req['is_required'] ? 'EVET' : 'HAYIR' ?><br>
-                            - TÜM Tag'lere Sahip: <?= $has_match ? 'EVET' : 'HAYIR' ?><br><br>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-                
                 <div class="requirements-list">
                     <?php foreach ($requirements as $req): ?>
-                        <div class="requirement-item <?= $req['is_required'] ? 'required' : 'preferred' ?>">
+                        <div class="requirement-item required">
                             <div class="requirement-icon">
-                                <i class="fas fa-tags"></i>
+                                <i class="fas fa-tag"></i>
                             </div>
                             <div class="requirement-content">
                                 <span class="requirement-label">
-                                    Skill Tag'ler: <?= htmlspecialchars($req['tag_names']) ?>
+                                    Skill Tag: <?= htmlspecialchars($req['tag_name']) ?>
                                 </span>
                                 <span class="requirement-type">
-                                    <?= $req['is_required'] ? 'Zorunlu' : 'Tercih Edilen' ?>
+                                    Zorunlu
                                     <?php if ($is_logged_in): ?>
                                         <?php
-                                        // Tag ID'leri integer'a çevir
-                                        $required_tag_ids = array_map('intval', array_map('trim', explode(',', $req['skill_tag_ids'])));
-                                        
-                                        // TÜM TAG'LERE SAHİP Mİ KONTROLÜ
-                                        $intersection = array_intersect($required_tag_ids, $user_skill_tags);
-                                        $has_all_required = count($intersection) === count($required_tag_ids);
+                                        $has_tag = in_array((int)$req['skill_tag_id'], $user_skill_tags);
                                         ?>
                                         - 
-                                        <span style="<?= $has_all_required ? 'color: var(--turquase);' : 'color: var(--red);' ?>">
-                                            <?php if ($req['is_required']): ?>
-                                                <?= $has_all_required ? '✓ Tüm Tag\'lere Sahip' : '✗ Eksik Tag\'ler Var' ?>
-                                            <?php else: ?>
-                                                <?= $has_all_required ? '✓ Tüm Tag\'lere Sahip' : '○ Eksik Tag\'ler Var' ?>
-                                            <?php endif; ?>
+                                        <span style="<?= $has_tag ? 'color: var(--turquase);' : 'color: var(--red);' ?>">
+                                            <?= $has_tag ? '✓ Sahipsiniz' : '✗ Sahip Değilsiniz' ?>
                                         </span>
                                     <?php endif; ?>
                                 </span>
@@ -430,9 +316,10 @@ events_layout_start($breadcrumb_items, $page_title);
                                     <span class="event-status status-<?= $event['status'] ?>">
                                         <?php
                                         switch($event['status']) {
-                                            case 'active': echo 'Aktif'; break;
-                                            case 'completed': echo 'Tamamlandı'; break;
+                                            case 'published': echo 'Yayınlandı'; break;
+                                            case 'draft': echo 'Taslak'; break;
                                             case 'cancelled': echo 'İptal Edildi'; break;
+                                            case 'completed': echo 'Tamamlandı'; break;
                                             default: echo ucfirst($event['status']);
                                         }
                                         ?>
@@ -440,7 +327,7 @@ events_layout_start($breadcrumb_items, $page_title);
                                 </div>
                                 <div class="event-participants">
                                     <i class="fas fa-users"></i>
-                                    <?= $event['active_participants'] ?> / <?= $event['slot_count'] ?> katılımcı
+                                    <?= $event['active_participants'] ?? 0 ?> / <?= $event['slot_count'] ?> katılımcı
                                 </div>
                             </div>
                         </div>
@@ -451,13 +338,8 @@ events_layout_start($breadcrumb_items, $page_title);
     </div>
 </div>
 
-<!-- User Popover Include - Sadece giriş yapmış kullanıcılar için -->
-<?php if ($is_logged_in): ?>
-    <?php include BASE_PATH . '/src/includes/user_popover.php'; ?>
-<?php endif; ?>
-
 <!-- Rol Silme Modal -->
-<?php if ($is_logged_in && ($role['created_by_user_id'] == $current_user_id || $can_delete_all)): ?>
+<?php if ($is_logged_in && $can_delete_all): ?>
     <div id="deleteRoleModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
@@ -480,7 +362,7 @@ events_layout_start($breadcrumb_items, $page_title);
 
 <script>
 // Rol silme işlemleri
-<?php if ($is_logged_in && ($role['created_by_user_id'] == $current_user_id || $can_delete_all)): ?>
+<?php if ($is_logged_in && $can_delete_all): ?>
     let currentDeleteRoleId = null;
 
     // Silme butonuna tıklama

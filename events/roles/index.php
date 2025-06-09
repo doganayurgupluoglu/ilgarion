@@ -1,5 +1,5 @@
 <?php
-// /events/roles/index.php - Etkinlik rolleri ana sayfa
+// /events/roles/index.php - Etkinlik rolleri ana sayfa - MEVCUT DB YAPISINA GÖRE
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -48,28 +48,21 @@ $can_edit_all = $is_logged_in && has_permission($pdo, 'event_role.edit_all');
 $can_delete_all = $is_logged_in && has_permission($pdo, 'event_role.delete_all');
 $can_view_private = $is_logged_in && has_permission($pdo, 'event_role.view_private');
 
-// BASIT VE GÜVENLİ SQL SORGULARI
+// MEVCUT TABLO YAPISINA GÖRE SQL SORGULARI
 try {
-    // Temel WHERE koşulları - Sadece herkese açık ve aktif roller
-    $where_parts = ["er.is_active = 1", "er.visibility = 'public'"];
+    // Temel WHERE koşulları - Basit yapı
+    $where_parts = [];
     $bind_params = [];
-    
-    // Kullanıcı filtreleri - Sadece giriş yapmış kullanıcılar için
-    if ($is_logged_in && $filter === 'my_roles') {
-        $where_parts[] = "er.created_by_user_id = ?";
-        $bind_params[] = $current_user_id;
-    }
     
     // Arama filtresi
     if (!empty($search)) {
-        $where_parts[] = "(er.role_name LIKE ? OR er.role_description LIKE ? OR u.username LIKE ?)";
+        $where_parts[] = "(er.role_name LIKE ? OR er.role_description LIKE ?)";
         $search_term = '%' . $search . '%';
-        $bind_params[] = $search_term;
         $bind_params[] = $search_term;
         $bind_params[] = $search_term;
     }
     
-    $where_clause = "WHERE " . implode(" AND ", $where_parts);
+    $where_clause = !empty($where_parts) ? "WHERE " . implode(" AND ", $where_parts) : "";
     
     // Sıralama
     $order_clause = "ORDER BY er.created_at DESC";
@@ -90,7 +83,6 @@ try {
     $count_sql = "
         SELECT COUNT(DISTINCT er.id)
         FROM event_roles er
-        LEFT JOIN users u ON er.created_by_user_id = u.id
         $where_clause
     ";
     
@@ -98,22 +90,14 @@ try {
     $count_stmt->execute($bind_params);
     $total_count = $count_stmt->fetchColumn();
     
-    // Ana veri sorgusu
+    // MEVCUT TABLO YAPISINA GÖRE ana veri sorgusu
     $sql = "
-        SELECT er.id, er.role_name, er.role_description, er.icon_class, 
-               er.visibility, er.created_at, er.created_by_user_id,
-               u.username as creator_username,
-               u.ingame_name as creator_ingame_name,
-               u.id as creator_user_id,
-               (SELECT r.color FROM user_roles ur 
-                JOIN roles r ON ur.role_id = r.id 
-                WHERE ur.user_id = u.id 
-                ORDER BY r.priority ASC LIMIT 1) as creator_role_color,
-               (SELECT COUNT(*) FROM event_role_slots ers WHERE ers.event_role_id = er.id) as usage_count,
-               (SELECT COUNT(*) FROM event_role_requirements err WHERE err.event_role_id = er.id) as requirements_count,
+        SELECT er.id, er.role_name, er.role_description, er.role_icon, 
+               er.suggested_loadout_id, er.created_at,
+               (SELECT COUNT(*) FROM event_role_slots ers WHERE ers.role_id = er.id) as usage_count,
+               (SELECT COUNT(*) FROM event_role_requirements err WHERE err.role_id = er.id) as requirements_count,
                ls.set_name as loadout_name
         FROM event_roles er
-        LEFT JOIN users u ON er.created_by_user_id = u.id
         LEFT JOIN loadout_sets ls ON er.suggested_loadout_id = ls.id
         $where_clause
         $order_clause
@@ -163,7 +147,7 @@ events_layout_start($breadcrumb_items, $page_title);
                 Etkinlik Rolleri
             </h1>
             <p class="page-description">
-                Etkinliklerde kullanılmak üzere oluşturulmuş herkese açık roller.
+                Etkinliklerde kullanılmak üzere oluşturulmuş roller.
             </p>
         </div>
         
@@ -172,6 +156,14 @@ events_layout_start($breadcrumb_items, $page_title);
                 <a href="create.php" class="btn-action-primary">
                     <i class="fas fa-plus"></i>
                     Yeni Rol Oluştur
+                </a>
+            <?php endif; ?>
+            
+            <!-- Skill Tag Yönetimi için Admin kontrolü -->
+            <?php if ($is_logged_in && has_permission($pdo, 'admin.panel.access')): ?>
+                <a href="skill_tags.php" class="btn-action-secondary">
+                    <i class="fas fa-tags"></i>
+                    Skill Tag Yönetimi
                 </a>
             <?php endif; ?>
         </div>
@@ -189,22 +181,11 @@ events_layout_start($breadcrumb_items, $page_title);
                                id="search" 
                                name="search" 
                                value="<?= htmlspecialchars($search) ?>" 
-                               placeholder="Rol adı, açıklama veya oluşturan kişi...">
+                               placeholder="Rol adı veya açıklama...">
                         <button type="submit" class="search-btn">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
-                </div>
-
-                <!-- Filtre -->
-                <div class="filter-group">
-                    <label for="filter">Filtre:</label>
-                    <select id="filter" name="filter" onchange="document.getElementById('filtersForm').submit()">
-                        <option value="all" <?= $filter === 'all' ? 'selected' : '' ?>>Tümü</option>
-                        <?php if ($is_logged_in): ?>
-                            <option value="my_roles" <?= $filter === 'my_roles' ? 'selected' : '' ?>>Oluşturduklarım</option>
-                        <?php endif; ?>
-                    </select>
                 </div>
 
                 <!-- Sıralama -->
@@ -219,21 +200,13 @@ events_layout_start($breadcrumb_items, $page_title);
             </div>
             
             <!-- Aktif filtre bilgisi -->
-            <?php if (!empty($search) || $filter !== 'all'): ?>
+            <?php if (!empty($search)): ?>
                 <div class="active-filters" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-1);">
                     <span class="filters-label">Aktif Filtreler:</span>
-                    <?php if (!empty($search)): ?>
-                        <span class="filter-tag">
-                            Arama: "<?= htmlspecialchars($search) ?>"
-                            <a href="?<?= http_build_query(array_merge($_GET, ['search' => ''])) ?>">×</a>
-                        </span>
-                    <?php endif; ?>
-                    <?php if ($filter !== 'all'): ?>
-                        <span class="filter-tag">
-                            Filtre: <?= ucfirst($filter) ?>
-                            <a href="?<?= http_build_query(array_merge($_GET, ['filter' => 'all'])) ?>">×</a>
-                        </span>
-                    <?php endif; ?>
+                    <span class="filter-tag">
+                        Arama: "<?= htmlspecialchars($search) ?>"
+                        <a href="?<?= http_build_query(array_merge($_GET, ['search' => ''])) ?>">×</a>
+                    </span>
                     <a href="?" class="btn-action-secondary" style="margin-left: 10px;">Tüm Filtreleri Temizle</a>
                 </div>
             <?php endif; ?>
@@ -246,7 +219,7 @@ events_layout_start($breadcrumb_items, $page_title);
         <div class="items-header">
             <h2>
                 <i class="fas fa-users"></i>
-                Herkese Açık Roller
+                Mevcut Roller
             </h2>
             <div class="items-count">
                 <?= $total_count ?> rol bulundu
@@ -258,10 +231,10 @@ events_layout_start($breadcrumb_items, $page_title);
                 <i class="fas fa-user-tag"></i>
                 <h3>Rol Bulunamadı</h3>
                 <p>
-                    <?php if (!empty($search) || $filter !== 'all'): ?>
+                    <?php if (!empty($search)): ?>
                         Arama kriterlerinize uygun rol bulunamadı. Filtreleri değiştirmeyi deneyin.
                     <?php else: ?>
-                        Henüz hiç herkese açık etkinlik rolü oluşturulmamış.
+                        Henüz hiç etkinlik rolü oluşturulmamış.
                     <?php endif; ?>
                 </p>
                 <?php if ($can_create_role): ?>
@@ -279,7 +252,7 @@ events_layout_start($breadcrumb_items, $page_title);
                         <!-- Item Header -->
                         <div class="item-header">
                             <div class="item-slot">
-                                <i class="<?= htmlspecialchars($role['icon_class'] ?? 'fas fa-user') ?>"></i>
+                                <i class="<?= htmlspecialchars($role['role_icon'] ?? 'fas fa-user') ?>"></i>
                                 <span><?= htmlspecialchars($role['role_name']) ?></span>
                             </div>
                         </div>
@@ -322,22 +295,8 @@ events_layout_start($breadcrumb_items, $page_title);
                                 <?php endif; ?>
                                 
                                 <div class="item-type">
-                                    <i class="fas fa-user"></i>
-                                    <span>Oluşturan: </span>
-                                    <?php if ($is_logged_in): ?>
-                                        <span class="user-link" 
-                                              data-user-id="<?= $role['creator_user_id'] ?>"
-                                              style="color: <?= htmlspecialchars($role['creator_role_color'] ?? '#bd912a') ?>; cursor: pointer; font-weight: 500;">
-                                            <?= htmlspecialchars($role['creator_username'] ?? 'Bilinmeyen') ?>
-                                        </span>
-                                    <?php else: ?>
-                                        <span style="color: #bd912a; font-weight: 500;">
-                                            <?= htmlspecialchars($role['creator_username'] ?? 'Bilinmeyen') ?>
-                                        </span>
-                                    <?php endif; ?>
-                                    <small style="margin-left: auto; color: var(--light-grey);">
-                                        <?= date('d.m.Y', strtotime($role['created_at'])) ?>
-                                    </small>
+                                    <i class="fas fa-clock"></i>
+                                    <span><?= date('d.m.Y', strtotime($role['created_at'])) ?></span>
                                 </div>
                             </div>
 
@@ -348,14 +307,14 @@ events_layout_start($breadcrumb_items, $page_title);
                                     Görüntüle
                                 </a>
                                 
-                                <?php if ($is_logged_in && ($role['created_by_user_id'] == $current_user_id || $can_edit_all)): ?>
-                                    <a href="edit.php?id=<?= $role['id'] ?>" class="btn-action-secondary">
+                                <?php if ($is_logged_in && $can_edit_all): ?>
+                                    <a href="create.php?id=<?= $role['id'] ?>" class="btn-action-secondary">
                                         <i class="fas fa-edit"></i>
                                         Düzenle
                                     </a>
                                 <?php endif; ?>
                                 
-                                <?php if ($is_logged_in && ($role['created_by_user_id'] == $current_user_id || $can_delete_all)): ?>
+                                <?php if ($is_logged_in && $can_delete_all): ?>
                                     <button type="button" 
                                             class="btn-action-secondary delete-role" 
                                             data-role-id="<?= $role['id'] ?>"
@@ -420,11 +379,6 @@ events_layout_start($breadcrumb_items, $page_title);
     <?php endif; ?>
 </div>
 
-<!-- User Popover Include - Sadece giriş yapmış kullanıcılar için -->
-<?php if ($is_logged_in): ?>
-    <?php include BASE_PATH . '/src/includes/user_popover.php'; ?>
-<?php endif; ?>
-
 <!-- Rol Silme Modalı -->
 <?php if ($is_logged_in): ?>
 <div class="modal fade" id="deleteRoleModal" tabindex="-1" aria-labelledby="deleteRoleModalLabel" aria-hidden="true" style="display: none;">
@@ -463,11 +417,6 @@ events_layout_start($breadcrumb_items, $page_title);
 
 <!-- JavaScript Dosyası -->
 <script src="js/roles.js"></script>
-
-<!-- Forum.js for user popover functionality - Sadece giriş yapmış kullanıcılar için -->
-<?php if ($is_logged_in): ?>
-    <script src="../forum/js/forum.js"></script>
-<?php endif; ?>
 
 <?php
 events_layout_end();

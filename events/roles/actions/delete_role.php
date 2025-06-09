@@ -1,5 +1,5 @@
 <?php
-// /events/roles/actions/delete_role.php - Etkinlik rolü silme işlemi
+// /events/roles/actions/delete_role.php - Etkinlik rolü silme işlemi - MEVCUT DB YAPISINA GÖRE
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -74,16 +74,18 @@ try {
     // Yetki kontrolleri
     $can_delete_all = has_permission($pdo, 'event_role.delete_all');
     
-    // Rolü getir ve yetki kontrolü yap
+    if (!$can_delete_all) {
+        send_error('Bu rolü silme yetkiniz bulunmuyor', 403);
+    }
+    
+    // MEVCUT TABLO YAPISINA GÖRE rolü getir ve kontrol et
     $stmt = $pdo->prepare("
         SELECT er.*, 
-               u.username as creator_username,
-               (SELECT COUNT(*) FROM event_role_slots ers WHERE ers.event_role_id = er.id) as slot_count,
-               (SELECT COUNT(*) FROM event_role_participants erp 
-                JOIN event_role_slots ers2 ON erp.event_role_slot_id = ers2.id 
-                WHERE ers2.event_role_id = er.id AND erp.status = 'active') as active_participants
+               (SELECT COUNT(*) FROM event_role_slots ers WHERE ers.role_id = er.id) as slot_count,
+               (SELECT COUNT(*) FROM event_participations ep 
+                JOIN event_role_slots ers2 ON ep.role_slot_id = ers2.id 
+                WHERE ers2.role_id = er.id AND ep.participation_status = 'confirmed') as active_participants
         FROM event_roles er
-        LEFT JOIN users u ON er.created_by_user_id = u.id
         WHERE er.id = :role_id
     ");
     
@@ -92,11 +94,6 @@ try {
     
     if (!$role) {
         send_error('Rol bulunamadı', 404);
-    }
-    
-    // Silme yetkisi kontrolü
-    if ($role['created_by_user_id'] != $current_user_id && !$can_delete_all) {
-        send_error('Bu rolü silme yetkiniz bulunmuyor', 403);
     }
     
     // Aktif katılımcı kontrolü
@@ -111,22 +108,22 @@ try {
     $pdo->beginTransaction();
     
     try {
-        // 1. Önce rol gereksinimlerini sil
-        $delete_requirements = $pdo->prepare("DELETE FROM event_role_requirements WHERE event_role_id = :role_id");
+        // 1. MEVCUT TABLO YAPISINA GÖRE rol gereksinimlerini sil
+        $delete_requirements = $pdo->prepare("DELETE FROM event_role_requirements WHERE role_id = :role_id");
         $delete_requirements->execute([':role_id' => $role_id]);
         $deleted_requirements = $delete_requirements->rowCount();
         
         // 2. Katılımcı kayıtlarını sil (sadece aktif olmayan)
         $delete_participants = $pdo->prepare("
-            DELETE erp FROM event_role_participants erp
-            JOIN event_role_slots ers ON erp.event_role_slot_id = ers.id
-            WHERE ers.event_role_id = :role_id AND erp.status != 'active'
+            DELETE ep FROM event_participations ep
+            JOIN event_role_slots ers ON ep.role_slot_id = ers.id
+            WHERE ers.role_id = :role_id AND ep.participation_status != 'confirmed'
         ");
         $delete_participants->execute([':role_id' => $role_id]);
         $deleted_participants = $delete_participants->rowCount();
         
         // 3. Rol slotlarını sil
-        $delete_slots = $pdo->prepare("DELETE FROM event_role_slots WHERE event_role_id = :role_id");
+        $delete_slots = $pdo->prepare("DELETE FROM event_role_slots WHERE role_id = :role_id");
         $delete_slots->execute([':role_id' => $role_id]);
         $deleted_slots = $delete_slots->rowCount();
         

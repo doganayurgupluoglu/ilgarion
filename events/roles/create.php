@@ -1,5 +1,5 @@
 <?php
-// /events/roles/create.php - Etkinlik rolü oluşturma sayfası
+// /events/roles/create.php - Etkinlik rolü oluşturma sayfası - MEVCUT DB YAPISINA GÖRE
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -19,7 +19,7 @@ require_once '../includes/events_layout.php';
 check_user_session_validity();
 require_approved_user();
 
-// Rol oluşturma yetkisi kontrolü - YENİ YETKİLER
+// Rol oluşturma yetkisi kontrolü
 if (!has_permission($pdo, 'event_role.create')) {
     $_SESSION['error_message'] = "Etkinlik rolü oluşturmak için yetkiniz bulunmuyor.";
     header('Location: index.php');
@@ -31,28 +31,34 @@ $edit_mode = false;
 $role_data = null;
 $role_id = 0;
 
-// Düzenleme modu kontrolü
-if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
-    $role_id = (int)$_GET['edit'];
+// Düzenleme modu kontrolü - hem ?id=X hem de ?edit=X destekle
+$role_id_param = $_GET['id'] ?? $_GET['edit'] ?? null;
+if ($role_id_param && is_numeric($role_id_param)) {
+    $role_id = (int)$role_id_param;
     
     try {
+        // MEVCUT TABLO YAPISINA GÖRE düzenleme sorgusu
         $stmt = $pdo->prepare("
             SELECT er.*, ls.set_name as loadout_name 
             FROM event_roles er 
             LEFT JOIN loadout_sets ls ON er.suggested_loadout_id = ls.id 
-            WHERE er.id = :id AND (er.created_by_user_id = :user_id OR :can_edit_all = 1)
+            WHERE er.id = :id
         ");
-        $stmt->execute([
-            ':id' => $role_id,
-            ':user_id' => $current_user_id,
-            ':can_edit_all' => has_permission($pdo, 'event_role.edit_all') ? 1 : 0
-        ]);
+        $stmt->execute([':id' => $role_id]);
         $role_data = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($role_data) {
+            // Düzenleme yetkisi kontrolü - admin veya rol oluşturan kişi
+            $can_edit = has_permission($pdo, 'event_role.edit_all');
+            
+            if (!$can_edit) {
+                $_SESSION['error_message'] = "Bu rolü düzenleme yetkiniz yok.";
+                header('Location: index.php');
+                exit;
+            }
             $edit_mode = true;
         } else {
-            $_SESSION['error_message'] = "Rol bulunamadı veya düzenleme yetkiniz yok.";
+            $_SESSION['error_message'] = "Rol bulunamadı.";
             header('Location: index.php');
             exit;
         }
@@ -69,19 +75,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // CSRF kontrolü
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         $_SESSION['error_message'] = "Güvenlik hatası - CSRF token geçersiz";
-        header('Location: ' . $_SERVER['PHP_SELF'] . ($edit_mode ? "?edit=$role_id" : ''));
+        header('Location: ' . $_SERVER['PHP_SELF'] . ($edit_mode ? "?id=$role_id" : ''));
         exit;
     }
     
     // Form verilerini al ve temizle
     $role_name = trim($_POST['role_name'] ?? '');
     $role_description = trim($_POST['role_description'] ?? '');
-    $icon_class = trim($_POST['icon_class'] ?? 'fas fa-user');
-    $visibility = $_POST['visibility'] ?? 'public';
+    $role_icon = trim($_POST['role_icon'] ?? 'fas fa-user'); // MEVCUT ALAN ADI
     $suggested_loadout_id = !empty($_POST['suggested_loadout_id']) ? (int)$_POST['suggested_loadout_id'] : null;
     
-    // Gereksinimler - Yeni yapı
-    $skill_tag_requirements = $_POST['skill_tag_requirements'] ?? [];
+    // MEVCUT TABLO YAPISINA GÖRE gereksinimler - N:N ilişki
+    $skill_tag_ids = $_POST['skill_tag_ids'] ?? [];
     
     // Validasyon
     $errors = [];
@@ -98,11 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Rol açıklaması en az 10 karakter olmalıdır.";
     }
     
-    if (!in_array($visibility, ['public', 'members_only'])) {
-        $visibility = 'public';
-    }
-    
-    // Rol adı benzersizlik kontrolü (düzenleme modunda mevcut rol hariç)
+    // Rol adı benzersizlik kontrolü
     try {
         if ($edit_mode) {
             $check_stmt = $pdo->prepare("SELECT id FROM event_roles WHERE role_name = :name AND id != :id");
@@ -144,23 +145,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Skill tag gereksinimlerini validate et
-    if (!empty($skill_tag_requirements)) {
+    if (!empty($skill_tag_ids)) {
         try {
-            $valid_tag_ids = [];
             $tag_check_stmt = $pdo->prepare("SELECT id FROM skill_tags WHERE id = ?");
+            $valid_skill_tag_ids = [];
             
-            foreach ($skill_tag_requirements as $requirement) {
-                if (!empty($requirement['skill_tag_ids'])) {
-                    $tag_ids = array_map('intval', array_filter($requirement['skill_tag_ids']));
-                    
-                    foreach ($tag_ids as $tag_id) {
-                        $tag_check_stmt->execute([$tag_id]);
-                        if ($tag_check_stmt->fetch()) {
-                            $valid_tag_ids[] = $tag_id;
-                        }
-                    }
+            foreach ($skill_tag_ids as $tag_id) {
+                $tag_id = (int)$tag_id;
+                $tag_check_stmt->execute([$tag_id]);
+                if ($tag_check_stmt->fetch()) {
+                    $valid_skill_tag_ids[] = $tag_id;
                 }
             }
+            $skill_tag_ids = $valid_skill_tag_ids;
         } catch (PDOException $e) {
             error_log("Skill tag validation error: " . $e->getMessage());
             $errors[] = "Skill tag kontrolü yapılamadı.";
@@ -172,68 +169,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
             
             if ($edit_mode) {
-                // Güncelleme
+                // MEVCUT TABLO YAPISINA GÖRE güncelleme
                 $stmt = $pdo->prepare("
                     UPDATE event_roles 
                     SET role_name = :name, role_description = :description, 
-                        icon_class = :icon, visibility = :visibility,
-                        suggested_loadout_id = :loadout_id, updated_at = NOW()
+                        role_icon = :icon, suggested_loadout_id = :loadout_id
                     WHERE id = :id
                 ");
                 $stmt->execute([
                     ':name' => $role_name,
                     ':description' => $role_description,
-                    ':icon' => $icon_class,
-                    ':visibility' => $visibility,
+                    ':icon' => $role_icon,
                     ':loadout_id' => $suggested_loadout_id,
                     ':id' => $role_id
                 ]);
                 
                 // Mevcut gereksinimleri sil
-                $del_stmt = $pdo->prepare("DELETE FROM event_role_requirements WHERE event_role_id = :role_id");
+                $del_stmt = $pdo->prepare("DELETE FROM event_role_requirements WHERE role_id = :role_id");
                 $del_stmt->execute([':role_id' => $role_id]);
                 
                 $message = "Etkinlik rolü başarıyla güncellendi.";
             } else {
-                // Yeni oluşturma
+                // MEVCUT TABLO YAPISINA GÖRE yeni oluşturma
                 $stmt = $pdo->prepare("
                     INSERT INTO event_roles 
-                    (role_name, role_description, icon_class, visibility, suggested_loadout_id, created_by_user_id)
-                    VALUES (:name, :description, :icon, :visibility, :loadout_id, :user_id)
+                    (role_name, role_description, role_icon, suggested_loadout_id)
+                    VALUES (:name, :description, :icon, :loadout_id)
                 ");
                 $stmt->execute([
                     ':name' => $role_name,
                     ':description' => $role_description,
-                    ':icon' => $icon_class,
-                    ':visibility' => $visibility,
-                    ':loadout_id' => $suggested_loadout_id,
-                    ':user_id' => $current_user_id
+                    ':icon' => $role_icon,
+                    ':loadout_id' => $suggested_loadout_id
                 ]);
                 
                 $role_id = $pdo->lastInsertId();
                 $message = "Etkinlik rolü başarıyla oluşturuldu.";
             }
             
-            // Skill tag gereksinimlerini kaydet
-            if (!empty($skill_tag_requirements)) {
+            // MEVCUT TABLO YAPISINA GÖRE skill tag gereksinimlerini kaydet - N:N ilişki
+            if (!empty($skill_tag_ids)) {
                 $req_stmt = $pdo->prepare("
-                    INSERT INTO event_role_requirements 
-                    (event_role_id, skill_tag_ids, is_required)
-                    VALUES (:role_id, :skill_tag_ids, :required)
+                    INSERT INTO event_role_requirements (role_id, skill_tag_id)
+                    VALUES (:role_id, :skill_tag_id)
                 ");
                 
-                foreach ($skill_tag_requirements as $requirement) {
-                    if (!empty($requirement['skill_tag_ids'])) {
-                        $tag_ids = array_map('intval', array_filter($requirement['skill_tag_ids']));
-                        if (!empty($tag_ids)) {
-                            $skill_tag_ids_str = implode(',', $tag_ids);
-                            $req_stmt->execute([
-                                ':role_id' => $role_id,
-                                ':skill_tag_ids' => $skill_tag_ids_str,
-                                ':required' => isset($requirement['required']) ? 1 : 0
-                            ]);
-                        }
-                    }
+                foreach ($skill_tag_ids as $skill_tag_id) {
+                    $req_stmt->execute([
+                        ':role_id' => $role_id,
+                        ':skill_tag_id' => $skill_tag_id
+                    ]);
                 }
             }
             
@@ -285,22 +270,17 @@ try {
     $available_skill_tags = [];
 }
 
-// Mevcut rol gereksinimlerini çek (düzenleme modu için)
-$existing_requirements = [];
+// MEVCUT TABLO YAPISINA GÖRE mevcut rol gereksinimlerini çek - N:N ilişki
+$existing_skill_tag_ids = [];
 if ($edit_mode) {
     try {
         $req_stmt = $pdo->prepare("
-            SELECT err.*, 
-                   GROUP_CONCAT(st.tag_name ORDER BY st.tag_name ASC) as tag_names,
-                   err.skill_tag_ids
-            FROM event_role_requirements err
-            LEFT JOIN skill_tags st ON FIND_IN_SET(st.id, err.skill_tag_ids) > 0
-            WHERE err.event_role_id = :role_id 
-            GROUP BY err.id
-            ORDER BY err.id
+            SELECT skill_tag_id
+            FROM event_role_requirements
+            WHERE role_id = :role_id
         ");
         $req_stmt->execute([':role_id' => $role_id]);
-        $existing_requirements = $req_stmt->fetchAll(PDO::FETCH_ASSOC);
+        $existing_skill_tag_ids = $req_stmt->fetchAll(PDO::FETCH_COLUMN);
     } catch (PDOException $e) {
         error_log("Requirements fetch error: " . $e->getMessage());
     }
@@ -358,12 +338,17 @@ events_layout_start($breadcrumb_items, $page_title);
                 <i class="fas fa-user-tag"></i>
                 <?= $edit_mode ? 'Etkinlik Rolü Düzenle' : 'Yeni Etkinlik Rolü Oluştur' ?>
             </h1>
-            <p>Star Citizen operasyonları için rol tanımları oluşturun</p>
+            <p><?= $edit_mode ? 'Star Citizen operasyonları için rol tanımlarını düzenleyin' : 'Star Citizen operasyonları için rol tanımları oluşturun' ?></p>
         </div>
         <div class="header-actions">
             <a href="index.php" class="btn-secondary">
-                <i class="fas fa-arrow-left"></i> Geri Dön
+                <i class="fas fa-arrow-left"></i> Rollere Dön
             </a>
+            <?php if ($edit_mode): ?>
+                <a href="view.php?id=<?= $role_id ?>" class="btn-secondary">
+                    <i class="fas fa-eye"></i> Rol Detayını Gör
+                </a>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -374,7 +359,15 @@ events_layout_start($breadcrumb_items, $page_title);
         
         <!-- Temel Bilgiler -->
         <div class="form-section">
-            <h3><i class="fas fa-info-circle"></i> Temel Bilgiler</h3>
+            <h3>
+                <i class="fas fa-info-circle"></i> 
+                Temel Bilgiler
+                <?php if ($edit_mode): ?>
+                    <span style="font-size: 0.8rem; color: var(--gold); margin-left: 1rem; padding: 0.25rem 0.75rem; background: rgba(189, 145, 42, 0.1); border-radius: 15px; border: 1px solid var(--gold);">
+                        <i class="fas fa-edit"></i> Düzenleme Modu
+                    </span>
+                <?php endif; ?>
+            </h3>
             
             <div class="form-row">
                 <div class="form-group">
@@ -382,18 +375,6 @@ events_layout_start($breadcrumb_items, $page_title);
                     <input type="text" id="role_name" name="role_name" required 
                            value="<?= $edit_mode ? htmlspecialchars($role_data['role_name']) : '' ?>"
                            placeholder="örn: Squad Leader, Pilot, Medic">
-                </div>
-                
-                <div class="form-group">
-                    <label for="visibility">Görünürlük *</label>
-                    <select id="visibility" name="visibility" required>
-                        <option value="public" <?= ($edit_mode && $role_data['visibility'] === 'public') ? 'selected' : '' ?>>
-                            Herkese Açık
-                        </option>
-                        <option value="members_only" <?= ($edit_mode && $role_data['visibility'] === 'members_only') ? 'selected' : '' ?>>
-                            Sadece Üyelere Açık
-                        </option>
-                    </select>
                 </div>
             </div>
             
@@ -410,8 +391,8 @@ events_layout_start($breadcrumb_items, $page_title);
             <div class="icon-selection">
                 <?php foreach ($role_icons as $icon_class => $icon_description): ?>
                     <label class="icon-option">
-                        <input type="radio" name="icon_class" value="<?= $icon_class ?>" 
-                               <?= ($edit_mode && $role_data['icon_class'] === $icon_class) || (!$edit_mode && $icon_class === 'fas fa-user') ? 'checked' : '' ?>>
+                        <input type="radio" name="role_icon" value="<?= $icon_class ?>" 
+                               <?= ($edit_mode && $role_data['role_icon'] === $icon_class) || (!$edit_mode && $icon_class === 'fas fa-user') ? 'checked' : '' ?>>
                         <div class="icon-preview">
                             <i class="<?= $icon_class ?>"></i>
                             <span><?= $icon_description ?></span>
@@ -441,51 +422,23 @@ events_layout_start($breadcrumb_items, $page_title);
             </div>
         </div>
 
-        <!-- Skill Tag Gereksinimleri -->
+        <!-- MEVCUT TABLO YAPISINA GÖRE Skill Tag Gereksinimleri -->
         <div class="form-section">
             <h3><i class="fas fa-clipboard-check"></i> Skill Tag Gereksinimleri (Opsiyonel)</h3>
-            <p class="section-description">Bu role katılabilmek için gerekli yetenek tag'leri</p>
+            <p class="section-description">Bu role katılabilmek için gerekli yetenek tag'leri (çoklu seçim)</p>
             
-            <div id="requirements-container">
-                <?php if ($edit_mode && !empty($existing_requirements)): ?>
-                    <?php foreach ($existing_requirements as $req): ?>
-                        <div class="requirement-item">
-                            <div class="form-row">
-                                <div class="form-group" style="flex: 2;">
-                                    <label>Skill Tag'ler:</label>
-                                    <select name="skill_tag_requirements[<?= uniqid() ?>][skill_tag_ids][]" 
-                                            class="skill-tag-select" multiple style="min-height: 80px;">
-                                        <?php 
-                                        $selected_tag_ids = explode(',', $req['skill_tag_ids']);
-                                        foreach ($available_skill_tags as $tag): ?>
-                                            <option value="<?= $tag['id'] ?>" 
-                                                    <?= in_array($tag['id'], $selected_tag_ids) ? 'selected' : '' ?>>
-                                                <?= htmlspecialchars($tag['tag_name']) ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <small>Birden fazla seçim için Ctrl+Click kullanın</small>
-                                </div>
-                                <div class="form-group checkbox-group">
-                                    <label>
-                                        <input type="checkbox" 
-                                               name="skill_tag_requirements[<?= uniqid() ?>][required]" 
-                                               <?= $req['is_required'] ? 'checked' : '' ?>>
-                                        Zorunlu
-                                    </label>
-                                </div>
-                                <button type="button" class="btn-remove-requirement" onclick="removeRequirement(this)">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
+            <div class="form-group">
+                <label for="skill_tag_ids">Gerekli Skill Tag'ler:</label>
+                <select id="skill_tag_ids" name="skill_tag_ids[]" multiple style="min-height: 150px; width: 100%; padding: 0.75rem; background: var(--card-bg-3); border: 1px solid var(--border-1); border-radius: 6px; color: var(--lighter-grey);">
+                    <?php foreach ($available_skill_tags as $tag): ?>
+                        <option value="<?= $tag['id'] ?>" 
+                                <?= in_array($tag['id'], $existing_skill_tag_ids) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($tag['tag_name']) ?>
+                        </option>
                     <?php endforeach; ?>
-                <?php endif; ?>
+                </select>
+                <small>Birden fazla tag seçmek için Ctrl+Click kullanın. Seçilen tüm tag'ler zorunlu olarak kabul edilir.</small>
             </div>
-            
-            <button type="button" id="add-requirement" class="btn-secondary">
-                <i class="fas fa-plus"></i> Skill Tag Gereksinimi Ekle
-            </button>
         </div>
 
         <!-- Form Actions -->
@@ -504,45 +457,6 @@ events_layout_start($breadcrumb_items, $page_title);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Available skill tags data from PHP
-    const availableSkillTags = <?= json_encode($available_skill_tags) ?>;
-    
-    // Gereksinim ekleme
-    let requirementCounter = 0;
-    
-    document.getElementById('add-requirement').addEventListener('click', function() {
-        const container = document.getElementById('requirements-container');
-        const requirementId = 'req_' + (++requirementCounter);
-        
-        const requirementHtml = `
-            <div class="requirement-item">
-                <div class="form-row">
-                    <div class="form-group" style="flex: 2;">
-                        <label>Skill Tag'ler:</label>
-                        <select name="skill_tag_requirements[${requirementId}][skill_tag_ids][]" 
-                                class="skill-tag-select" multiple style="min-height: 80px;">
-                            ${availableSkillTags.map(tag => 
-                                `<option value="${tag.id}">${tag.tag_name}</option>`
-                            ).join('')}
-                        </select>
-                        <small>Birden fazla seçim için Ctrl+Click kullanın</small>
-                    </div>
-                    <div class="form-group checkbox-group">
-                        <label>
-                            <input type="checkbox" name="skill_tag_requirements[${requirementId}][required]">
-                            Zorunlu
-                        </label>
-                    </div>
-                    <button type="button" class="btn-remove-requirement" onclick="removeRequirement(this)">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        container.insertAdjacentHTML('beforeend', requirementHtml);
-    });
-    
     // Form validasyonu
     document.getElementById('roleForm').addEventListener('submit', function(e) {
         const roleName = document.getElementById('role_name').value.trim();
@@ -559,6 +473,14 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Rol açıklaması en az 10 karakter olmalıdır.');
             return;
         }
+        
+        // Düzenleme modunda onay sor
+        <?php if ($edit_mode): ?>
+            if (!confirm('<?= htmlspecialchars($role_data['role_name']) ?> rolünü güncellemek istediğinizden emin misiniz?')) {
+                e.preventDefault();
+                return;
+            }
+        <?php endif; ?>
     });
     
     // Icon seçimi animasyonu
@@ -580,17 +502,21 @@ document.addEventListener('DOMContentLoaded', function() {
             radio.closest('.icon-option').classList.add('selected');
         }
     });
+    
+    // Multi-select için yardımcı text
+    const skillTagSelect = document.getElementById('skill_tag_ids');
+    if (skillTagSelect) {
+        skillTagSelect.addEventListener('focus', function() {
+            console.log('Çoklu seçim için Ctrl+Click kullanın');
+        });
+    }
 });
-
-function removeRequirement(button) {
-    button.closest('.requirement-item').remove();
-}
 
 // Önizleme fonksiyonu
 function previewRole() {
     const roleName = document.getElementById('role_name').value;
     const roleDescription = document.getElementById('role_description').value;
-    const selectedIcon = document.querySelector('input[name="icon_class"]:checked');
+    const selectedIcon = document.querySelector('input[name="role_icon"]:checked');
     
     if (!roleName || !roleDescription || !selectedIcon) {
         alert('Önizleme için tüm zorunlu alanları doldurun.');

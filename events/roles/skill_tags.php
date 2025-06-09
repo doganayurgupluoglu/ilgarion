@@ -1,5 +1,5 @@
 <?php
-// /events/roles/skill_tags.php - Skill Tag Yönetimi
+// /events/roles/skill_tags.php - Skill Tag Yönetimi - MEVCUT DB YAPISINA GÖRE
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -111,49 +111,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $pdo->beginTransaction();
             
-            // Tag'i kullanan kayıtları temizle
+            // MEVCUT TABLO YAPISINA GÖRE tag'i kullanan kayıtları temizle
             
-            // 1. event_role_requirements tablosundaki referansları temizle
-            $req_stmt = $pdo->prepare("SELECT id, skill_tag_ids FROM event_role_requirements WHERE FIND_IN_SET(?, skill_tag_ids) > 0");
-            $req_stmt->execute([$tag_id]);
-            $requirements = $req_stmt->fetchAll(PDO::FETCH_ASSOC);
+            // 1. event_role_requirements tablosundaki referansları sil
+            $del_requirements = $pdo->prepare("DELETE FROM event_role_requirements WHERE skill_tag_id = ?");
+            $del_requirements->execute([$tag_id]);
+            $deleted_requirements = $del_requirements->rowCount();
             
-            foreach ($requirements as $req) {
-                $tag_ids = array_filter(explode(',', $req['skill_tag_ids']));
-                $tag_ids = array_diff($tag_ids, [$tag_id]); // Silinecek tag'i çıkar
-                
-                if (empty($tag_ids)) {
-                    // Hiç tag kalmadıysa gereksinimi sil
-                    $del_req_stmt = $pdo->prepare("DELETE FROM event_role_requirements WHERE id = ?");
-                    $del_req_stmt->execute([$req['id']]);
-                } else {
-                    // Kalan tag'lerle güncelle
-                    $new_tag_ids = implode(',', $tag_ids);
-                    $upd_req_stmt = $pdo->prepare("UPDATE event_role_requirements SET skill_tag_ids = ? WHERE id = ?");
-                    $upd_req_stmt->execute([$new_tag_ids, $req['id']]);
-                }
-            }
-            
-            // 2. user_skill_tags tablosundaki referansları temizle
-            $user_stmt = $pdo->prepare("SELECT id, tag_ids FROM user_skill_tags WHERE FIND_IN_SET(?, tag_ids) > 0");
-            $user_stmt->execute([$tag_id]);
-            $user_tags = $user_stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($user_tags as $user_tag) {
-                $tag_ids = array_filter(explode(',', $user_tag['tag_ids']));
-                $tag_ids = array_diff($tag_ids, [$tag_id]); // Silinecek tag'i çıkar
-                
-                if (empty($tag_ids)) {
-                    // Hiç tag kalmadıysa kullanıcı kaydını sil
-                    $del_user_stmt = $pdo->prepare("DELETE FROM user_skill_tags WHERE id = ?");
-                    $del_user_stmt->execute([$user_tag['id']]);
-                } else {
-                    // Kalan tag'lerle güncelle
-                    $new_tag_ids = implode(',', $tag_ids);
-                    $upd_user_stmt = $pdo->prepare("UPDATE user_skill_tags SET tag_ids = ? WHERE id = ?");
-                    $upd_user_stmt->execute([$new_tag_ids, $user_tag['id']]);
-                }
-            }
+            // 2. user_skill_tags tablosundaki referansları sil
+            $del_user_tags = $pdo->prepare("DELETE FROM user_skill_tags WHERE skill_tag_id = ?");
+            $del_user_tags->execute([$tag_id]);
+            $deleted_user_tags = $del_user_tags->rowCount();
             
             // 3. Son olarak skill tag'i sil
             $del_stmt = $pdo->prepare("DELETE FROM skill_tags WHERE id = ?");
@@ -165,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $pdo->commit();
             
-            $_SESSION['success_message'] = "Skill tag ve tüm ilişkili kayıtlar başarıyla silindi.";
+            $_SESSION['success_message'] = "Skill tag ve tüm ilişkili kayıtlar başarıyla silindi. (Gereksinimlerde: $deleted_requirements, Kullanıcılarda: $deleted_user_tags)";
         }
         
     } catch (Exception $e) {
@@ -179,12 +147,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Skill tag'leri listele
+// MEVCUT TABLO YAPISINA GÖRE skill tag'leri listele
 try {
     $stmt = $pdo->prepare("
         SELECT st.*, 
-               (SELECT COUNT(*) FROM event_role_requirements err WHERE FIND_IN_SET(st.id, err.skill_tag_ids) > 0) as requirement_usage,
-               (SELECT COUNT(*) FROM user_skill_tags ust WHERE FIND_IN_SET(st.id, ust.tag_ids) > 0) as user_usage
+               (SELECT COUNT(*) FROM event_role_requirements err WHERE err.skill_tag_id = st.id) as requirement_usage,
+               (SELECT COUNT(*) FROM user_skill_tags ust WHERE ust.skill_tag_id = st.id) as user_usage
         FROM skill_tags st
         ORDER BY st.tag_name ASC
     ");
@@ -231,6 +199,10 @@ events_layout_start($breadcrumb_items, $page_title);
                 <i class="fas fa-plus"></i>
                 Yeni Tag Ekle
             </button>
+            <a href="index.php" class="btn-action-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Rollere Dön
+            </a>
         </div>
     </div>
 
@@ -273,7 +245,7 @@ events_layout_start($breadcrumb_items, $page_title);
                             
                             <div class="item-manufacturer">
                                 <i class="fas fa-clipboard-check"></i>
-                                <span><?= $tag['requirement_usage'] ?> gereksinimde kullanılıyor</span>
+                                <span><?= $tag['requirement_usage'] ?> rol gereksiniminde kullanılıyor</span>
                             </div>
                             
                             <div class="item-type">
@@ -314,7 +286,7 @@ events_layout_start($breadcrumb_items, $page_title);
 
 <!-- Ekleme/Düzenleme Modal -->
 <div id="tagModal" class="modal" style="display: none;">
-    <div class="modal-dialog" >
+    <div class="modal-dialog">
         <div class="modal-content" style="background: var(--card-bg); border: 1px solid var(--border-1); border-radius: 8px;">
             <div class="modal-header" style="border-bottom: 1px solid var(--border-1); padding: 1.5rem;">
                 <h5 class="modal-title" style="color: var(--gold); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
@@ -377,8 +349,8 @@ events_layout_start($breadcrumb_items, $page_title);
                         <i class="fas fa-exclamation-circle" style="color: var(--red);"></i>
                         Bu tag <strong id="usageCount"></strong> yerde kullanılıyor. Silme işlemi:
                         <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
-                            <li>İlgili tüm gereksinim kayıtlarını temizleyecek</li>
-                            <li>İlgili tüm kullanıcı tag kayıtlarını temizleyecek</li>
+                            <li>İlgili tüm rol gereksinim kayıtlarını silecek</li>
+                            <li>İlgili tüm kullanıcı tag kayıtlarını silecek</li>
                             <li>Bu işlem geri alınamaz</li>
                         </ul>
                     </div>
@@ -404,7 +376,7 @@ function showAddModal() {
     document.getElementById('tagId').value = '';
     document.getElementById('tagName').value = '';
     document.getElementById('submitText').textContent = 'Ekle';
-    document.getElementById('tagModal').style.display = 'block';
+    document.getElementById('tagModal').style.display = 'flex';
     document.getElementById('tagName').focus();
 }
 
@@ -414,7 +386,7 @@ function showEditModal(tagId, tagName) {
     document.getElementById('tagId').value = tagId;
     document.getElementById('tagName').value = tagName;
     document.getElementById('submitText').textContent = 'Güncelle';
-    document.getElementById('tagModal').style.display = 'block';
+    document.getElementById('tagModal').style.display = 'flex';
     document.getElementById('tagName').focus();
 }
 
@@ -442,7 +414,7 @@ document.addEventListener('click', function(e) {
             warning.style.display = 'none';
         }
         
-        document.getElementById('deleteModal').style.display = 'block';
+        document.getElementById('deleteModal').style.display = 'flex';
     }
 });
 
@@ -487,6 +459,33 @@ document.getElementById('tagForm').addEventListener('submit', function(e) {
         return;
     }
 });
+
+// Modal styling for proper display
+const style = document.createElement('style');
+style.textContent = `
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(5px);
+    }
+    .modal-dialog {
+        max-width: 500px;
+        width: 90%;
+        margin: 1rem;
+    }
+    .modal-content {
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+`;
+document.head.appendChild(style);
 
 // Başarı/hata mesajları
 <?php if (isset($_SESSION['success_message'])): ?>
@@ -539,38 +538,19 @@ function showNotification(message, type = 'info') {
     }, 4000);
 }
 
-// CSS animasyonları
-const style = document.createElement('style');
-style.textContent = `
+// CSS animasyonları için ekstra style
+const animationStyle = document.createElement('style');
+animationStyle.textContent = `
     @keyframes slideIn {
-        from { transform: translateY(0); opacity: 0; }
-        to { transform: translateY(100%); opacity: 1; }
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
     @keyframes slideOut {
         from { transform: translateX(0); opacity: 1; }
         to { transform: translateX(100%); opacity: 0; }
     }
-    .modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        backdrop-filter: blur(5px);
-    }
-    .modal-dialog {
-        transform: translateY(150%) !important;
-        max-width: 500px;
-        width: 90%;
-        margin: auto !important;
-    }
 `;
-document.head.appendChild(style);
+document.head.appendChild(animationStyle);
 </script>
 
 <?php
