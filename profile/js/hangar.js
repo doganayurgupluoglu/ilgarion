@@ -26,7 +26,7 @@ async function searchShips() {
             params.append('classification', searchClassification);
         }
         
-        const response = await fetch(`api/search_ships.php?${params.toString()}`);
+        const response = await fetch(`../api/search_ships.php?${params.toString()}`);
         const data = await response.json();
         
         // Yükleme gizle
@@ -293,7 +293,7 @@ function closeCartModal() {
 // Gemi düzenleme
 function editShip(shipId) {
     // AJAX ile gemi bilgilerini al ve modal'ı doldur
-    fetch(`api/get_ship.php?id=${shipId}`)
+    fetch(`../api/get_ship.php?id=${shipId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
