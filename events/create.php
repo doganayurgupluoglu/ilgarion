@@ -11,6 +11,7 @@ require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_events_role_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+require_once BASE_PATH . '/src/functions/webhook_functions.php';
 require_once BASE_PATH . '/src/functions/Parsedown.php'; // Markdown parser
 
 // Events layout system include
@@ -228,6 +229,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $pdo->commit();
+            
+            // Webhook gönder (sadece yayınlanmış etkinlikler için)
+            if ($status === 'published') {
+                $webhook_action = $edit_mode ? 'updated' : 'created';
+                $webhook_result = send_event_webhook($pdo, $event_id, $webhook_action);
+                
+                if (!$webhook_result) {
+                    error_log("Webhook failed for event $event_id (action: $webhook_action)");
+                    // Webhook hatası etkinlik oluşturmayı engellemesin, sadece log'a yazsın
+                }
+            }
+            
             $_SESSION['success_message'] = $message;
             header('Location: detail.php?id=' . $event_id);
             exit;
