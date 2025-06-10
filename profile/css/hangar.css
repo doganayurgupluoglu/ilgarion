@@ -1,0 +1,797 @@
+/* css/hangar.css - Hangar Yönetimi Stilleri */
+
+/* Hangar Header */
+.hangar-header {
+    background: linear-gradient(135deg, var(--card-bg), var(--card-bg-2));
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.hangar-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.hangar-description {
+    margin: 0;
+    color: var(--light-grey);
+    font-size: 1.1rem;
+}
+
+.hangar-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-cart {
+    background: var(--turquase);
+    color: var(--charcoal);
+    border: 1px solid var(--turquase);
+}
+
+.btn-cart:hover {
+    background: var(--light-turquase);
+    transform: translateY(-2px);
+}
+
+/* Alert Stilleri */
+.alert {
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.alert-error {
+    background: var(--transparent-red);
+    border: 1px solid var(--red);
+    color: var(--red);
+}
+
+.alert-success {
+    background: var(--transparent-turquase);
+    border: 1px solid var(--turquase);
+    color: var(--turquase);
+}
+
+/* Hangar İstatistikleri */
+.hangar-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.hangar-stats .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.hangar-stats .stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--charcoal);
+    font-size: 1.5rem;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--lighter-grey);
+    font-family: var(--font);
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: var(--light-grey);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.25rem;
+}
+
+/* Hangar Gemileri Bölümü */
+.hangar-ships-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.empty-hangar {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--light-grey);
+}
+
+.empty-hangar-icon {
+    font-size: 4rem;
+    color: var(--border-1-hover);
+    margin-bottom: 1rem;
+}
+
+.empty-hangar h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1.5rem;
+    color: var(--lighter-grey);
+}
+
+.empty-hangar p {
+    margin: 0 0 2rem 0;
+    font-size: 1.1rem;
+}
+
+/* Gemi Kartları */
+.ships-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.ship-card {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.ship-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: var(--border-1-hover);
+}
+
+.ship-card-header {
+    position: relative;
+    height: 180px;
+    background: var(--card-bg-3);
+}
+
+.ship-image {
+    width: 100%;
+    height: 100%;
+}
+
+.ship-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ship-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: var(--border-1-hover);
+    background: var(--card-bg);
+}
+
+.ship-actions {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.ship-card:hover .ship-actions {
+    opacity: 1;
+}
+
+.action-btn {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.edit-btn {
+    background: rgba(184, 132, 92, 0.9);
+    color: var(--charcoal);
+}
+
+.edit-btn:hover {
+    background: var(--gold);
+    transform: scale(1.1);
+}
+
+.delete-btn {
+    background: rgba(235, 0, 0, 0.9);
+    color: var(--white);
+}
+
+.delete-btn:hover {
+    background: var(--red);
+    transform: scale(1.1);
+}
+
+.ship-card-body {
+    padding: 1.5rem;
+}
+
+.ship-name {
+    margin: 0 0 1rem 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.ship-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.ship-detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.detail-label {
+    color: var(--light-grey);
+    font-weight: 500;
+}
+
+.detail-value {
+    color: var(--lighter-grey);
+}
+
+.detail-value.quantity {
+    background: var(--card-bg-4);
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.ship-notes {
+    background: var(--card-bg-4);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: var(--light-grey);
+    line-height: 1.4;
+}
+
+.ship-notes i {
+    color: var(--gold);
+    margin-right: 0.5rem;
+}
+
+.ship-added-date {
+    font-size: 0.8rem;
+    color: var(--light-grey);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-1);
+}
+
+/* Modal Stilleri */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    animation: slideUp 0.3s ease;
+}
+
+.modal-large {
+    max-width: 800px;
+}
+
+.modal-xl {
+    max-width: 1200px;
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--gold);
+    font-size: 1.4rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--light-grey);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: var(--transparent-red);
+    color: var(--red);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-1);
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+/* Arama Stilleri */
+.search-form {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.search-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--lighter-grey);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.form-input,
+.form-textarea {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    background: var(--card-bg-2);
+    color: var(--lighter-grey);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    background: var(--card-bg-3);
+}
+
+.btn-search {
+    white-space: nowrap;
+}
+
+.search-loading {
+    text-align: center;
+    padding: 3rem;
+    color: var(--light-grey);
+}
+
+.loading-spinner {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--gold);
+}
+
+.search-help,
+.search-error,
+.search-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--light-grey);
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+}
+
+.search-error {
+    color: var(--red);
+    border-color: var(--red);
+    background: var(--transparent-red);
+}
+
+/* Arama Sonuçları Grid */
+.ships-search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.search-ship-card {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.search-ship-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-1-hover);
+}
+
+.search-ship-image {
+    position: relative;
+    height: 150px;
+    overflow: hidden;
+}
+
+.search-ship-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ship-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.search-ship-card:hover .ship-overlay {
+    opacity: 1;
+}
+
+.btn-add-to-cart {
+    background: var(--gold);
+    color: var(--charcoal);
+    border: 1px solid var(--gold);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-add-to-cart:hover {
+    background: var(--light-gold);
+    transform: scale(1.05);
+}
+
+.search-ship-info {
+    padding: 1rem;
+}
+
+.search-ship-name {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.search-ship-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.search-ship-details span {
+    background: var(--card-bg-4);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--light-grey);
+}
+
+.search-ship-specs {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--light-grey);
+}
+
+.price {
+    font-weight: 600;
+    color: var(--turquase);
+}
+
+/* Sepet Stilleri */
+.cart-empty {
+    text-align: center;
+    padding: 3rem;
+    color: var(--light-grey);
+}
+
+.cart-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.cart-item-image {
+    width: 80px;
+    height: 60px;
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.cart-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cart-item-info {
+    flex: 1;
+}
+
+.cart-item-name {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.cart-item-details {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--light-grey);
+}
+
+.cart-item-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.qty-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border-1);
+    background: var(--card-bg-3);
+    color: var(--light-grey);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.qty-btn:hover {
+    background: var(--gold);
+    color: var(--charcoal);
+}
+
+.quantity {
+    font-weight: 600;
+    color: var(--lighter-grey);
+    min-width: 30px;
+    text-align: center;
+}
+
+.remove-btn {
+    background: var(--transparent-red);
+    color: var(--red);
+    border: 1px solid var(--red);
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.remove-btn:hover {
+    background: var(--red);
+    color: var(--white);
+}
+
+/* Animasyonlar */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(50px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .hangar-header {
+        flex-direction: column;
+        gap: 1.5rem;
+        text-align: center;
+    }
+    
+    .hangar-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .hangar-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .ships-grid,
+    .ships-search-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .search-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .cart-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .cart-item-controls {
+        justify-content: center;
+    }
+    
+    .hangar-title {
+        font-size: 1.6rem;
+    }
+    
+    .search-ship-details {
+        justify-content: center;
+    }
+    
+    .search-ship-specs {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .hangar-header {
+        padding: 1.5rem;
+    }
+    
+    .hangar-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-card {
+        text-align: center;
+        flex-direction: column;
+    }
+    
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 1rem;
+    }
+    
+    .ships-search-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .search-form {
+        padding: 1rem;
+    }
+}

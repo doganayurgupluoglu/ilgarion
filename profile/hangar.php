@@ -1,5 +1,5 @@
 <?php
-// profile/hangar.php - Hangar Yönetimi Sayfası
+// profile/hangar.php - API Entegrasyonlu Hangar Yönetimi
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -24,8 +24,8 @@ $hangar_stats = getHangarStatistics($pdo, $current_user_id);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
-            case 'add_ship':
-                $result = addShipToHangar($pdo, $current_user_id, $_POST);
+            case 'add_ships_from_cart':
+                $result = addShipsFromCart($pdo, $current_user_id, $_POST);
                 break;
             case 'update_ship':
                 $result = updateHangarShip($pdo, $current_user_id, $_POST);
@@ -49,10 +49,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$page_title = "Hangar Yönetimi - " . ($_SESSION['username'] ?? 'Profil');
-
-include BASE_PATH . '/src/includes/header.php';
-include BASE_PATH . '/src/includes/navbar.php';
+/**
+ * Sepetteki gemileri hangara ekleme
+ */
+function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
+    try {
+        $cart_ships = json_decode($post_data['cart_ships'] ?? '[]', true);
+        
+        if (empty($cart_ships)) {
+            return ['success' => false, 'message' => 'Sepet boş.'];
+        }
+        
+        $pdo->beginTransaction();
+        
+        $added_count = 0;
+        $errors = [];
+        
+        foreach ($cart_ships as $ship_data) {
+            try {
+                $ship_api_id = 'api_' . $ship_data['id'];
+                $quantity = max(1, (int)($ship_data['quantity'] ?? 1));
+                
+                // Gemi bilgilerini hazırla
+                $ship_name = $ship_data['name'] ?? 'Bilinmeyen Gemi';
+                $ship_manufacturer = $ship_data['manufacturer']['name'] ?? '';
+                $ship_focus = $ship_data['focus'] ?? '';
+                $ship_size = ucfirst($ship_data['size'] ?? '');
+                
+                // Resim URL'sini bul
+                $ship_image_url = null;
+                if (!empty($ship_data['media'])) {
+                    foreach ($ship_data['media'] as $media) {
+                        if (isset($media['source_url']) && !empty($media['source_url'])) {
+                            $ship_image_url = $media['source_url'];
+                            break;
+                        }
+                    }
+                }
+                
+                $query = "
+                    INSERT INTO user_hangar 
+                    (user_id, ship_api_id, ship_name, ship_manufacturer, ship_focus, ship_size, ship_image_url, quantity)
+                    VALUES (:user_id, :ship_api_id, :ship_name, :ship_manufacturer, :ship_focus, :ship_size, :ship_image_url, :quantity)
+                    ON DUPLICATE KEY UPDATE
+                    quantity = quantity + VALUES(quantity)
+                ";
+                
+                $params = [
+                    ':user_id' => $user_id,
+                    ':ship_api_id' => $ship_api_id,
+                    ':ship_name' => $ship_name,
+                    ':ship_manufacturer' => $ship_manufacturer ?: null,
+                    ':ship_focus' => $ship_focus ?: null,
+                    ':ship_size' => $ship_size ?: null,
+                    ':ship_image_url' => $ship_image_url,
+                    ':quantity' => $quantity
+                ];
+                
+                execute_safe_query($pdo, $query, $params);
+                $added_count++;
+                
+            } catch (Exception $e) {
+                $errors[] = $ship_data['name'] . ': ' . $e->getMessage();
+                error_log("Error adding ship {$ship_data['name']}: " . $e->getMessage());
+            }
+        }
+        
+        $pdo->commit();
+        
+        if ($added_count > 0) {
+            $message = "$added_count gemi başarıyla hangarınıza eklendi.";
+            if (!empty($errors)) {
+                $message .= " Bazı gemiler eklenirken hata oluştu.";
+            }
+            return ['success' => true, 'message' => $message];
+        } else {
+            return ['success' => false, 'message' => 'Hiçbir gemi eklenemedi: ' . implode(', ', $errors)];
+        }
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Add ships from cart error: " . $e->getMessage());
+        return ['success' => false, 'message' => 'Gemiler eklenirken bir hata oluştu.'];
+    }
+}
 
 /**
  * Kullanıcının hangar gemilerini çeker
@@ -61,10 +141,15 @@ function getUserHangarShips(PDO $pdo, int $user_id): array {
     try {
         $query = "
             SELECT id, ship_api_id, ship_name, ship_manufacturer, ship_focus, 
-                   ship_size, ship_image_url, quantity, user_notes, added_at
+                   ship_size, ship_image_url, quantity, user_notes, added_at,
+                   CASE 
+                       WHEN ship_api_id LIKE 'api_%' THEN 'api'
+                       WHEN ship_api_id LIKE 'manual_%' THEN 'manual'
+                       ELSE 'legacy'
+                   END as source_type
             FROM user_hangar 
             WHERE user_id = :user_id 
-            ORDER BY ship_manufacturer ASC, ship_name ASC
+            ORDER BY added_at DESC, ship_manufacturer ASC, ship_name ASC
         ";
         
         $stmt = execute_safe_query($pdo, $query, [':user_id' => $user_id]);
@@ -77,7 +162,7 @@ function getUserHangarShips(PDO $pdo, int $user_id): array {
 }
 
 /**
- * Hangar istatistiklerini çeker
+ * Hangar istatistikleri
  */
 function getHangarStatistics(PDO $pdo, int $user_id): array {
     try {
@@ -86,7 +171,7 @@ function getHangarStatistics(PDO $pdo, int $user_id): array {
                 COUNT(*) as unique_ships,
                 SUM(quantity) as total_ships,
                 COUNT(DISTINCT ship_manufacturer) as manufacturers,
-                GROUP_CONCAT(DISTINCT ship_size ORDER BY ship_size) as sizes
+                COUNT(DISTINCT ship_size) as sizes
             FROM user_hangar 
             WHERE user_id = :user_id
         ";
@@ -98,62 +183,12 @@ function getHangarStatistics(PDO $pdo, int $user_id): array {
             'unique_ships' => (int)($result['unique_ships'] ?? 0),
             'total_ships' => (int)($result['total_ships'] ?? 0),
             'manufacturers' => (int)($result['manufacturers'] ?? 0),
-            'sizes' => $result['sizes'] ? explode(',', $result['sizes']) : []
+            'sizes' => (int)($result['sizes'] ?? 0)
         ];
         
     } catch (Exception $e) {
         error_log("Hangar stats error: " . $e->getMessage());
-        return ['unique_ships' => 0, 'total_ships' => 0, 'manufacturers' => 0, 'sizes' => []];
-    }
-}
-
-/**
- * Hangara gemi ekleme
- */
-function addShipToHangar(PDO $pdo, int $user_id, array $post_data): array {
-    try {
-        $ship_name = trim($post_data['ship_name'] ?? '');
-        $ship_manufacturer = trim($post_data['ship_manufacturer'] ?? '');
-        $ship_focus = trim($post_data['ship_focus'] ?? '');
-        $ship_size = trim($post_data['ship_size'] ?? '');
-        $quantity = max(1, (int)($post_data['quantity'] ?? 1));
-        $user_notes = trim($post_data['user_notes'] ?? '');
-        
-        if (empty($ship_name)) {
-            return ['success' => false, 'message' => 'Gemi adı gereklidir.'];
-        }
-        
-        // API ID oluştur (basit slug)
-        $ship_api_id = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $ship_name));
-        
-        $query = "
-            INSERT INTO user_hangar 
-            (user_id, ship_api_id, ship_name, ship_manufacturer, ship_focus, ship_size, quantity, user_notes)
-            VALUES (:user_id, :ship_api_id, :ship_name, :ship_manufacturer, :ship_focus, :ship_size, :quantity, :user_notes)
-            ON DUPLICATE KEY UPDATE
-            quantity = quantity + VALUES(quantity),
-            user_notes = VALUES(user_notes),
-            added_at = CURRENT_TIMESTAMP
-        ";
-        
-        $params = [
-            ':user_id' => $user_id,
-            ':ship_api_id' => $ship_api_id,
-            ':ship_name' => $ship_name,
-            ':ship_manufacturer' => $ship_manufacturer ?: null,
-            ':ship_focus' => $ship_focus ?: null,
-            ':ship_size' => $ship_size ?: null,
-            ':quantity' => $quantity,
-            ':user_notes' => $user_notes ?: null
-        ];
-        
-        execute_safe_query($pdo, $query, $params);
-        
-        return ['success' => true, 'message' => 'Gemi başarıyla hangarınıza eklendi.'];
-        
-    } catch (Exception $e) {
-        error_log("Add ship error: " . $e->getMessage());
-        return ['success' => false, 'message' => 'Gemi eklenirken bir hata oluştu.'];
+        return ['unique_ships' => 0, 'total_ships' => 0, 'manufacturers' => 0, 'sizes' => 0];
     }
 }
 
@@ -222,9 +257,15 @@ function deleteHangarShip(PDO $pdo, int $user_id, array $post_data): array {
         return ['success' => false, 'message' => 'Gemi silinirken bir hata oluştu.'];
     }
 }
+
+$page_title = "Hangar Yönetimi - " . ($_SESSION['username'] ?? 'Profil');
+
+include BASE_PATH . '/src/includes/header.php';
+include BASE_PATH . '/src/includes/navbar.php';
 ?>
 
 <link rel="stylesheet" href="/css/profile.css">
+<link rel="stylesheet" href="css/hangar.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="site-container">
@@ -260,13 +301,16 @@ function deleteHangarShip(PDO $pdo, int $user_id, array $post_data): array {
                         <i class="fas fa-space-shuttle"></i> Hangar Yönetimi
                     </h1>
                     <p class="hangar-description">
-                        Star Citizen gemilerinizi yönetin ve koleksiyonunuzu sergileyin.
+                        Star Citizen gemilerini arayın, sepete ekleyin ve hangarınıza kaydedin.
                     </p>
                 </div>
                 
                 <div class="hangar-actions">
-                    <button class="btn btn-primary" onclick="openAddShipModal()">
-                        <i class="fas fa-plus"></i> Gemi Ekle
+                    <button class="btn btn-primary" onclick="openShipSearchModal()">
+                        <i class="fas fa-search"></i> Gemi Ara & Ekle
+                    </button>
+                    <button class="btn btn-cart" id="cartButton" onclick="openCartModal()" style="display: none;">
+                        <i class="fas fa-shopping-cart"></i> Sepet (<span id="cartCount">0</span>)
                     </button>
                 </div>
             </div>
@@ -323,7 +367,7 @@ function deleteHangarShip(PDO $pdo, int $user_id, array $post_data): array {
                         <i class="fas fa-expand-arrows-alt"></i>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-number"><?= count($hangar_stats['sizes']) ?></div>
+                        <div class="stat-number"><?= number_format($hangar_stats['sizes']) ?></div>
                         <div class="stat-label">Boyut Çeşidi</div>
                     </div>
                 </div>
@@ -341,9 +385,9 @@ function deleteHangarShip(PDO $pdo, int $user_id, array $post_data): array {
                             <i class="fas fa-space-shuttle"></i>
                         </div>
                         <h4>Hangarınız Boş</h4>
-                        <p>Henüz hangarınıza gemi eklememişsiniz. İlk geminizi eklemek için yukarıdaki "Gemi Ekle" butonunu kullanın.</p>
-                        <button class="btn btn-primary" onclick="openAddShipModal()">
-                            <i class="fas fa-plus"></i> İlk Gemi Ekle
+                        <p>Henüz hangarınıza gemi eklememişsiniz. Star Citizen API'sinden gemi arayıp sepete ekleyin.</p>
+                        <button class="btn btn-primary" onclick="openShipSearchModal()">
+                            <i class="fas fa-search"></i> Gemi Ara & Ekle
                         </button>
                     </div>
                 <?php else: ?>
@@ -413,7 +457,7 @@ function deleteHangarShip(PDO $pdo, int $user_id, array $post_data): array {
                                     
                                     <div class="ship-added-date">
                                         <i class="fas fa-calendar"></i>
-                                        <?= date('d.m.Y', strtotime($ship['added_at'])) ?>
+                                        <?= date('d.m.Y H:i', strtotime($ship['added_at'])) ?>
                                     </div>
                                 </div>
                             </div>
@@ -425,94 +469,136 @@ function deleteHangarShip(PDO $pdo, int $user_id, array $post_data): array {
     </div>
 </div>
 
-<!-- Gemi Ekleme/Düzenleme Modal -->
-<div id="shipModal" class="modal" style="display: none;">
-    <div class="modal-overlay" onclick="closeShipModal()"></div>
-    <div class="modal-content">
+<!-- Gemi Arama Modal -->
+<div id="shipSearchModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeShipSearchModal()"></div>
+    <div class="modal-content modal-xl">
         <div class="modal-header">
-            <h3 id="modalTitle">Gemi Ekle</h3>
-            <button class="modal-close" onclick="closeShipModal()">
+            <h3>Star Citizen Gemi Arama</h3>
+            <button class="modal-close" onclick="closeShipSearchModal()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         
-        <form id="shipForm" method="POST">
-            <input type="hidden" name="action" id="formAction" value="add_ship">
-            <input type="hidden" name="ship_id" id="shipId" value="">
+        <div class="modal-body">
+            <!-- Arama Formu -->
+            <div class="search-form">
+                <div class="search-grid">
+                    <div class="form-group">
+                        <label for="search_name" class="form-label">
+                            <i class="fas fa-rocket"></i> Gemi Adı
+                        </label>
+                        <input type="text" id="search_name" class="form-input" placeholder="Örn: Mustang, Constellation...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="search_classification" class="form-label">
+                            <i class="fas fa-filter"></i> Sınıflandırma
+                        </label>
+                        <select id="search_classification" class="form-input">
+                            <option value="">Tümü</option>
+                            <option value="combat">Combat</option>
+                            <option value="transport">Transport</option>
+                            <option value="exploration">Exploration</option>
+                            <option value="industrial">Industrial</option>
+                            <option value="support">Support</option>
+                            <option value="competition">Competition</option>
+                            <option value="ground">Ground</option>
+                            <option value="multi">Multi</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="button" onclick="searchShips()" class="btn btn-primary btn-search">
+                            <i class="fas fa-search"></i> Ara
+                        </button>
+                        <button type="button" onclick="clearSearch()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Temizle
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Yükleme İndikatörü -->
+            <div id="searchLoading" class="search-loading" style="display: none;">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <p>API'den gemiler getiriliyor...</p>
+            </div>
+            
+            <!-- Arama Sonuçları -->
+            <div id="searchResults" class="search-results">
+                <div class="search-help">
+                    <i class="fas fa-info-circle"></i>
+                    Gemi aramak için yukarıdaki alanları kullanın. Boş bırakırsanız tüm gemiler listelenir.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sepet Modal -->
+<div id="cartModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeCartModal()"></div>
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-shopping-cart"></i> Sepetim
+            </h3>
+            <button class="modal-close" onclick="closeCartModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <div id="cartItems" class="cart-items">
+                <!-- Sepet öğeleri buraya yüklenecek -->
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" onclick="saveCartToHangar()" class="btn btn-primary btn-lg">
+                <i class="fas fa-save"></i> Hangarıma Kaydet
+            </button>
+            <button type="button" onclick="clearCart()" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Sepeti Temizle
+            </button>
+            <button type="button" onclick="closeCartModal()" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Kapat
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Gemi Düzenleme Modal -->
+<div id="editShipModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeEditShipModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Gemi Düzenle</h3>
+            <button class="modal-close" onclick="closeEditShipModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="editShipForm" method="POST">
+            <input type="hidden" name="action" value="update_ship">
+            <input type="hidden" name="ship_id" id="editShipId">
             
             <div class="modal-body">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="ship_name" class="form-label">
-                            <i class="fas fa-rocket"></i> Gemi Adı *
-                        </label>
-                        <input type="text" id="ship_name" name="ship_name" class="form-input" required maxlength="255">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="ship_manufacturer" class="form-label">
-                            <i class="fas fa-industry"></i> Üretici
-                        </label>
-                        <select id="ship_manufacturer" name="ship_manufacturer" class="form-input">
-                            <option value="">Seçiniz...</option>
-                            <option value="Aegis Dynamics">Aegis Dynamics</option>
-                            <option value="Anvil Aerospace">Anvil Aerospace</option>
-                            <option value="Argo Astronautics">Argo Astronautics</option>
-                            <option value="Banu">Banu</option>
-                            <option value="Crusader Industries">Crusader Industries</option>
-                            <option value="Drake Interplanetary">Drake Interplanetary</option>
-                            <option value="Esperia">Esperia</option>
-                            <option value="MISC">Musashi Industrial & Starflight Concern</option>
-                            <option value="Origin Jumpworks">Origin Jumpworks</option>
-                            <option value="RSI">Roberts Space Industries</option>
-                            <option value="Vanduul">Vanduul</option>
-                            <option value="Xi'an">Xi'an</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="ship_size" class="form-label">
-                            <i class="fas fa-expand-arrows-alt"></i> Boyut
-                        </label>
-                        <select id="ship_size" name="ship_size" class="form-input">
-                            <option value="">Seçiniz...</option>
-                            <option value="Snub">Snub</option>
-                            <option value="Small">Small</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Large">Large</option>
-                            <option value="Capital">Capital</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="ship_focus" class="form-label">
-                            <i class="fas fa-crosshairs"></i> Odak Alanı
-                        </label>
-                        <select id="ship_focus" name="ship_focus" class="form-input">
-                            <option value="">Seçiniz...</option>
-                            <option value="Combat">Combat</option>
-                            <option value="Exploration">Exploration</option>
-                            <option value="Transport">Transport</option>
-                            <option value="Industrial">Industrial</option>
-                            <option value="Support">Support</option>
-                            <option value="Racing">Racing</option>
-                            <option value="Multi-Role">Multi-Role</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="quantity" class="form-label">
-                            <i class="fas fa-hashtag"></i> Adet
-                        </label>
-                        <input type="number" id="quantity" name="quantity" class="form-input" min="1" value="1">
-                    </div>
+                <div class="form-group">
+                    <label for="edit_quantity" class="form-label">
+                        <i class="fas fa-hashtag"></i> Adet
+                    </label>
+                    <input type="number" id="edit_quantity" name="quantity" class="form-input" min="1" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="user_notes" class="form-label">
+                    <label for="edit_notes" class="form-label">
                         <i class="fas fa-sticky-note"></i> Notlar
                     </label>
-                    <textarea id="user_notes" name="user_notes" class="form-textarea" rows="3" maxlength="500" placeholder="Bu gemi hakkında notlarınız..."></textarea>
+                    <textarea id="edit_notes" name="user_notes" class="form-textarea" rows="4" maxlength="500"></textarea>
                 </div>
             </div>
             
@@ -520,7 +606,7 @@ function deleteHangarShip(PDO $pdo, int $user_id, array $post_data): array {
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Kaydet
                 </button>
-                <button type="button" class="btn btn-secondary" onclick="closeShipModal()">
+                <button type="button" onclick="closeEditShipModal()" class="btn btn-secondary">
                     <i class="fas fa-times"></i> İptal
                 </button>
             </div>
@@ -528,441 +614,6 @@ function deleteHangarShip(PDO $pdo, int $user_id, array $post_data): array {
     </div>
 </div>
 
-<script>
-function openAddShipModal() {
-    document.getElementById('modalTitle').textContent = 'Gemi Ekle';
-    document.getElementById('formAction').value = 'add_ship';
-    document.getElementById('shipId').value = '';
-    document.getElementById('shipForm').reset();
-    document.getElementById('shipModal').style.display = 'flex';
-}
-
-function editShip(shipId) {
-    const shipCard = document.querySelector(`[data-ship-id="${shipId}"]`);
-    if (!shipCard) return;
-    
-    // Mevcut gemi verilerini modal'a doldur
-    document.getElementById('modalTitle').textContent = 'Gemi Düzenle';
-    document.getElementById('formAction').value = 'update_ship';
-    document.getElementById('shipId').value = shipId;
-    
-    // Form verilerini doldur (bu kısım gerçek implementasyonda AJAX ile yapılmalı)
-    const shipName = shipCard.querySelector('.ship-name').textContent;
-    document.getElementById('ship_name').value = shipName;
-    
-    document.getElementById('shipModal').style.display = 'flex';
-}
-
-function deleteShip(shipId) {
-    if (!confirm('Bu gemiyi hangarınızdan kaldırmak istediğinizden emin misiniz?')) {
-        return;
-    }
-    
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.innerHTML = `
-        <input type="hidden" name="action" value="delete_ship">
-        <input type="hidden" name="ship_id" value="${shipId}">
-    `;
-    document.body.appendChild(form);
-    form.submit();
-}
-
-function closeShipModal() {
-    document.getElementById('shipModal').style.display = 'none';
-}
-
-// Modal dışı tıklama ile kapatma
-document.getElementById('shipModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeShipModal();
-    }
-});
-
-// ESC tuşu ile modal kapatma
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeShipModal();
-    }
-});
-</script>
-
-<style>
-/* Hangar özel stilleri */
-.hangar-header {
-    background: linear-gradient(135deg, var(--card-bg), var(--card-bg-2));
-    border: 1px solid var(--border-1);
-    border-radius: 12px;
-    padding: 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-}
-
-.hangar-title {
-    margin: 0 0 0.5rem 0;
-    font-size: 2rem;
-    font-weight: 600;
-    color: var(--gold);
-}
-
-.hangar-description {
-    margin: 0;
-    color: var(--light-grey);
-    font-size: 1.1rem;
-}
-
-.alert-success {
-    background: var(--transparent-turquase);
-    border: 1px solid var(--turquase);
-    color: var(--turquase);
-}
-
-.hangar-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-
-.hangar-stats .stat-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-1);
-    border-radius: 12px;
-    padding: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: transform 0.3s ease;
-}
-
-.hangar-stats .stat-card:hover {
-    transform: translateY(-2px);
-}
-
-.stat-icon {
-    width: 50px;
-    height: 50px;
-    background: var(--gold);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--charcoal);
-    font-size: 1.5rem;
-}
-
-.hangar-ships-section {
-    background: var(--card-bg);
-    border: 1px solid var(--border-1);
-    border-radius: 12px;
-    padding: 2rem;
-}
-
-.empty-hangar {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: var(--light-grey);
-}
-
-.empty-hangar-icon {
-    font-size: 4rem;
-    color: var(--border-1-hover);
-    margin-bottom: 1rem;
-}
-
-.empty-hangar h4 {
-    margin: 0 0 1rem 0;
-    font-size: 1.5rem;
-    color: var(--lighter-grey);
-}
-
-.empty-hangar p {
-    margin: 0 0 2rem 0;
-    font-size: 1.1rem;
-}
-
-.ships-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 1.5rem;
-}
-
-.ship-card {
-    background: var(--card-bg-2);
-    border: 1px solid var(--border-1);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-}
-
-.ship-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    border-color: var(--border-1-hover);
-}
-
-.ship-card-header {
-    position: relative;
-    height: 180px;
-    background: var(--card-bg-3);
-}
-
-.ship-image {
-    width: 100%;
-    height: 100%;
-}
-
-.ship-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.ship-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    color: var(--border-1-hover);
-    background: var(--card-bg);
-}
-
-.ship-actions {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    display: flex;
-    gap: 0.5rem;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.ship-card:hover .ship-actions {
-    opacity: 1;
-}
-
-.action-btn {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
-}
-
-.edit-btn {
-    background: rgba(184, 132, 92, 0.9);
-    color: var(--charcoal);
-}
-
-.edit-btn:hover {
-    background: var(--gold);
-    transform: scale(1.1);
-}
-
-.delete-btn {
-    background: rgba(235, 0, 0, 0.9);
-    color: var(--white);
-}
-
-.delete-btn:hover {
-    background: var(--red);
-    transform: scale(1.1);
-}
-
-.ship-card-body {
-    padding: 1.5rem;
-}
-
-.ship-name {
-    margin: 0 0 1rem 0;
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: var(--gold);
-}
-
-.ship-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.ship-detail {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9rem;
-}
-
-.detail-label {
-    color: var(--light-grey);
-    font-weight: 500;
-}
-
-.detail-value {
-    color: var(--lighter-grey);
-}
-
-.detail-value.quantity {
-    background: var(--card-bg-4);
-    padding: 0.25rem 0.75rem;
-    border-radius: 15px;
-    font-weight: 600;
-    color: var(--gold);
-}
-
-.ship-notes {
-    background: var(--card-bg-4);
-    border: 1px solid var(--border-1);
-    border-radius: 8px;
-    padding: 0.75rem;
-    margin-bottom: 1rem;
-    font-size: 0.85rem;
-    color: var(--light-grey);
-    line-height: 1.4;
-}
-
-.ship-notes i {
-    color: var(--gold);
-    margin-right: 0.5rem;
-}
-
-.ship-added-date {
-    font-size: 0.8rem;
-    color: var(--light-grey);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-1);
-}
-
-/* Modal Stilleri */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s ease;
-}
-
-.modal-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-}
-
-.modal-content {
-    background: var(--card-bg);
-    border: 1px solid var(--border-1);
-    border-radius: 12px;
-    max-width: 600px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    position: relative;
-    animation: slideUp 0.3s ease;
-}
-
-.modal-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border-1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h3 {
-    margin: 0;
-    color: var(--gold);
-    font-size: 1.4rem;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    color: var(--light-grey);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 4px;
-    transition: all 0.3s ease;
-}
-
-.modal-close:hover {
-    background: var(--transparent-red);
-    color: var(--red);
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.modal-footer {
-    padding: 1.5rem;
-    border-top: 1px solid var(--border-1);
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes slideUp {
-    from { 
-        opacity: 0;
-        transform: translateY(50px);
-    }
-    to { 
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@media (max-width: 768px) {
-    .hangar-header {
-        flex-direction: column;
-        gap: 1.5rem;
-        text-align: center;
-    }
-    
-    .hangar-stats {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .ships-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .modal-content {
-        width: 95%;
-        margin: 1rem;
-    }
-    
-    .modal-footer {
-        flex-direction: column;
-    }
-}
-</style>
+<script src="js/hangar.js"></script>
 
 <?php include BASE_PATH . '/src/includes/footer.php'; ?>
