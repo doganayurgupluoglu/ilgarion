@@ -1,18 +1,26 @@
 <?php
-// api/get_ship.php - Hangar gemisi bilgilerini getir
+// api/get_ship.php - Hangar gemisi bilgilerini getir (Düzeltilmiş)
 
-session_start();
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 
-// Gerekli dosyaları dahil et
-$base_path = dirname(__DIR__);
+// Dosya yollarını düzelt
+$base_path = dirname(dirname(__DIR__)); // profile/api/ dan iki üst klasör
 require_once $base_path . '/src/config/database.php';
-require_once $base_path . '/src/functions/auth_functions.php';
-require_once $base_path . '/src/functions/sql_security_functions.php';
+require_once BASE_PATH . '/src/functions/auth_functions.php';
+require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 
-header("Content-Type: application/json");
+header("Content-Type: application/json; charset=utf-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
+
+// OPTIONS request için (CORS preflight)
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 // HTTP method kontrolü
 if ($_SERVER["REQUEST_METHOD"] !== "GET") {
@@ -70,14 +78,14 @@ try {
     // Veriyi temizle ve güvenli hale getir
     $cleaned_ship = [
         'id' => (int)$ship['id'],
-        'ship_api_id' => htmlspecialchars($ship['ship_api_id']),
-        'ship_name' => htmlspecialchars($ship['ship_name']),
-        'ship_manufacturer' => htmlspecialchars($ship['ship_manufacturer'] ?? ''),
-        'ship_focus' => htmlspecialchars($ship['ship_focus'] ?? ''),
-        'ship_size' => htmlspecialchars($ship['ship_size'] ?? ''),
+        'ship_api_id' => htmlspecialchars($ship['ship_api_id'], ENT_QUOTES, 'UTF-8'),
+        'ship_name' => htmlspecialchars($ship['ship_name'], ENT_QUOTES, 'UTF-8'),
+        'ship_manufacturer' => htmlspecialchars($ship['ship_manufacturer'] ?? '', ENT_QUOTES, 'UTF-8'),
+        'ship_focus' => htmlspecialchars($ship['ship_focus'] ?? '', ENT_QUOTES, 'UTF-8'),
+        'ship_size' => htmlspecialchars($ship['ship_size'] ?? '', ENT_QUOTES, 'UTF-8'),
         'ship_image_url' => $ship['ship_image_url'] ? filter_var($ship['ship_image_url'], FILTER_VALIDATE_URL) : null,
         'quantity' => (int)$ship['quantity'],
-        'user_notes' => htmlspecialchars($ship['user_notes'] ?? ''),
+        'user_notes' => htmlspecialchars($ship['user_notes'] ?? '', ENT_QUOTES, 'UTF-8'),
         'added_at' => $ship['added_at']
     ];
     
@@ -85,7 +93,7 @@ try {
     echo json_encode([
         'success' => true,
         'ship' => $cleaned_ship
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
     
 } catch (PDOException $e) {
     error_log("Get ship database error: " . $e->getMessage());

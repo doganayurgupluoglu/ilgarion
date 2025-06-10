@@ -27,9 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'add_ships_from_cart':
                 $result = addShipsFromCart($pdo, $current_user_id, $_POST);
                 break;
-            case 'update_ship':
-                $result = updateHangarShip($pdo, $current_user_id, $_POST);
-                break;
             case 'delete_ship':
                 $result = deleteHangarShip($pdo, $current_user_id, $_POST);
                 break;
@@ -192,45 +189,6 @@ function getHangarStatistics(PDO $pdo, int $user_id): array {
     }
 }
 
-/**
- * Hangar gemisini güncelleme
- */
-function updateHangarShip(PDO $pdo, int $user_id, array $post_data): array {
-    try {
-        $ship_id = (int)($post_data['ship_id'] ?? 0);
-        $quantity = max(1, (int)($post_data['quantity'] ?? 1));
-        $user_notes = trim($post_data['user_notes'] ?? '');
-        
-        if (!$ship_id) {
-            return ['success' => false, 'message' => 'Geçersiz gemi ID.'];
-        }
-        
-        $query = "
-            UPDATE user_hangar 
-            SET quantity = :quantity, user_notes = :user_notes
-            WHERE id = :ship_id AND user_id = :user_id
-        ";
-        
-        $params = [
-            ':quantity' => $quantity,
-            ':user_notes' => $user_notes ?: null,
-            ':ship_id' => $ship_id,
-            ':user_id' => $user_id
-        ];
-        
-        $stmt = execute_safe_query($pdo, $query, $params);
-        
-        if ($stmt->rowCount() === 0) {
-            return ['success' => false, 'message' => 'Gemi bulunamadı veya size ait değil.'];
-        }
-        
-        return ['success' => true, 'message' => 'Gemi bilgileri güncellendi.'];
-        
-    } catch (Exception $e) {
-        error_log("Update ship error: " . $e->getMessage());
-        return ['success' => false, 'message' => 'Gemi güncellenirken bir hata oluştu.'];
-    }
-}
 
 /**
  * Hangar gemisini silme
@@ -408,9 +366,6 @@ include BASE_PATH . '/src/includes/navbar.php';
                                     </div>
                                     
                                     <div class="ship-actions">
-                                        <button class="action-btn edit-btn" onclick="editShip(<?= $ship['id'] ?>)" title="Düzenle">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
                                         <button class="action-btn delete-btn" onclick="deleteShip(<?= $ship['id'] ?>)" title="Sil">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -568,49 +523,6 @@ include BASE_PATH . '/src/includes/navbar.php';
                 <i class="fas fa-times"></i> Kapat
             </button>
         </div>
-    </div>
-</div>
-
-<!-- Gemi Düzenleme Modal -->
-<div id="editShipModal" class="modal" style="display: none;">
-    <div class="modal-overlay" onclick="closeEditShipModal()"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Gemi Düzenle</h3>
-            <button class="modal-close" onclick="closeEditShipModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <form id="editShipForm" method="POST">
-            <input type="hidden" name="action" value="update_ship">
-            <input type="hidden" name="ship_id" id="editShipId">
-            
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="edit_quantity" class="form-label">
-                        <i class="fas fa-hashtag"></i> Adet
-                    </label>
-                    <input type="number" id="edit_quantity" name="quantity" class="form-input" min="1" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit_notes" class="form-label">
-                        <i class="fas fa-sticky-note"></i> Notlar
-                    </label>
-                    <textarea id="edit_notes" name="user_notes" class="form-textarea" rows="4" maxlength="500"></textarea>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Kaydet
-                </button>
-                <button type="button" onclick="closeEditShipModal()" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> İptal
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 

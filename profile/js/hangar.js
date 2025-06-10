@@ -5,15 +5,17 @@ let cart = [];
 
 // API'den gemi arama
 async function searchShips() {
-    const searchName = document.getElementById('search_name').value.trim();
-    const searchClassification = document.getElementById('search_classification').value;
+    console.log('searchShips başladı');
+    
+    const searchName = document.getElementById('search_name')?.value.trim() || '';
+    const searchClassification = document.getElementById('search_classification')?.value || '';
     
     const loadingEl = document.getElementById('searchLoading');
     const resultsEl = document.getElementById('searchResults');
     
     // Yükleme göster
-    loadingEl.style.display = 'block';
-    resultsEl.innerHTML = '';
+    if (loadingEl) loadingEl.style.display = 'block';
+    if (resultsEl) resultsEl.innerHTML = '';
     
     try {
         const params = new URLSearchParams();
@@ -26,44 +28,117 @@ async function searchShips() {
             params.append('classification', searchClassification);
         }
         
-        const response = await fetch(`../api/search_ships.php?${params.toString()}`);
-        const data = await response.json();
+        // URL'yi dinamik olarak oluştur
+        const currentPath = window.location.pathname;
+        const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+        const apiUrl = basePath + 'api/search_ships.php' + (params.toString() ? '?' + params.toString() : '');
+        
+        console.log('API URL:', apiUrl);
+        console.log('Tam URL:', window.location.origin + apiUrl);
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+        
+        // Raw response'u al
+        const rawText = await response.text();
+        console.log('Raw response length:', rawText.length);
+        console.log('Raw response preview:', rawText.substring(0, 200));
+        
+        // JSON parse et
+        let data;
+        try {
+            data = JSON.parse(rawText);
+            console.log('Parsed data:', data);
+        } catch (jsonError) {
+            console.error('JSON parse error:', jsonError);
+            console.log('Non-JSON response:', rawText);
+            
+            if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
+                throw new Error('Sunucu HTML döndürdü - PHP hatası olabilir');
+            } else if (rawText.includes('Fatal error') || rawText.includes('Parse error')) {
+                throw new Error('PHP hatası: ' + rawText.match(/Fatal error[^<]*/)?.[0] || 'Bilinmeyen PHP hatası');
+            } else if (rawText.trim() === '') {
+                throw new Error('Sunucudan boş yanıt alındı');
+            } else {
+                throw new Error('Geçersiz JSON yanıtı');
+            }
+        }
         
         // Yükleme gizle
-        loadingEl.style.display = 'none';
+        if (loadingEl) loadingEl.style.display = 'none';
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${data.message || 'Sunucu hatası'}`);
+        }
         
         if (!data.success) {
-            resultsEl.innerHTML = `
-                <div class="search-error">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>Arama hatası: ${data.message}</p>
-                </div>
-            `;
+            console.log('API error response:', data);
+            if (resultsEl) {
+                resultsEl.innerHTML = `
+                    <div class="search-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>API Hatası: ${data.message}</p>
+                        ${data.debug ? `
+                            <details style="margin-top: 1rem;">
+                                <summary>Debug Bilgileri (Geliştirici için)</summary>
+                                <pre style="background: #2a2a2a; color: #fff; padding: 1rem; border-radius: 4px; font-size: 12px; overflow: auto; max-height: 300px;">${JSON.stringify(data.debug, null, 2)}</pre>
+                            </details>
+                        ` : ''}
+                        <button class="btn btn-secondary btn-sm" onclick="searchShips()" style="margin-top: 1rem;">
+                            <i class="fas fa-redo"></i> Tekrar Dene
+                        </button>
+                    </div>
+                `;
+            }
             return;
         }
         
-        if (data.data.length === 0) {
-            resultsEl.innerHTML = `
-                <div class="search-empty">
-                    <i class="fas fa-search"></i>
-                    <p>Arama kriterlerinize uygun gemi bulunamadı.</p>
-                </div>
-            `;
+        if (!data.data || data.data.length === 0) {
+            if (resultsEl) {
+                resultsEl.innerHTML = `
+                    <div class="search-empty">
+                        <i class="fas fa-search"></i>
+                        <p>Arama kriterlerinize uygun gemi bulunamadı.</p>
+                        <small>Farklı arama terimleri deneyin.</small>
+                    </div>
+                `;
+            }
             return;
         }
         
-        // Sonuçları göster
+        // Başarılı - sonuçları göster
+        console.log('Displaying results:', data.data.length, 'ships');
         displaySearchResults(data.data);
         
     } catch (error) {
-        loadingEl.style.display = 'none';
-        resultsEl.innerHTML = `
-            <div class="search-error">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Arama sırasında bir hata oluştu: ${error.message}</p>
-            </div>
-        `;
         console.error('Search error:', error);
+        if (loadingEl) loadingEl.style.display = 'none';
+        
+        if (resultsEl) {
+            resultsEl.innerHTML = `
+                <div class="search-error">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Hata: ${error.message}</p>
+                    <details style="margin-top: 1rem;">
+                        <summary>Teknik Detaylar</summary>
+                        <pre style="background: #2a2a2a; color: #fff; padding: 1rem; border-radius: 4px; font-size: 12px;">${error.stack || error.message}</pre>
+                    </details>
+                    <button class="btn btn-secondary btn-sm" onclick="searchShips()" style="margin-top: 1rem;">
+                        <i class="fas fa-redo"></i> Tekrar Dene
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -288,31 +363,6 @@ function closeShipSearchModal() {
 
 function closeCartModal() {
     document.getElementById('cartModal').style.display = 'none';
-}
-
-// Gemi düzenleme
-function editShip(shipId) {
-    // AJAX ile gemi bilgilerini al ve modal'ı doldur
-    fetch(`../api/get_ship.php?id=${shipId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('editShipId').value = shipId;
-                document.getElementById('edit_quantity').value = data.ship.quantity;
-                document.getElementById('edit_notes').value = data.ship.user_notes || '';
-                document.getElementById('editShipModal').style.display = 'flex';
-            } else {
-                alert('Gemi bilgileri yüklenemedi.');
-            }
-        })
-        .catch(error => {
-            console.error('Edit ship error:', error);
-            alert('Bir hata oluştu.');
-        });
-}
-
-function closeEditShipModal() {
-    document.getElementById('editShipModal').style.display = 'none';
 }
 
 // Gemi silme

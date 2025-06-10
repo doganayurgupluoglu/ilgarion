@@ -225,16 +225,6 @@
     backdrop-filter: blur(10px);
 }
 
-.edit-btn {
-    background: rgba(184, 132, 92, 0.9);
-    color: var(--charcoal);
-}
-
-.edit-btn:hover {
-    background: var(--gold);
-    transform: scale(1.1);
-}
-
 .delete-btn {
     background: rgba(235, 0, 0, 0.9);
     color: var(--white);
