@@ -33,11 +33,7 @@ if (isset($_SESSION['user_id'])) {
     $is_approved = false;
 }
 
-// Hata ayıklama için geçici debug
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Etkinlik ID kontrolü ve debug
+// Etkinlik ID kontrolü
 $event_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 
 // Debug: ID parametresini kontrol et
@@ -87,38 +83,21 @@ try {
     // Debug: Query sonucunu kontrol et
     if (!$event) {
         error_log("Detail.php ERROR: Event not found with ID: " . $event_id);
-        
-        // Etkinliğin gerçekten var olup olmadığını basit sorgu ile kontrol et
-        $simple_check = $pdo->prepare("SELECT COUNT(*) as count FROM events WHERE id = :event_id");
-        $simple_check->execute([':event_id' => $event_id]);
-        $exists = $simple_check->fetch(PDO::FETCH_ASSOC);
-        
-        if ($exists['count'] == 0) {
-            $_SESSION['error_message'] = "ID $event_id olan etkinlik bulunamadı.";
-        } else {
-            $_SESSION['error_message'] = "Etkinlik verisi yüklenemedi (JOIN hatası olabilir).";
-        }
-        
+        $_SESSION['error_message'] = "Etkinlik bulunamadı (ID: $event_id).";
         header('Location: index.php');
         exit;
     }
     
-    // Debug: Event data'yı logla
-    error_log("Detail.php SUCCESS: Event loaded - ID: {$event['id']}, Title: {$event['event_title']}");
-    
-    // Görünürlük kontrolü
+    // Görüntüleme yetki kontrolü
     $can_view = true;
-    if ($event['visibility'] === 'private') {
-        $can_view = $is_logged_in && (
-            has_permission($pdo, 'event.view_all') || 
-            $event['created_by_user_id'] == $current_user_id
-        );
-    } elseif ($event['visibility'] === 'members_only') {
-        $can_view = $is_logged_in || has_permission($pdo, 'event.view_all');
+    if ($event['visibility'] === 'members_only' && !$is_logged_in) {
+        $can_view = false;
+    } elseif ($event['visibility'] === 'private' && (!$is_logged_in || !has_permission($pdo, 'event.view_private'))) {
+        $can_view = false;
     }
     
     if (!$can_view) {
-        error_log("Detail.php ERROR: User has no permission to view event ID: " . $event_id);
+        error_log("Detail.php ACCESS DENIED: User cannot view event " . $event_id);
         $_SESSION['error_message'] = "Bu etkinliği görüntüleme yetkiniz yok.";
         header('Location: index.php');
         exit;
@@ -143,7 +122,7 @@ try {
                er.role_name, er.role_description, er.role_icon,
                COUNT(ep.id) as current_participants,
                SUM(CASE WHEN ep.participation_status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_participants,
-               SUM(CASE WHEN ep.participation_status = 'pending' THEN 1 ELSE 0 END) as pending_participants
+               SUM(CASE WHEN ep.participation_status = 'maybe' THEN 1 ELSE 0 END) as pending_participants
         FROM event_role_slots ers
         JOIN event_roles er ON ers.role_id = er.id
         LEFT JOIN event_participations ep ON ers.id = ep.role_slot_id
@@ -174,20 +153,30 @@ try {
         $user_participation = $participation_stmt->fetch(PDO::FETCH_ASSOC);
     }
     
-    // Katılımcıları getir (organize edenler görebilir)
+    // Katılımcıları getir (organize edenler görebilir) - GÜNCELLENMİŞ SORGU
     $participants = [];
     if ($can_edit || $event['created_by_user_id'] == $current_user_id) {
         $participants_stmt = $pdo->prepare("
-            SELECT ep.*, u.username, er.role_name, ers.role_id,
+            SELECT ep.*, u.username, 
+                   COALESCE(er.role_name, 'Rol Atanmamış') as role_name,
+                   ers.role_id,
                    r.color as user_role_color
             FROM event_participations ep
             JOIN users u ON ep.user_id = u.id
-            JOIN event_role_slots ers ON ep.role_slot_id = ers.id
-            JOIN event_roles er ON ers.role_id = er.id
+            LEFT JOIN event_role_slots ers ON ep.role_slot_id = ers.id
+            LEFT JOIN event_roles er ON ers.role_id = er.id
             LEFT JOIN user_roles ur ON u.id = ur.user_id
             LEFT JOIN roles r ON ur.role_id = r.id
             WHERE ep.event_id = :event_id
-            ORDER BY ep.participation_status ASC, er.role_name ASC, u.username ASC
+            ORDER BY 
+                CASE ep.participation_status 
+                    WHEN 'confirmed' THEN 1 
+                    WHEN 'maybe' THEN 2 
+                    WHEN 'declined' THEN 3 
+                    ELSE 4 
+                END,
+                COALESCE(er.role_name, 'ZZZ') ASC, 
+                u.username ASC
         ");
         
         $participants_stmt->execute([':event_id' => $event_id]);
@@ -225,8 +214,10 @@ include BASE_PATH . '/src/includes/navbar.php';
 events_layout_start($breadcrumb_items, $page_title);
 ?>
 
+<!-- CSS Dahil Etme -->
 <link rel="stylesheet" href="css/events_detail.css">
 <link rel="stylesheet" href="css/events_sidebar.css">
+<link rel="stylesheet" href="css/participation-styles.css">
 
 <!-- Event Detail Container -->
 <div class="event-detail-container">
@@ -296,45 +287,127 @@ events_layout_start($breadcrumb_items, $page_title);
                 </div>
             </div>
             
-            <!-- Action Buttons -->
+            <!-- Action Buttons - YENİ VE GÜNCELLENMİŞ -->
             <div class="event-actions">
-                <?php if ($can_participate && !$user_participation): ?>
-                    <button type="button" class="btn-primary participate-btn" data-event-id="<?= $event_id ?>">
-                        <i class="fas fa-hand-paper"></i>
-                        Etkinliğe Katıl
-                    </button>
-                <?php elseif ($user_participation): ?>
-                    <div class="participation-status">
-                        <span class="status-<?= $user_participation['participation_status'] ?>">
-                            <i class="fas fa-<?= $user_participation['participation_status'] === 'confirmed' ? 'check-circle' : 'clock' ?>"></i>
-                            <?= $user_participation['participation_status'] === 'confirmed' ? 'Katılım Onaylandı' : 'Katılım Beklemede' ?>
-                        </span>
-                        <small>Rol: <?= htmlspecialchars($user_participation['role_name']) ?></small>
+                <?php if ($can_participate): ?>
+                    <?php if (!$user_participation): ?>
+                        <!-- Katılım Butonları - Katılım Yok -->
+                        <div class="participation-buttons">
+                            <button type="button" class="btn-primary participate-btn" data-event-id="<?= $event_id ?>">
+                                <i class="fas fa-hand-paper"></i>
+                                Etkinliğe Katıl
+                            </button>
+                            
+                            <div class="participation-options">
+                                <button type="button" class="btn-secondary participation-status-btn" 
+                                        data-event-id="<?= $event_id ?>" data-status="maybe">
+                                    <i class="fas fa-question-circle"></i>
+                                    Belki Katılırım
+                                </button>
+                                
+                                <button type="button" class="btn-outline participation-status-btn" 
+                                        data-event-id="<?= $event_id ?>" data-status="declined">
+                                    <i class="fas fa-times-circle"></i>
+                                    Katılmıyorum
+                                </button>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <!-- Mevcut Katılım Durumu -->
+                        <div class="participation-status">
+                            <span class="status-<?= $user_participation['participation_status'] ?>">
+                                <i class="fas fa-<?= $user_participation['participation_status'] === 'confirmed' ? 'check-circle' : 
+                                    ($user_participation['participation_status'] === 'maybe' ? 'question-circle' : 'times-circle') ?>"></i>
+                                <?php
+                                switch($user_participation['participation_status']) {
+                                    case 'confirmed':
+                                        echo 'Katılım Onaylandı';
+                                        break;
+                                    case 'maybe':
+                                        echo 'Belki Katılırım';
+                                        break;
+                                    case 'declined':
+                                        echo 'Katılmıyorum';
+                                        break;
+                                }
+                                ?>
+                            </span>
+                            <?php if ($user_participation['participation_status'] === 'confirmed' && !empty($user_participation['role_name'])): ?>
+                                <small>Rol: <?= htmlspecialchars($user_participation['role_name']) ?></small>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- Durum Değiştirme Butonları -->
+                        <div class="participation-change-buttons">
+                            <?php if ($user_participation['participation_status'] !== 'confirmed'): ?>
+                                <button type="button" class="btn-primary participate-btn" data-event-id="<?= $event_id ?>">
+                                    <i class="fas fa-hand-paper"></i>
+                                    Role Katıl
+                                </button>
+                            <?php endif; ?>
+                            
+                            <?php if ($user_participation['participation_status'] !== 'maybe'): ?>
+                                <button type="button" class="btn-secondary participation-status-btn" 
+                                        data-event-id="<?= $event_id ?>" data-status="maybe">
+                                    <i class="fas fa-question-circle"></i>
+                                    Belki Katılırım
+                                </button>
+                            <?php endif; ?>
+                            
+                            <?php if ($user_participation['participation_status'] !== 'declined'): ?>
+                                <button type="button" class="btn-outline participation-status-btn" 
+                                        data-event-id="<?= $event_id ?>" data-status="declined">
+                                    <i class="fas fa-times-circle"></i>
+                                    Katılmıyorum
+                                </button>
+                            <?php endif; ?>
+                            
+                            <?php if ($user_participation['participation_status'] === 'confirmed'): ?>
+                                <button type="button" class="btn-danger leave-event-btn" data-event-id="<?= $event_id ?>">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    Katılımdan Çık
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <!-- Katılım Yetki Mesajı -->
+                    <div class="participation-disabled">
+                        <?php if (!$is_logged_in): ?>
+                            <p><i class="fas fa-info-circle"></i> Etkinliğe katılmak için giriş yapmalısınız.</p>
+                            <a href="/login.php" class="btn-primary">
+                                <i class="fas fa-sign-in-alt"></i>
+                                Giriş Yap
+                            </a>
+                        <?php elseif (!$is_approved): ?>
+                            <p><i class="fas fa-clock"></i> Etkinliğe katılmak için hesabınızın onaylanması beklenmektedir.</p>
+                        <?php elseif ($event['status'] !== 'published'): ?>
+                            <p><i class="fas fa-eye-slash"></i> Bu etkinlik henüz yayınlanmamış.</p>
+                        <?php endif; ?>
                     </div>
-                    <button type="button" class="btn-secondary leave-event-btn" data-event-id="<?= $event_id ?>">
-                        <i class="fas fa-times"></i>
-                        Katılımdan Çık
+                <?php endif; ?>
+                
+                <!-- Diğer Aksiyonlar -->
+                <div class="other-actions">
+                    <?php if ($can_edit): ?>
+                        <a href="create.php?id=<?= $event_id ?>" class="btn-secondary">
+                            <i class="fas fa-edit"></i>
+                            Düzenle
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if ($can_delete): ?>
+                        <button type="button" class="btn-danger delete-event-btn" data-event-id="<?= $event_id ?>">
+                            <i class="fas fa-trash"></i>
+                            Sil
+                        </button>
+                    <?php endif; ?>
+                    
+                    <button type="button" class="btn-secondary share-btn" data-event-id="<?= $event_id ?>">
+                        <i class="fas fa-share"></i>
+                        Paylaş
                     </button>
-                <?php endif; ?>
-                
-                <?php if ($can_edit): ?>
-                    <a href="create.php?id=<?= $event_id ?>" class="btn-secondary">
-                        <i class="fas fa-edit"></i>
-                        Düzenle
-                    </a>
-                <?php endif; ?>
-                
-                <?php if ($can_delete): ?>
-                    <button type="button" class="btn-danger delete-event-btn" data-event-id="<?= $event_id ?>">
-                        <i class="fas fa-trash"></i>
-                        Sil
-                    </button>
-                <?php endif; ?>
-                
-                <button type="button" class="btn-secondary share-btn" data-event-id="<?= $event_id ?>">
-                    <i class="fas fa-share"></i>
-                    Paylaş
-                </button>
+                </div>
             </div>
         </div>
     </div>
@@ -347,11 +420,8 @@ events_layout_start($breadcrumb_items, $page_title);
             
             <!-- Event Description -->
             <div class="content-section">
-                <h2>
-                    <i class="fas fa-info-circle"></i>
-                    Etkinlik Açıklaması
-                </h2>
-                <div class="event-description markdown-content">
+                <h2><i class="fas fa-align-left"></i> Etkinlik Açıklaması</h2>
+                <div class="event-description">
                     <?= $parsedown->text($event['event_description']) ?>
                 </div>
             </div>
@@ -361,14 +431,8 @@ events_layout_start($breadcrumb_items, $page_title);
                 <div class="content-section">
                     <h2>
                         <i class="fas fa-users"></i>
-                        Etkinlik Rolleri
-                        <span class="roles-summary">
-                            <?php 
-                            $total_slots = array_sum(array_column($event_roles, 'slot_count'));
-                            $total_confirmed = array_sum(array_column($event_roles, 'confirmed_participants'));
-                            ?>
-                            (<?= $total_confirmed ?>/<?= $total_slots ?> dolu)
-                        </span>
+                        Roller ve Katılımcılar
+                        <span class="roles-count">(<?= count($event_roles) ?> rol)</span>
                     </h2>
                     
                     <div class="roles-grid">
@@ -440,7 +504,7 @@ events_layout_start($breadcrumb_items, $page_title);
                 </div>
             <?php endif; ?>
             
-            <!-- Participants (sadece organize edenler görebilir) -->
+            <!-- Participants (sadece organize edenler görebilir) - GÜNCELLENMİŞ -->
             <?php if (($can_edit || $event['created_by_user_id'] == $current_user_id) && !empty($participants)): ?>
                 <div class="content-section">
                     <h2>
@@ -461,12 +525,24 @@ events_layout_start($breadcrumb_items, $page_title);
                         }
                         ?>
                         
-                        <?php foreach (['confirmed', 'pending'] as $status): ?>
-                            <?php if (isset($grouped_participants[$status])): ?>
+                        <?php foreach (['confirmed', 'maybe', 'declined'] as $status): ?>
+                            <?php if (isset($grouped_participants[$status]) && count($grouped_participants[$status]) > 0): ?>
                                 <div class="participants-group">
                                     <h4 class="group-title status-<?= $status ?>">
-                                        <i class="fas fa-<?= $status === 'confirmed' ? 'check-circle' : 'clock' ?>"></i>
-                                        <?= $status === 'confirmed' ? 'Onaylanan Katılımcılar' : 'Bekleyen Katılımcılar' ?>
+                                        <i class="fas fa-<?= $status === 'confirmed' ? 'check-circle' : ($status === 'maybe' ? 'question-circle' : 'times-circle') ?>"></i>
+                                        <?php
+                                        switch($status) {
+                                            case 'confirmed':
+                                                echo 'Onaylanan Katılımcılar';
+                                                break;
+                                            case 'maybe':
+                                                echo 'Belki Katılacaklar';
+                                                break;
+                                            case 'declined':
+                                                echo 'Katılmayacaklar';
+                                                break;
+                                        }
+                                        ?>
                                         (<?= count($grouped_participants[$status]) ?>)
                                     </h4>
                                     
@@ -478,22 +554,46 @@ events_layout_start($breadcrumb_items, $page_title);
                                                           style="color: <?= htmlspecialchars($participant['user_role_color'] ?? '#bd912a') ?>">
                                                         <?= htmlspecialchars($participant['username']) ?>
                                                     </span>
-                                                    <span class="participant-role">
-                                                        <?= htmlspecialchars($participant['role_name']) ?>
+                                                    
+                                                    <?php if ($status === 'confirmed' && !empty($participant['role_name'])): ?>
+                                                        <span class="participant-role">
+                                                            <i class="fas fa-user-tag"></i>
+                                                            <?= htmlspecialchars($participant['role_name']) ?>
+                                                        </span>
+                                                    <?php elseif ($status === 'maybe'): ?>
+                                                        <span class="participant-role">
+                                                            <i class="fas fa-question-circle"></i>
+                                                            Kararsız
+                                                        </span>
+                                                    <?php elseif ($status === 'declined'): ?>
+                                                        <span class="participant-role">
+                                                            <i class="fas fa-times-circle"></i>
+                                                            Katılmıyor
+                                                        </span>
+                                                    <?php endif; ?>
+                                                    
+                                                    <span class="participant-registered">
+                                                        <i class="fas fa-clock"></i>
+                                                        <?= date('d.m.Y H:i', strtotime($participant['registered_at'])) ?>
                                                     </span>
                                                 </div>
                                                 
                                                 <?php if ($can_edit): ?>
                                                     <div class="participant-actions">
-                                                        <?php if ($participant['participation_status'] === 'pending'): ?>
-                                                            <button type="button" class="btn-approve" 
-                                                                    data-participation-id="<?= $participant['id'] ?>">
+                                                        <?php if ($participant['participation_status'] === 'maybe'): ?>
+                                                            <button type="button" 
+                                                                    class="btn-approve" 
+                                                                    data-participation-id="<?= $participant['id'] ?>"
+                                                                    title="Katılımı Onayla">
                                                                 <i class="fas fa-check"></i>
                                                             </button>
                                                         <?php endif; ?>
-                                                        <button type="button" class="btn-remove" 
-                                                                data-participation-id="<?= $participant['id'] ?>">
-                                                            <i class="fas fa-times"></i>
+                                                        
+                                                        <button type="button" 
+                                                                class="btn-remove" 
+                                                                data-participation-id="<?= $participant['id'] ?>"
+                                                                title="Katılımcıyı Kaldır">
+                                                            <i class="fas fa-trash"></i>
                                                         </button>
                                                     </div>
                                                 <?php endif; ?>
@@ -503,6 +603,13 @@ events_layout_start($breadcrumb_items, $page_title);
                                 </div>
                             <?php endif; ?>
                         <?php endforeach; ?>
+                        
+                        <?php if (empty($participants)): ?>
+                            <div class="no-participants">
+                                <i class="fas fa-users"></i>
+                                <p>Henüz katılımcı bulunmuyor.</p>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -510,127 +617,176 @@ events_layout_start($breadcrumb_items, $page_title);
         </div>
         
         <!-- Sidebar -->
-        <div class="event-detail-sidebar">
+        <div class="event-sidebar">
             
-            <!-- Quick Info -->
-            <div class="detail-sidebar-section">
-                <h3>
-                    <i class="fas fa-clock"></i>
-                    Etkinlik Bilgileri
-                </h3>
+            <!-- Event Info Card -->
+            <div class="info-card">
+                <h3><i class="fas fa-info-circle"></i> Etkinlik Bilgileri</h3>
                 
-                <div class="info-grid">
-                    <div class="info-item">
-                        <label>Tarih & Saat:</label>
-                        <span><?= date('d.m.Y H:i', strtotime($event['event_date'])) ?></span>
+                <div class="info-item">
+                    <div class="info-value">
+                        <?= date('d F Y, H:i', strtotime($event['event_date'])) ?>
                     </div>
-                    
-                    <?php if (!empty($event['event_location'])): ?>
-                        <div class="info-item">
-                            <label>Lokasyon:</label>
-                            <span><?= htmlspecialchars($event['event_location']) ?></span>
+                </div>
+                
+                <?php if (!empty($event['event_location'])): ?>
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Konum
                         </div>
-                    <?php endif; ?>
-                    
-                    <div class="info-item">
-                        <label>Durum:</label>
-                        <span class="status-<?= $event['status'] ?>">
-                            <?php
-                            switch($event['status']) {
-                                case 'published': echo 'Aktif'; break;
-                                case 'draft': echo 'Taslak'; break;
-                                case 'cancelled': echo 'İptal'; break;
-                                case 'completed': echo 'Tamamlandı'; break;
-                                default: echo ucfirst($event['status']);
-                            }
-                            ?>
+                        <div class="info-value">
+                            <?= htmlspecialchars($event['event_location']) ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="fas fa-eye"></i>
+                        Görünürlük
+                    </div>
+                    <div class="info-value">
+                        <?php
+                        switch($event['visibility']) {
+                            case 'public': echo 'Herkese Açık'; break;
+                            case 'members_only': echo 'Sadece Üyeler'; break;
+                            case 'private': echo 'Özel'; break;
+                        }
+                        ?>
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="fas fa-user"></i>
+                        Organize Eden
+                    </div>
+                    <div class="info-value">
+                        <span style="color: <?= htmlspecialchars($event['creator_role_color'] ?? '#bd912a') ?>">
+                            <?= htmlspecialchars($event['creator_username'] ?? 'Bilinmeyen') ?>
                         </span>
                     </div>
-                    
-                    <div class="info-item">
-                        <label>Görünürlük:</label>
-                        <span>
-                            <i class="fas fa-<?= $event['visibility'] === 'public' ? 'globe' : ($event['visibility'] === 'members_only' ? 'users' : 'lock') ?>"></i>
-                            <?php
-                            switch($event['visibility']) {
-                                case 'public': echo 'Herkese Açık'; break;
-                                case 'members_only': echo 'Sadece Üyeler'; break;
-                                case 'private': echo 'Özel'; break;
-                            }
-                            ?>
-                        </span>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="fas fa-clock"></i>
+                        Oluşturulma
                     </div>
-                    
-                    <div class="info-item">
-                        <label>Oluşturulma:</label>
-                        <span><?= date('d.m.Y', strtotime($event['created_at'])) ?></span>
+                    <div class="info-value">
+                        <?= date('d.m.Y H:i', strtotime($event['created_at'])) ?>
                     </div>
                 </div>
             </div>
             
-            <!-- Organize Eden Notları (sadece organize edenler görebilir) -->
-            <?php if (($can_edit || $event['created_by_user_id'] == $current_user_id) && !empty($event['event_notes'])): ?>
-                <div class="detail-sidebar-section">
-                    <h3>
-                        <i class="fas fa-sticky-note"></i>
-                        Organize Eden Notları
-                    </h3>
-                    <div class="organizer-notes">
-                        <p><?= htmlspecialchars($event['event_notes']) ?></p>
+            <!-- Participation Stats -->
+            <?php if (!empty($participants)): ?>
+                <div class="info-card">
+                    <h3><i class="fas fa-chart-pie"></i> Katılım İstatistikleri</h3>
+                    
+                    <?php
+                    $confirmed_count = count($grouped_participants['confirmed'] ?? []);
+                    $maybe_count = count($grouped_participants['maybe'] ?? []);
+                    $declined_count = count($grouped_participants['declined'] ?? []);
+                    $total_count = $confirmed_count + $maybe_count + $declined_count;
+                    ?>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number confirmed"><?= $confirmed_count ?></div>
+                            <div class="stat-label">Onaylanan</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-number maybe"><?= $maybe_count ?></div>
+                            <div class="stat-label">Belki</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-number declined"><?= $declined_count ?></div>
+                            <div class="stat-label">Katılmıyor</div>
+                        </div>
+                        
+                        <div class="stat-item total">
+                            <div class="stat-number"><?= $total_count ?></div>
+                            <div class="stat-label">Toplam</div>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
+            <!-- Role Summary -->
+            <?php if (!empty($event_roles)): ?>
+                <div class="info-card">
+                    <h3><i class="fas fa-users"></i> Rol Özeti</h3>
+                    
+                    <div class="roles-summary">
+                        <?php foreach ($event_roles as $role): ?>
+                            <div class="role-summary-item">
+                                <div class="role-summary-header">
+                                    <span class="role-summary-name">
+                                        <?= htmlspecialchars($role['role_name']) ?>
+                                    </span>
+                                    <span class="role-summary-count">
+                                        <?= $role['confirmed_participants'] ?>/<?= $role['slot_count'] ?>
+                                    </span>
+                                </div>
+                                <div class="role-summary-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" 
+                                             style="width: <?= $role['slot_count'] > 0 ? ($role['confirmed_participants'] / $role['slot_count']) * 100 : 0 ?>%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             <?php endif; ?>
             
             <!-- Quick Actions -->
-            <div class="detail-sidebar-section">
-                <h3>
-                    <i class="fas fa-tools"></i>
-                    Hızlı İşlemler
-                </h3>
+            <div class="info-card">
+                <h3><i class="fas fa-bolt"></i> Hızlı İşlemler</h3>
                 
                 <div class="quick-actions">
+                    <button type="button" class="quick-action-btn share-btn" data-event-id="<?= $event_id ?>">
+                        <i class="fas fa-share"></i>
+                        Paylaş
+                    </button>
+                    
+                    <button type="button" class="quick-action-btn" onclick="window.print()">
+                        <i class="fas fa-print"></i>
+                        Yazdır
+                    </button>
+                    
                     <?php if ($can_edit): ?>
                         <a href="create.php?id=<?= $event_id ?>" class="quick-action-btn">
                             <i class="fas fa-edit"></i>
-                            Etkinliği Düzenle
+                            Düzenle
                         </a>
                     <?php endif; ?>
-                    
-                    <button type="button" class="quick-action-btn share-btn" data-event-id="<?= $event_id ?>">
-                        <i class="fas fa-share"></i>
-                        Etkinliği Paylaş
-                    </button>
                     
                     <a href="index.php" class="quick-action-btn">
                         <i class="fas fa-arrow-left"></i>
-                        Etkinliklere Dön
+                        Geri Dön
                     </a>
-                    
-                    <?php if (!empty($event_roles)): ?>
-                        <a href="roles/" class="quick-action-btn">
-                            <i class="fas fa-users"></i>
-                            Tüm Roller
-                        </a>
-                    <?php endif; ?>
                 </div>
             </div>
             
         </div>
-        
     </div>
 </div>
 
-<!-- JavaScript dosyasını dahil et -->
+<!-- JavaScript ve EventData -->
 <script>
-// Global değişkenler
-window.eventData = {
-    id: <?= $event_id ?>,
-    title: <?= json_encode($event['event_title']) ?>,
-    canEdit: <?= $can_edit ? 'true' : 'false' ?>,
-    canParticipate: <?= $can_participate ? 'true' : 'false' ?>,
-    userParticipation: <?= json_encode($user_participation) ?>,
-    csrfToken: <?= json_encode($_SESSION['csrf_token']) ?>
-};
+    // Event data'yı JavaScript'e geç
+    window.eventData = {
+        id: <?= $event_id ?>,
+        csrfToken: '<?= $_SESSION['csrf_token'] ?>',
+        canParticipate: <?= $can_participate ? 'true' : 'false' ?>,
+        eventDate: '<?= $event['event_date'] ?>',
+        userParticipation: <?= $user_participation ? json_encode($user_participation) : 'null' ?>
+    };
 </script>
 <script src="js/events_detail.js"></script>
 

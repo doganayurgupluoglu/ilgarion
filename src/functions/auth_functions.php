@@ -353,7 +353,7 @@ function logout_user(string $message = "Güvenlik nedeniyle oturumunuz sonlandı
     session_start();
     $_SESSION['info_message'] = $message; 
     
-    header('Location: ' . get_auth_base_url() . '/login.php?status=logged_out');
+    header('Location: ' . get_auth_base_url() . '/index.php?status=logged_out');
     exit;
 }
 

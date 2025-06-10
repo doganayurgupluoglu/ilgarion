@@ -111,7 +111,7 @@ function fix_avatar_path($avatar_path) {
         return str_replace('../assets/', '/assets/', $avatar_path);
     }
     
-    if (strpos($avatar_path, 'uploads/') === 0) {
+    if (strpos($avatar_path, '/uploads/') === 0) {
         return '' . $avatar_path;
     }
     

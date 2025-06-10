@@ -1,4 +1,4 @@
-// /events/js/events_detail.js - Etkinlik detay sayfası JavaScript işlevleri
+// /events/js/events_detail.js - Etkinlik detay sayfası JavaScript işlevleri - GÜNCELLENMİŞ VERSİYON
 
 // Global değişkenler
 let eventData = {};
@@ -35,15 +35,22 @@ function initializeComponents() {
 // Event listener'ları kur
 function setupEventListeners() {
     // Katılım butonları
-    const participateBtn = document.querySelector('.participate-btn');
-    if (participateBtn) {
-        participateBtn.addEventListener('click', handleParticipation);
-    }
+    const participateBtns = document.querySelectorAll('.participate-btn');
+    participateBtns.forEach(btn => {
+        btn.addEventListener('click', handleParticipation);
+    });
     
-    const leaveBtn = document.querySelector('.leave-event-btn');
-    if (leaveBtn) {
-        leaveBtn.addEventListener('click', handleLeaveEvent);
-    }
+    // Katılım durumu butonları (Maybe/Declined)
+    const statusBtns = document.querySelectorAll('.participation-status-btn');
+    statusBtns.forEach(btn => {
+        btn.addEventListener('click', handleParticipationStatus);
+    });
+    
+    // Ayrılma butonu
+    const leaveBtns = document.querySelectorAll('.leave-event-btn');
+    leaveBtns.forEach(btn => {
+        btn.addEventListener('click', handleLeaveEvent);
+    });
     
     // Rol katılım butonları
     const roleJoinBtns = document.querySelectorAll('.btn-role-join');
@@ -78,13 +85,71 @@ function setupEventListeners() {
     document.addEventListener('keydown', handleKeyboardShortcuts);
 }
 
-// Etkinliğe katılım işlemi
+// Etkinliğe katılım işlemi (role katıl)
 function handleParticipation(event) {
     const button = event.target.closest('.participate-btn');
     if (!button) return;
     
     // Role selection modal'ı aç
     showRoleSelectionModal();
+}
+
+// Katılım durumu değiştirme (Maybe/Declined)
+function handleParticipationStatus(event) {
+    const button = event.target.closest('.participation-status-btn');
+    if (!button) return;
+    
+    const eventId = button.getAttribute('data-event-id');
+    const status = button.getAttribute('data-status');
+    
+    if (!eventId || !status) {
+        showErrorMessage('Geçersiz parametreler');
+        return;
+    }
+    
+    const statusText = status === 'maybe' ? 'Belki Katılırım' : 'Katılmıyorum';
+    
+    if (!confirm(`Katılım durumunuzu "${statusText}" olarak güncellemek istediğinizden emin misiniz?`)) {
+        return;
+    }
+    
+    updateParticipationStatus(eventId, status);
+}
+
+// Katılım durumu güncelleme
+function updateParticipationStatus(eventId, status) {
+    const formData = new FormData();
+    formData.append('action', 'update_status');
+    formData.append('event_id', eventId);
+    formData.append('status', status);
+    formData.append('csrf_token', eventData.csrfToken);
+    
+    showLoadingState('Durum güncelleniyor...');
+    
+    fetch('actions/participate.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoadingState();
+        
+        if (data.success) {
+            showSuccessMessage(data.message);
+            
+            // Sayfayı yenile
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            showErrorMessage(data.message || 'Durum güncellenirken bir hata oluştu.');
+        }
+    })
+    .catch(error => {
+        hideLoadingState();
+        console.error('Status update error:', error);
+        showErrorMessage('Bağlantı hatası oluştu. Lütfen tekrar deneyin.');
+    });
 }
 
 // Rol seçim modal'ını göster
@@ -113,18 +178,73 @@ function showRoleSelectionModal() {
         return;
     }
     
-    // Basit rol seçimi (daha sonra modal ile değiştirilebilir)
-    let roleOptions = 'Katılmak istediğiniz rolü seçin:\n\n';
-    availableRoles.forEach((role, index) => {
-        roleOptions += `${index + 1}. ${role.roleName}\n`;
+    // Gelişmiş rol seçim modal'ı (HTML modal kullan)
+    showAdvancedRoleModal(availableRoles);
+}
+
+// Gelişmiş rol seçim modal'ı
+function showAdvancedRoleModal(availableRoles) {
+    // Modal HTML'ini oluştur
+    const modalHtml = `
+        <div class="modal-overlay" id="roleSelectionModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-user-tag"></i> Rol Seçimi</h3>
+                    <button type="button" class="modal-close" onclick="closeRoleModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Katılmak istediğiniz rolü seçin:</p>
+                    <div class="role-selection-grid">
+                        ${availableRoles.map((role, index) => `
+                            <div class="role-option" data-slot-id="${role.slotId}" data-role-name="${role.roleName}">
+                                <div class="role-option-content">
+                                    <i class="fas fa-user"></i>
+                                    <span class="role-name">${role.roleName}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeRoleModal()">
+                        <i class="fas fa-times"></i>
+                        İptal
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Modal'ı sayfaya ekle
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Rol seçeneklerine click listener ekle
+    const roleOptions = document.querySelectorAll('.role-option');
+    roleOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const slotId = this.getAttribute('data-slot-id');
+            const roleName = this.getAttribute('data-role-name');
+            
+            closeRoleModal();
+            joinEventRole(slotId, roleName);
+        });
     });
     
-    const selection = prompt(roleOptions + '\nRol numarasını girin:');
-    const roleIndex = parseInt(selection) - 1;
-    
-    if (roleIndex >= 0 && roleIndex < availableRoles.length) {
-        const selectedRole = availableRoles[roleIndex];
-        joinEventRole(selectedRole.slotId, selectedRole.roleName);
+    // ESC tuşu ile kapatma
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeRoleModal();
+        }
+    });
+}
+
+// Rol modal'ını kapat
+function closeRoleModal() {
+    const modal = document.getElementById('roleSelectionModal');
+    if (modal) {
+        modal.remove();
     }
 }
 
@@ -183,16 +303,17 @@ function handleLeaveEvent(event) {
     const button = event.target.closest('.leave-event-btn');
     if (!button) return;
     
-    if (!confirm('Etkinlikten ayrılmak istediğinizden emin misiniz?')) {
+    if (!confirm('Etkinlikten ayrılmak istediğinizden emin misiniz?\n\nBu işlem geri alınamaz ve rolünüzden de çıkarılacaksınız.')) {
         return;
     }
     
+    const eventId = button.getAttribute('data-event-id');
+    
     const formData = new FormData();
     formData.append('action', 'leave_event');
-    formData.append('event_id', eventData.id);
+    formData.append('event_id', eventId);
     formData.append('csrf_token', eventData.csrfToken);
     
-    // Loading state
     showLoadingState('Etkinlikten ayrılıyorsunuz...');
     
     fetch('actions/participate.php', {
@@ -204,7 +325,7 @@ function handleLeaveEvent(event) {
         hideLoadingState();
         
         if (data.success) {
-            showSuccessMessage('Etkinlikten başarıyla ayrıldınız.');
+            showSuccessMessage(data.message);
             
             // Sayfayı yenile
             setTimeout(() => {
@@ -221,196 +342,40 @@ function handleLeaveEvent(event) {
     });
 }
 
-// Etkinlik paylaşımı
-function handleShare(event) {
-    const button = event.target.closest('.share-btn');
-    if (!button) return;
-    
-    const eventUrl = window.location.href;
-    const shareText = `${eventData.title} - Star Citizen Etkinliği`;
-    
-    // Web Share API destekleniyorsa kullan
-    if (navigator.share) {
-        navigator.share({
-            title: shareText,
-            text: `${eventData.title} etkinliğine katılın!`,
-            url: eventUrl
-        })
-        .then(() => {
-            showSuccessMessage('Etkinlik başarıyla paylaşıldı!');
-        })
-        .catch(error => {
-            if (error.name !== 'AbortError') {
-                console.error('Share error:', error);
-                fallbackShare(eventUrl, shareText);
-            }
-        });
-    } else {
-        fallbackShare(eventUrl, shareText);
-    }
-}
-
-// Fallback paylaşım (clipboard'a kopyala)
-function fallbackShare(url, text) {
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(url)
-        .then(() => {
-            showSuccessMessage('Etkinlik linki panoya kopyalandı!');
-        })
-        .catch(() => {
-            showShareModal(url, text);
-        });
-    } else {
-        showShareModal(url, text);
-    }
-}
-
-// Paylaşım modal'ını göster
-function showShareModal(url, text) {
-    const modal = document.createElement('div');
-    modal.className = 'share-modal-overlay';
-    modal.innerHTML = `
-        <div class="share-modal">
-            <div class="share-modal-header">
-                <h3><i class="fas fa-share"></i> Etkinliği Paylaş</h3>
-                <button class="close-modal"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="share-modal-content">
-                <p>Etkinlik linkini kopyalayın:</p>
-                <div class="share-url-container">
-                    <input type="text" value="${url}" readonly class="share-url-input">
-                    <button class="copy-url-btn"><i class="fas fa-copy"></i></button>
-                </div>
-                <div class="share-buttons">
-                    <a href="https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}" 
-                       target="_blank" class="share-btn-twitter">
-                        <i class="fab fa-twitter"></i> Twitter
-                    </a>
-                    <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}" 
-                       target="_blank" class="share-btn-facebook">
-                        <i class="fab fa-facebook"></i> Facebook
-                    </a>
-                    <a href="https://discord.com/channels/@me" 
-                       target="_blank" class="share-btn-discord">
-                        <i class="fab fa-discord"></i> Discord
-                    </a>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Modal event listeners
-    const closeBtn = modal.querySelector('.close-modal');
-    const copyBtn = modal.querySelector('.copy-url-btn');
-    const urlInput = modal.querySelector('.share-url-input');
-    
-    closeBtn.addEventListener('click', () => {
-        document.body.removeChild(modal);
-    });
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            document.body.removeChild(modal);
-        }
-    });
-    
-    copyBtn.addEventListener('click', () => {
-        urlInput.select();
-        document.execCommand('copy');
-        showSuccessMessage('Link panoya kopyalandı!');
-        document.body.removeChild(modal);
-    });
-    
-    // ESC tuşuyla kapatma
-    const handleEsc = (e) => {
-        if (e.key === 'Escape') {
-            document.body.removeChild(modal);
-            document.removeEventListener('keydown', handleEsc);
-        }
-    };
-    document.addEventListener('keydown', handleEsc);
-}
-
-// Etkinlik silme
-function handleDeleteEvent(event) {
-    const button = event.target.closest('.delete-event-btn');
-    if (!button) return;
-    
-    const confirmText = `"${eventData.title}" etkinliğini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`;
-    
-    if (!confirm(confirmText)) {
-        return;
-    }
-    
-    // İkinci onay
-    const doubleConfirm = prompt('Silme işlemini onaylamak için "SİL" yazın:');
-    if (doubleConfirm !== 'SİL') {
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('action', 'delete_event');
-    formData.append('event_id', eventData.id);
-    formData.append('csrf_token', eventData.csrfToken);
-    
-    // Loading state
-    showLoadingState('Etkinlik siliniyor...');
-    
-    fetch('actions/delete_event.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideLoadingState();
-        
-        if (data.success) {
-            showSuccessMessage('Etkinlik başarıyla silindi.');
-            
-            // Ana sayfaya yönlendir
-            setTimeout(() => {
-                window.location.href = 'index.php';
-            }, 2000);
-        } else {
-            showErrorMessage(data.message || 'Silme sırasında bir hata oluştu.');
-        }
-    })
-    .catch(error => {
-        hideLoadingState();
-        console.error('Delete event error:', error);
-        showErrorMessage('Bağlantı hatası oluştu. Lütfen tekrar deneyin.');
-    });
-}
-
-// Katılımcı onaylama
+// Katılımcı onaylama (organize edenler için)
 function handleParticipantApproval(event) {
     const button = event.target.closest('.btn-approve');
     if (!button) return;
     
     const participationId = button.getAttribute('data-participation-id');
     
+    if (!confirm('Bu katılımcıyı onaylamak istediğinizden emin misiniz?')) {
+        return;
+    }
+    
     const formData = new FormData();
     formData.append('action', 'approve_participant');
     formData.append('participation_id', participationId);
     formData.append('csrf_token', eventData.csrfToken);
     
-    // Loading state for button
     const originalContent = button.innerHTML;
-    button.innerHTML = '<div class="loading-spinner"></div>';
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     button.disabled = true;
     
-    fetch('actions/manage_participants.php', {
+    fetch('actions/participate.php', {
         method: 'POST',
         body: formData
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            showSuccessMessage(data.message);
+            
             // Katılımcıyı onaylanan listesine taşı
-            moveParticipantToConfirmed(button.closest('.participant-card'));
-            showSuccessMessage('Katılımcı onaylandı.');
+            const participantCard = button.closest('.participant-card');
+            if (participantCard) {
+                moveParticipantToConfirmed(participantCard);
+            }
         } else {
             button.innerHTML = originalContent;
             button.disabled = false;
@@ -425,37 +390,40 @@ function handleParticipantApproval(event) {
     });
 }
 
-// Katılımcı kaldırma
+// Katılımcı kaldırma (organize edenler için)
 function handleParticipantRemoval(event) {
     const button = event.target.closest('.btn-remove');
     if (!button) return;
     
-    if (!confirm('Bu katılımcıyı etkinlikten kaldırmak istediğinizden emin misiniz?')) {
+    const participationId = button.getAttribute('data-participation-id');
+    
+    if (!confirm('Bu katılımcıyı etkinlikten kaldırmak istediğinizden emin misiniz?\n\nBu işlem geri alınamaz.')) {
         return;
     }
-    
-    const participationId = button.getAttribute('data-participation-id');
     
     const formData = new FormData();
     formData.append('action', 'remove_participant');
     formData.append('participation_id', participationId);
     formData.append('csrf_token', eventData.csrfToken);
     
-    // Loading state for button
     const originalContent = button.innerHTML;
-    button.innerHTML = '<div class="loading-spinner"></div>';
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     button.disabled = true;
     
-    fetch('actions/manage_participants.php', {
+    fetch('actions/participate.php', {
         method: 'POST',
         body: formData
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            showSuccessMessage(data.message);
+            
             // Katılımcıyı listeden kaldır
-            removeParticipantFromList(button.closest('.participant-card'));
-            showSuccessMessage('Katılımcı kaldırıldı.');
+            const participantCard = button.closest('.participant-card');
+            if (participantCard) {
+                removeParticipantFromList(participantCard);
+            }
         } else {
             button.innerHTML = originalContent;
             button.disabled = false;
@@ -470,10 +438,135 @@ function handleParticipantRemoval(event) {
     });
 }
 
-// Katılımcıyı onaylanan listesine taşı
+// Paylaşım işlemi
+function handleShare(event) {
+    const button = event.target.closest('.share-btn');
+    if (!button) return;
+    
+    const eventId = button.getAttribute('data-event-id');
+    const url = window.location.href;
+    const title = document.title;
+    
+    // Web Share API destekleniyorsa kullan
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            text: 'Bu etkinliği kontrol et!',
+            url: url
+        }).catch(console.error);
+    } else {
+        // Fallback: URL'yi kopyala
+        navigator.clipboard.writeText(url).then(() => {
+            showSuccessMessage('Etkinlik linki kopyalandı!');
+        }).catch(() => {
+            // Son çare: prompt ile göster
+            prompt('Etkinlik linkini kopyalayın:', url);
+        });
+    }
+}
+
+// Etkinlik silme
+function handleDeleteEvent(event) {
+    const button = event.target.closest('.delete-event-btn');
+    if (!button) return;
+    
+    const eventId = button.getAttribute('data-event-id');
+    
+    if (!confirm('Bu etkinliği silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz ve tüm katılımcı verileri silinecektir.')) {
+        return;
+    }
+    
+    // İkinci onay
+    if (!confirm('Gerçekten emin misiniz? Bu işlem GERİ ALINAMAZ!')) {
+        return;
+    }
+    
+    showLoadingState('Etkinlik siliniyor...');
+    
+    // Delete endpoint'ine istek gönder
+    window.location.href = `actions/delete_event.php?id=${eventId}`;
+}
+
+// Keyboard shortcuts
+function handleKeyboardShortcuts(event) {
+    // Ctrl/Cmd + Enter: Etkinliğe katıl
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        const participateBtn = document.querySelector('.participate-btn');
+        if (participateBtn && !participateBtn.disabled) {
+            participateBtn.click();
+        }
+    }
+    
+    // ESC: Modal'ları kapat
+    if (event.key === 'Escape') {
+        closeRoleModal();
+    }
+}
+
+// Katılım durumu güncelleme döngüsü
+function startStatusRefresh() {
+    // Her 30 saniyede bir katılım durumunu kontrol et
+    setInterval(checkParticipationStatus, 30000);
+}
+
+function checkParticipationStatus() {
+    if (!eventData.id) return;
+    
+    fetch(`api/event_status.php?event_id=${eventData.id}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.participation) {
+            // Katılım durumu değiştiyse sayfayı yenile
+            if (data.participation.status !== eventData.userParticipation?.participation_status) {
+                window.location.reload();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Status check error:', error);
+    });
+}
+
+// Sayfa durumunu güncelle
+function updatePageStatus() {
+    // Etkinlik tarihini kontrol et
+    const eventDate = new Date(eventData.eventDate);
+    const now = new Date();
+    
+    if (eventDate < now) {
+        // Geçmiş etkinlik
+        const participateButtons = document.querySelectorAll('.participate-btn, .btn-role-join, .participation-status-btn');
+        participateButtons.forEach(btn => {
+            btn.disabled = true;
+            if (btn.classList.contains('participate-btn')) {
+                btn.innerHTML = '<i class="fas fa-clock"></i> Etkinlik Sona Erdi';
+            }
+            btn.classList.add('disabled');
+        });
+        
+        // Uyarı mesajı ekle
+        const eventActions = document.querySelector('.event-actions');
+        if (eventActions && !eventActions.querySelector('.event-ended-warning')) {
+            const warning = document.createElement('div');
+            warning.className = 'event-ended-warning';
+            warning.innerHTML = '<i class="fas fa-info-circle"></i> Bu etkinlik sona ermiştir.';
+            eventActions.insertBefore(warning, eventActions.firstChild);
+        }
+    }
+}
+
+// Utility Functions
+
 function moveParticipantToConfirmed(participantCard) {
-    const confirmedGroup = document.querySelector('.group-title.status-confirmed').closest('.participants-group');
-    const confirmedGrid = confirmedGroup.querySelector('.participants-grid');
+    const confirmedGroup = document.querySelector('.group-title.status-confirmed')?.closest('.participants-group');
+    const confirmedGrid = confirmedGroup?.querySelector('.participants-grid');
+    
+    if (!confirmedGrid) return;
     
     // Approve butonunu kaldır
     const approveBtn = participantCard.querySelector('.btn-approve');
@@ -494,7 +587,6 @@ function moveParticipantToConfirmed(participantCard) {
     }, 200);
 }
 
-// Katılımcıyı listeden kaldır
 function removeParticipantFromList(participantCard) {
     // Animation
     participantCard.style.opacity = '0';
@@ -506,7 +598,6 @@ function removeParticipantFromList(participantCard) {
     }, 300);
 }
 
-// Katılımcı sayılarını güncelle
 function updateParticipantCounts() {
     const confirmedCards = document.querySelectorAll('.status-confirmed .participant-card');
     const pendingCards = document.querySelectorAll('.status-pending .participant-card');
@@ -530,150 +621,6 @@ function updateParticipantCounts() {
     if (participantsCount) {
         const totalCount = confirmedCards.length + pendingCards.length;
         participantsCount.textContent = `(${totalCount} kişi)`;
-    }
-}
-
-// Keyboard shortcuts
-function handleKeyboardShortcuts(event) {
-    // ESC tuşu ile modal'ları kapat
-    if (event.key === 'Escape') {
-        const modals = document.querySelectorAll('.share-modal-overlay, .role-selection-modal');
-        modals.forEach(modal => {
-            if (modal.parentNode) {
-                modal.parentNode.removeChild(modal);
-            }
-        });
-    }
-    
-    // Ctrl/Cmd + S ile etkinliği düzenle (eğer yetki varsa)
-    if ((event.ctrlKey || event.metaKey) && event.key === 's' && eventData.canEdit) {
-        event.preventDefault();
-        window.location.href = `create.php?id=${eventData.id}`;
-    }
-    
-    // Ctrl/Cmd + Shift + S ile paylaş
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'S') {
-        event.preventDefault();
-        const shareBtn = document.querySelector('.share-btn');
-        if (shareBtn) {
-            shareBtn.click();
-        }
-    }
-}
-
-// Smooth scroll için anchor linkleri
-function initializeSmoothScroll() {
-    const anchorLinks = document.querySelectorAll('a[href^="#"]');
-    anchorLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const targetId = this.getAttribute('href').substring(1);
-            const targetElement = document.getElementById(targetId);
-            
-            if (targetElement) {
-                targetElement.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-            }
-        });
-    });
-}
-
-// Image lazy loading
-function initializeImageLazyLoading() {
-    if ('IntersectionObserver' in window) {
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    if (img.dataset.src) {
-                        img.src = img.dataset.src;
-                        img.classList.remove('lazy');
-                        imageObserver.unobserve(img);
-                    }
-                }
-            });
-        });
-        
-        const lazyImages = document.querySelectorAll('img[data-src]');
-        lazyImages.forEach(img => imageObserver.observe(img));
-    }
-}
-
-// Tooltip system
-function initializeTooltips() {
-    const tooltipElements = document.querySelectorAll('[data-tooltip]');
-    
-    tooltipElements.forEach(element => {
-        element.addEventListener('mouseenter', showTooltip);
-        element.addEventListener('mouseleave', hideTooltip);
-    });
-}
-
-function showTooltip(event) {
-    const element = event.target;
-    const tooltipText = element.getAttribute('data-tooltip');
-    
-    if (!tooltipText) return;
-    
-    const tooltip = document.createElement('div');
-    tooltip.className = 'tooltip';
-    tooltip.textContent = tooltipText;
-    
-    document.body.appendChild(tooltip);
-    
-    const rect = element.getBoundingClientRect();
-    tooltip.style.left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2) + 'px';
-    tooltip.style.top = rect.top - tooltip.offsetHeight - 8 + 'px';
-    
-    element._tooltip = tooltip;
-}
-
-function hideTooltip(event) {
-    const element = event.target;
-    if (element._tooltip) {
-        document.body.removeChild(element._tooltip);
-        delete element._tooltip;
-    }
-}
-
-// Status refresh (participation status'u kontrol et)
-function startStatusRefresh() {
-    // Her 30 saniyede bir katılım durumunu kontrol et
-    setInterval(checkParticipationStatus, 30000);
-}
-
-function checkParticipationStatus() {
-    fetch(`actions/check_participation.php?event_id=${eventData.id}`)
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.participation) {
-            // Katılım durumu değiştiyse sayfayı yenile
-            if (data.participation.status !== eventData.userParticipation?.participation_status) {
-                window.location.reload();
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Status check error:', error);
-    });
-}
-
-// Sayfa durumunu güncelle
-function updatePageStatus() {
-    // Etkinlik tarihini kontrol et
-    const eventDate = new Date(eventData.eventDate);
-    const now = new Date();
-    
-    if (eventDate < now) {
-        // Geçmiş etkinlik
-        const participateButtons = document.querySelectorAll('.participate-btn, .btn-role-join');
-        participateButtons.forEach(btn => {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-clock"></i> Etkinlik Sona Erdi';
-            btn.classList.add('disabled');
-        });
     }
 }
 
@@ -717,61 +664,95 @@ function showNotification(message, type = 'info') {
         <div class="notification-content">
             <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
             <span>${message}</span>
-            <button class="notification-close"><i class="fas fa-times"></i></button>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     `;
     
     document.body.appendChild(notification);
     
-    // Auto remove after 5 seconds
+    // Otomatik kaldırma
     setTimeout(() => {
-        if (notification.parentNode) {
-            notification.classList.add('notification-fade-out');
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
+        if (notification.parentElement) {
+            notification.remove();
         }
     }, 5000);
-    
-    // Close button
-    const closeBtn = notification.querySelector('.notification-close');
-    closeBtn.addEventListener('click', () => {
-        notification.classList.add('notification-fade-out');
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
+}
+
+// Component initialization functions
+
+function initializeSmoothScroll() {
+    const links = document.querySelectorAll('a[href^="#"]');
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
             }
-        }, 300);
+        });
     });
+}
+
+function initializeImageLazyLoading() {
+    const images = document.querySelectorAll('img[data-src]');
     
-    // Show animation
-    setTimeout(() => {
-        notification.classList.add('notification-show');
-    }, 100);
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.classList.remove('lazy');
+                    imageObserver.unobserve(img);
+                }
+            });
+        });
+        
+        images.forEach(img => imageObserver.observe(img));
+    } else {
+        // Fallback for older browsers
+        images.forEach(img => {
+            img.src = img.dataset.src;
+            img.classList.remove('lazy');
+        });
+    }
 }
 
-// Utility functions
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('tr-TR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+function initializeTooltips() {
+    const tooltipElements = document.querySelectorAll('[data-tooltip]');
+    
+    tooltipElements.forEach(element => {
+        element.addEventListener('mouseenter', showTooltip);
+        element.addEventListener('mouseleave', hideTooltip);
     });
 }
 
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
+function showTooltip(event) {
+    const element = event.target;
+    const tooltipText = element.getAttribute('data-tooltip');
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    tooltip.textContent = tooltipText;
+    
+    document.body.appendChild(tooltip);
+    
+    const rect = element.getBoundingClientRect();
+    tooltip.style.left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2) + 'px';
+    tooltip.style.top = rect.top - tooltip.offsetHeight - 5 + 'px';
+    
+    element._tooltip = tooltip;
+}
+
+function hideTooltip(event) {
+    const element = event.target;
+    if (element._tooltip) {
+        element._tooltip.remove();
+        delete element._tooltip;
+    }
 }

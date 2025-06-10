@@ -35,10 +35,14 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 ?>
 
 <style>
+.site-container {
+    width: 100vw !important;
+    margin: 0 !important;
+}
 /* Modern Auth Page Styles - Ultra Modern & Professional */
 .auth-page-wrapper {
     min-height: calc(100vh - 170px);
-    width: 100%;
+    width: 100vw !important;
     background: linear-gradient(135deg, var(--charcoal) 0%, #1a1a1a 25%, var(--grey) 50%, #1a1a1a 75%, var(--charcoal) 100%);
     position: relative;
     overflow: hidden;
@@ -1014,7 +1018,6 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 }
 </style>
 
-<main class="main-content">
     <div class="auth-page-wrapper">
         <!-- Floating Background Elements -->
         <div class="floating-elements">
@@ -1361,7 +1364,6 @@ require_once BASE_PATH . '/src/includes/navbar.php';
             </div>
         </div>
     </div>
-</main>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -2058,3 +2060,4 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     }
 });
 </script>
+<?php include BASE_PATH . '/src/includes/footer.php'; ?>

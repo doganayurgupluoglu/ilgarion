@@ -29,7 +29,7 @@ $notifications_for_dropdown = $GLOBALS['notifications_for_dropdown'] ?? [];
 
 $username = $is_logged_in && isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : '';
 $user_id_for_links = $is_logged_in && isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
-$user_avatar_path = ''; // Varsayılan olarak boş
+$user_avatar_path = '/uploads/avatars/'; // Varsayılan olarak boş
 
 if ($is_logged_in && isset($_SESSION['user_avatar_path']) && !empty($_SESSION['user_avatar_path'])) {
     $user_avatar_path = '' . htmlspecialchars($_SESSION['user_avatar_path']);
@@ -1264,8 +1264,8 @@ $logo_path_navbar = '/assets/logo.png';
                     <div class="dropdown-menu-section">
                         <h5>Profil & Ayarlar</h5>
                         <ul class="dropdown-menu-list">
-                            <li><a href="<?php echo htmlspecialchars($baseUrl); ?>/edit_profile.php"><i class="fas fa-user-edit fa-fw"></i> Profili Düzenle</a></li>
-                            <li><a href="<?php echo htmlspecialchars($baseUrl); ?>/edit_hangar.php"><i class="fas fa-warehouse fa-fw"></i> Hangarımı Düzenle</a></li>
+                            <li><a href="<?php echo htmlspecialchars($baseUrl); ?>/profile/edit.php"><i class="fas fa-user-edit fa-fw"></i> Profili Düzenle</a></li>
+                            <li><a href="<?php echo htmlspecialchars($baseUrl); ?>/profile/hangar.php"><i class="fas fa-warehouse fa-fw"></i> Hangarımı Düzenle</a></li>
                         </ul>
                     </div>
                     <div class="dropdown-menu-section">

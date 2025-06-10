@@ -1,0 +1,886 @@
+/* Katılım Butonları ve Modal Stilleri */
+
+/* Katılım Butonları Container */
+.participation-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.participation-options {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.participation-change-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+/* Katılım Durumu */
+.participation-status {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1rem;
+}
+
+.participation-status .status-confirmed {
+    color: var(--turquase);
+}
+
+.participation-status .status-maybe {
+    color: #f39c12;
+}
+
+.participation-status .status-declined {
+    color: var(--red);
+}
+
+.participation-status small {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+}
+
+/* Katılım Devre Dışı */
+.participation-disabled {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.participation-disabled p {
+    margin: 0 0 1rem 0;
+}
+
+/* Etkinlik Sona Erdi Uyarısı */
+.event-ended-warning {
+    padding: 1rem;
+    background: rgba(235, 0, 0, 0.1);
+    border: 1px solid var(--red);
+    border-radius: 8px;
+    color: var(--red);
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+/* Buton Stilleri */
+.btn-primary, .btn-secondary, .btn-outline, .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: var(--turquase);
+    color: white;
+}
+
+.btn-primary:hover:not(.disabled) {
+    background: #4aa3a0;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover:not(.disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline:hover:not(.disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.btn-danger {
+    background: var(--red);
+    color: white;
+}
+
+.btn-danger:hover:not(.disabled) {
+    background: #c0392b;
+    transform: translateY(-1px);
+}
+
+.btn-primary.disabled,
+.btn-secondary.disabled,
+.btn-outline.disabled,
+.btn-danger.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Rol Seçim Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+    background: var(--background-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-body p {
+    margin: 0 0 1rem 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.role-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.role-option {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.role-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--turquase);
+    transform: translateY(-2px);
+}
+
+.role-option-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.role-option-content i {
+    font-size: 1.5rem;
+    color: var(--turquase);
+}
+
+.role-option .role-name {
+    color: white;
+    font-weight: 500;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.2s ease;
+}
+
+.loading-content {
+    background: var(--background-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    color: white;
+}
+
+.loading-spinner-large {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top: 3px solid var(--turquase);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem auto;
+}
+
+/* Notification System */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    min-width: 300px;
+    max-width: 500px;
+    z-index: 1500;
+    animation: slideInRight 0.3s ease;
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.notification-success .notification-content {
+    background: rgba(61, 166, 162, 0.9);
+    border-color: var(--turquase);
+    color: white;
+}
+
+.notification-error .notification-content {
+    background: rgba(235, 0, 0, 0.9);
+    border-color: var(--red);
+    color: white;
+}
+
+.notification-info .notification-content {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    margin-left: auto;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.notification-close:hover {
+    opacity: 1;
+}
+
+/* Participant Cards */
+.participant-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+.participant-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+}
+
+.participant-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.participant-name {
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.participant-role {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.participant-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-approve, .btn-remove {
+    background: none;
+    border: 1px solid;
+    border-radius: 4px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+}
+
+.btn-approve {
+    border-color: var(--turquase);
+    color: var(--turquase);
+}
+
+.btn-approve:hover {
+    background: var(--turquase);
+    color: white;
+}
+
+.btn-remove {
+    border-color: var(--red);
+    color: var(--red);
+}
+
+.btn-remove:hover {
+    background: var(--red);
+    color: white;
+}
+
+/* Role Actions in Detail */
+.role-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.btn-role-join {
+    background: var(--turquase);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-role-join:hover {
+    background: #4aa3a0;
+    transform: translateY(-1px);
+}
+
+.btn-role-details {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-role-details:hover {
+    color: white;
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.current-role-badge {
+    background: rgba(61, 166, 162, 0.2);
+    color: var(--turquase);
+    border: 1px solid var(--turquase);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.role-full-badge {
+    background: rgba(235, 0, 0, 0.2);
+    color: var(--red);
+    border: 1px solid var(--red);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .participation-buttons,
+    .participation-options,
+    .participation-change-buttons {
+        flex-direction: column;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+    
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 1rem;
+    }
+    
+    .role-selection-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .notification {
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+    }
+    
+    .participant-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .participant-actions {
+        align-self: flex-end;
+    }
+    
+    .role-actions {
+        flex-direction: column;
+    }
+    
+    .btn-primary,
+    .btn-secondary,
+    .btn-outline,
+    .btn-danger {
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Tooltip */
+.tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    animation: fadeIn 0.2s ease;
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+/* Focus States for Accessibility */
+.btn-primary:focus,
+.btn-secondary:focus,
+.btn-outline:focus,
+.btn-danger:focus,
+.btn-role-join:focus,
+.btn-role-details:focus {
+    outline: 2px solid var(--turquase);
+    outline-offset: 2px;
+}
+
+.role-option:focus {
+    outline: 2px solid var(--turquase);
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .modal-content,
+    .notification-content,
+    .participant-card {
+        border-width: 2px;
+    }
+    
+    .btn-primary,
+    .btn-secondary,
+    .btn-outline,
+    .btn-danger {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Participant Registered Time */
+.participant-registered {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* No Participants Message */
+.no-participants {
+    text-align: center;
+    padding: 2rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.no-participants i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+    opacity: 0.5;
+}
+
+.no-participants p {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Group Titles */
+.group-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.5rem 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.group-title.status-confirmed {
+    color: var(--turquase);
+}
+
+.group-title.status-maybe {
+    color: #f39c12;
+}
+
+.group-title.status-declined {
+    color: var(--red);
+}
+
+/* Participants Grid */
+.participants-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Role Slots Display */
+.role-slots {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+.role-slots .confirmed {
+    color: var(--turquase);
+    font-weight: 600;
+}
+
+.role-slots .pending {
+    color: #f39c12;
+    font-weight: 500;
+}
+
+.role-slots .total {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Event Actions Container */
+.event-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.other-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Role Card Enhancements */
+.role-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.role-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.role-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.role-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(61, 166, 162, 0.2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--turquase);
+    font-size: 1.2rem;
+}
+
+.role-info {
+    flex: 1;
+}
+
+.role-name {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.role-name a {
+    color: white;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.role-name a:hover {
+    color: var(--turquase);
+}
+
+.role-description {
+    margin: 1rem 0;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+}
+
+.participation-buttons .btn-primary {
+    font-size: 1rem;
+    padding: 1rem 2rem;
+    font-weight: 600;
+}
+
+.participation-options .btn-secondary,
+.participation-options .btn-outline {
+    font-size: 0.9rem;
+}
+
+/* Modal Enhancements */
+.modal-overlay {
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Improved Focus Indicators */
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--turquase);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Better Error States */
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-outline:disabled,
+.btn-danger:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.1);
+    cursor: not-allowed;
+}
+
+/* Loading States for Buttons */
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn-loading i {
+    animation: spin 1s linear infinite;
+}
+
+/* Improved Responsive Breakpoints */
+@media (max-width: 480px) {
+    .participants-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .role-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .role-actions {
+        justify-content: center;
+    }
+    
+    .other-actions {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 360px) {
+    .modal-content {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        max-height: 100vh;
+    }
+    
+    .notification {
+        right: 5px;
+        left: 5px;
+    }
+}
