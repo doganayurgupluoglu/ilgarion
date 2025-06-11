@@ -1,5 +1,5 @@
 <?php
-// profile/hangar.php - API Entegrasyonlu Hangar Yönetimi
+// profile/hangar.php - API Entegrasyonlu Hangar Yönetimi (Basit LTI Mantığı)
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -16,16 +16,15 @@ require_login();
 $current_user_id = $_SESSION['user_id'];
 $is_approved = is_user_approved();
 
-// Kullanıcı hangar verilerini çek
-$hangar_ships = getUserHangarShips($pdo, $current_user_id);
-$hangar_stats = getHangarStatistics($pdo, $current_user_id);
-
-// Form işleme
+// Form işleme (PRG Pattern)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
             case 'add_ships_from_cart':
                 $result = addShipsFromCart($pdo, $current_user_id, $_POST);
+                break;
+            case 'update_ship':
+                $result = updateHangarShip($pdo, $current_user_id, $_POST);
                 break;
             case 'delete_ship':
                 $result = deleteHangarShip($pdo, $current_user_id, $_POST);
@@ -34,20 +33,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result = ['success' => false, 'message' => 'Geçersiz işlem.'];
         }
         
+        // Sonuç mesajını session'a kaydet
         if ($result['success']) {
-            $_SESSION['success_message'] = $result['message'];
+            $_SESSION['hangar_success_message'] = $result['message'];
         } else {
-            $error_message = $result['message'];
+            $_SESSION['hangar_error_message'] = $result['message'];
         }
         
-        // Verileri yeniden yükle
-        $hangar_ships = getUserHangarShips($pdo, $current_user_id);
-        $hangar_stats = getHangarStatistics($pdo, $current_user_id);
+        // PRG Pattern: Redirect to prevent form resubmission
+        header('Location: hangar.php');
+        exit;
     }
 }
 
+// Kullanıcı hangar verilerini çek
+$hangar_ships = getUserHangarShips($pdo, $current_user_id);
+$hangar_stats = getHangarStatistics($pdo, $current_user_id);
+
+// Session mesajlarını al ve temizle
+$success_message = $_SESSION['hangar_success_message'] ?? null;
+$error_message = $_SESSION['hangar_error_message'] ?? null;
+unset($_SESSION['hangar_success_message'], $_SESSION['hangar_error_message']);
+
 /**
- * Sepetteki gemileri hangara ekleme
+ * Sepetteki gemileri hangara ekleme (quantity=1 ise LTI mantığı)
  */
 function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
     try {
@@ -66,6 +75,12 @@ function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
             try {
                 $ship_api_id = 'api_' . $ship_data['id'];
                 $quantity = max(1, (int)($ship_data['quantity'] ?? 1));
+                $has_lti = isset($ship_data['has_lti']) && $ship_data['has_lti'] === true;
+                
+                // LTI mantığı: LTI varsa quantity=1, yoksa girilen miktar
+                if ($has_lti) {
+                    $quantity = 1;
+                }
                 
                 // Gemi bilgilerini hazırla
                 $ship_name = $ship_data['name'] ?? 'Bilinmeyen Gemi';
@@ -84,26 +99,53 @@ function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
                     }
                 }
                 
-                $query = "
-                    INSERT INTO user_hangar 
-                    (user_id, ship_api_id, ship_name, ship_manufacturer, ship_focus, ship_size, ship_image_url, quantity)
-                    VALUES (:user_id, :ship_api_id, :ship_name, :ship_manufacturer, :ship_focus, :ship_size, :ship_image_url, :quantity)
-                    ON DUPLICATE KEY UPDATE
-                    quantity = quantity + VALUES(quantity)
-                ";
+                // Aynı gemi zaten varsa kontrol et
+                $check_query = "SELECT id, quantity FROM user_hangar WHERE user_id = :user_id AND ship_api_id = :ship_api_id";
+                $check_stmt = execute_safe_query($pdo, $check_query, [':user_id' => $user_id, ':ship_api_id' => $ship_api_id]);
+                $existing_ship = $check_stmt->fetch();
                 
-                $params = [
-                    ':user_id' => $user_id,
-                    ':ship_api_id' => $ship_api_id,
-                    ':ship_name' => $ship_name,
-                    ':ship_manufacturer' => $ship_manufacturer ?: null,
-                    ':ship_focus' => $ship_focus ?: null,
-                    ':ship_size' => $ship_size ?: null,
-                    ':ship_image_url' => $ship_image_url,
-                    ':quantity' => $quantity
-                ];
+                if ($existing_ship) {
+                    // Mevcut gemiyi güncelle
+                    if ($has_lti) {
+                        // LTI ise quantity'yi 1 yap (LTI'yi koru)
+                        $new_quantity = 1;
+                    } else {
+                        // LTI değilse ve mevcut gemi LTI değilse (quantity > 1) miktarı artır
+                        if ($existing_ship['quantity'] == 1) {
+                            // Mevcut gemi LTI ise, yeni gemi LTI değilse quantity'yi artırma
+                            $new_quantity = $existing_ship['quantity'] + $quantity;
+                        } else {
+                            $new_quantity = $existing_ship['quantity'] + $quantity;
+                        }
+                    }
+                    
+                    $update_query = "UPDATE user_hangar SET quantity = :quantity WHERE id = :id";
+                    execute_safe_query($pdo, $update_query, [
+                        ':quantity' => $new_quantity,
+                        ':id' => $existing_ship['id']
+                    ]);
+                } else {
+                    // Yeni gemi ekle
+                    $insert_query = "
+                        INSERT INTO user_hangar 
+                        (user_id, ship_api_id, ship_name, ship_manufacturer, ship_focus, ship_size, ship_image_url, quantity)
+                        VALUES (:user_id, :ship_api_id, :ship_name, :ship_manufacturer, :ship_focus, :ship_size, :ship_image_url, :quantity)
+                    ";
+                    
+                    $params = [
+                        ':user_id' => $user_id,
+                        ':ship_api_id' => $ship_api_id,
+                        ':ship_name' => $ship_name,
+                        ':ship_manufacturer' => $ship_manufacturer ?: null,
+                        ':ship_focus' => $ship_focus ?: null,
+                        ':ship_size' => $ship_size ?: null,
+                        ':ship_image_url' => $ship_image_url,
+                        ':quantity' => $quantity
+                    ];
+                    
+                    execute_safe_query($pdo, $insert_query, $params);
+                }
                 
-                execute_safe_query($pdo, $query, $params);
                 $added_count++;
                 
             } catch (Exception $e) {
@@ -132,13 +174,17 @@ function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
 }
 
 /**
- * Kullanıcının hangar gemilerini çeker
+ * Kullanıcının hangar gemilerini çeker (quantity=1 ise LTI)
  */
 function getUserHangarShips(PDO $pdo, int $user_id): array {
     try {
         $query = "
             SELECT id, ship_api_id, ship_name, ship_manufacturer, ship_focus, 
                    ship_size, ship_image_url, quantity, user_notes, added_at,
+                   CASE 
+                       WHEN quantity = 1 THEN 1 
+                       ELSE 0 
+                   END as has_lti,
                    CASE 
                        WHEN ship_api_id LIKE 'api_%' THEN 'api'
                        WHEN ship_api_id LIKE 'manual_%' THEN 'manual'
@@ -159,7 +205,7 @@ function getUserHangarShips(PDO $pdo, int $user_id): array {
 }
 
 /**
- * Hangar istatistikleri
+ * Hangar istatistikleri (quantity=1 olanlar LTI)
  */
 function getHangarStatistics(PDO $pdo, int $user_id): array {
     try {
@@ -168,7 +214,8 @@ function getHangarStatistics(PDO $pdo, int $user_id): array {
                 COUNT(*) as unique_ships,
                 SUM(quantity) as total_ships,
                 COUNT(DISTINCT ship_manufacturer) as manufacturers,
-                COUNT(DISTINCT ship_size) as sizes
+                COUNT(DISTINCT ship_size) as sizes,
+                SUM(CASE WHEN quantity = 1 THEN 1 ELSE 0 END) as lti_ships
             FROM user_hangar 
             WHERE user_id = :user_id
         ";
@@ -180,15 +227,61 @@ function getHangarStatistics(PDO $pdo, int $user_id): array {
             'unique_ships' => (int)($result['unique_ships'] ?? 0),
             'total_ships' => (int)($result['total_ships'] ?? 0),
             'manufacturers' => (int)($result['manufacturers'] ?? 0),
-            'sizes' => (int)($result['sizes'] ?? 0)
+            'sizes' => (int)($result['sizes'] ?? 0),
+            'lti_ships' => (int)($result['lti_ships'] ?? 0)
         ];
         
     } catch (Exception $e) {
         error_log("Hangar stats error: " . $e->getMessage());
-        return ['unique_ships' => 0, 'total_ships' => 0, 'manufacturers' => 0, 'sizes' => 0];
+        return ['unique_ships' => 0, 'total_ships' => 0, 'manufacturers' => 0, 'sizes' => 0, 'lti_ships' => 0];
     }
 }
 
+/**
+ * Hangar gemisini güncelleme (quantity=1 ise LTI mantığı)
+ */
+function updateHangarShip(PDO $pdo, int $user_id, array $post_data): array {
+    try {
+        $ship_id = (int)($post_data['ship_id'] ?? 0);
+        $quantity = max(1, (int)($post_data['quantity'] ?? 1));
+        $is_lti = isset($post_data['is_lti']) ? (bool)$post_data['is_lti'] : false;
+        $user_notes = trim($post_data['user_notes'] ?? '');
+        
+        if (!$ship_id) {
+            return ['success' => false, 'message' => 'Geçersiz gemi ID.'];
+        }
+        
+        // LTI seçildiyse quantity'yi 1 yap
+        if ($is_lti) {
+            $quantity = 1;
+        }
+        
+        $query = "
+            UPDATE user_hangar 
+            SET quantity = :quantity, user_notes = :user_notes
+            WHERE id = :ship_id AND user_id = :user_id
+        ";
+        
+        $params = [
+            ':quantity' => $quantity,
+            ':user_notes' => $user_notes ?: null,
+            ':ship_id' => $ship_id,
+            ':user_id' => $user_id
+        ];
+        
+        $stmt = execute_safe_query($pdo, $query, $params);
+        
+        if ($stmt->rowCount() === 0) {
+            return ['success' => false, 'message' => 'Gemi bulunamadı veya size ait değil.'];
+        }
+        
+        return ['success' => true, 'message' => 'Gemi bilgileri güncellendi.'];
+        
+    } catch (Exception $e) {
+        error_log("Update ship error: " . $e->getMessage());
+        return ['success' => false, 'message' => 'Gemi güncellenirken bir hata oluştu.'];
+    }
+}
 
 /**
  * Hangar gemisini silme
@@ -273,19 +366,18 @@ include BASE_PATH . '/src/includes/navbar.php';
                 </div>
             </div>
 
-            <?php if (isset($error_message)): ?>
+            <?php if ($error_message): ?>
                 <div class="alert alert-error">
                     <i class="fas fa-exclamation-triangle"></i>
                     <?= htmlspecialchars($error_message) ?>
                 </div>
             <?php endif; ?>
 
-            <?php if (isset($_SESSION['success_message'])): ?>
+            <?php if ($success_message): ?>
                 <div class="alert alert-success">
                     <i class="fas fa-check-circle"></i>
-                    <?= htmlspecialchars($_SESSION['success_message']) ?>
+                    <?= htmlspecialchars($success_message) ?>
                 </div>
-                <?php unset($_SESSION['success_message']); ?>
             <?php endif; ?>
 
             <!-- Hangar İstatistikleri -->
@@ -312,21 +404,21 @@ include BASE_PATH . '/src/includes/navbar.php';
                 
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-industry"></i>
+                        <i class="fas fa-shield-alt"></i>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-number"><?= number_format($hangar_stats['manufacturers']) ?></div>
-                        <div class="stat-label">Üretici</div>
+                        <div class="stat-number"><?= number_format($hangar_stats['lti_ships']) ?></div>
+                        <div class="stat-label">LTI Gemileri</div>
                     </div>
                 </div>
                 
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-expand-arrows-alt"></i>
+                        <i class="fas fa-industry"></i>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-number"><?= number_format($hangar_stats['sizes']) ?></div>
-                        <div class="stat-label">Boyut Çeşidi</div>
+                        <div class="stat-number"><?= number_format($hangar_stats['manufacturers']) ?></div>
+                        <div class="stat-label">Üretici</div>
                     </div>
                 </div>
             </div>
@@ -365,7 +457,18 @@ include BASE_PATH . '/src/includes/navbar.php';
                                         <?php endif; ?>
                                     </div>
                                     
+                                    <!-- LTI Badge (quantity=1 ise göster) -->
+                                    <?php if ($ship['has_lti']): ?>
+                                        <div class="lti-badge">
+                                            <i class="fas fa-shield-alt"></i>
+                                            <span>LTI</span>
+                                        </div>
+                                    <?php endif; ?>
+                                    
                                     <div class="ship-actions">
+                                        <button class="action-btn edit-btn" onclick="editShip(<?= $ship['id'] ?>)" title="Düzenle">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                         <button class="action-btn delete-btn" onclick="deleteShip(<?= $ship['id'] ?>)" title="Sil">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -400,6 +503,13 @@ include BASE_PATH . '/src/includes/navbar.php';
                                         <div class="ship-detail">
                                             <span class="detail-label">Adet:</span>
                                             <span class="detail-value quantity"><?= number_format($ship['quantity']) ?></span>
+                                        </div>
+                                        
+                                        <div class="ship-detail">
+                                            <span class="detail-label">Sigorta:</span>
+                                            <span class="detail-value insurance <?= $ship['has_lti'] ? 'lti' : 'standard' ?>">
+                                                <?= $ship['has_lti'] ? 'LTI' : 'Standart' ?>
+                                            </span>
                                         </div>
                                     </div>
                                     
@@ -523,6 +633,64 @@ include BASE_PATH . '/src/includes/navbar.php';
                 <i class="fas fa-times"></i> Kapat
             </button>
         </div>
+    </div>
+</div>
+
+<!-- Gemi Düzenleme Modal -->
+<div id="editShipModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeEditShipModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Gemi Düzenle</h3>
+            <button class="modal-close" onclick="closeEditShipModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="editShipForm" method="POST">
+            <input type="hidden" name="action" value="update_ship">
+            <input type="hidden" name="ship_id" id="editShipId">
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="edit_quantity" class="form-label">
+                        <i class="fas fa-hashtag"></i> Adet
+                    </label>
+                    <input type="number" id="edit_quantity" name="quantity" class="form-input" min="1" required>
+                    <small class="form-help">Not: Adet 1 ise LTI (Lifetime Insurance) olarak kabul edilir.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-shield-alt"></i> LTI (Lifetime Insurance)
+                    </label>
+                    <div class="lti-switch-container">
+                        <label class="lti-switch">
+                            <input type="checkbox" id="edit_is_lti" name="is_lti">
+                            <span class="lti-slider"></span>
+                        </label>
+                        <span class="lti-label">Bu gemi LTI'ye sahip</span>
+                    </div>
+                    <small class="form-help">LTI seçilirse adet otomatik olarak 1 yapılır.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_notes" class="form-label">
+                        <i class="fas fa-sticky-note"></i> Notlar
+                    </label>
+                    <textarea id="edit_notes" name="user_notes" class="form-textarea" rows="4" maxlength="500" placeholder="Bu gemi hakkında notlarınızı yazın..."></textarea>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Kaydet
+                </button>
+                <button type="button" onclick="closeEditShipModal()" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> İptal
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 

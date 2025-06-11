@@ -1,4 +1,4 @@
-/* css/hangar.css - Hangar Yönetimi Stilleri */
+/* css/hangar.css - Hangar Yönetimi Stilleri (LTI Desteği ile) */
 
 /* Hangar Header */
 .hangar-header {
@@ -198,6 +198,28 @@
     background: var(--card-bg);
 }
 
+/* LTI Badge */
+.lti-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: var(--charcoal);
+    padding: 0.25rem 0.5rem;
+    border-radius: 15px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    z-index: 10;
+}
+
+.lti-badge i {
+    font-size: 0.6rem;
+}
+
 .ship-actions {
     position: absolute;
     top: 0.75rem;
@@ -223,6 +245,16 @@
     cursor: pointer;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
+}
+
+.edit-btn {
+    background: rgba(184, 132, 92, 0.9);
+    color: var(--charcoal);
+}
+
+.edit-btn:hover {
+    background: var(--gold);
+    transform: scale(1.1);
 }
 
 .delete-btn {
@@ -275,6 +307,16 @@
     border-radius: 15px;
     font-weight: 600;
     color: var(--gold);
+}
+
+/* Insurance Status Styles */
+.insurance.lti {
+    color: #ffd700;
+    font-weight: 600;
+}
+
+.insurance.standard {
+    color: var(--light-grey);
 }
 
 .ship-notes {
@@ -436,6 +478,19 @@
     outline: none;
     border-color: var(--gold);
     background: var(--card-bg-3);
+}
+
+.form-input:disabled {
+    background: var(--card-bg);
+    color: var(--light-grey);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.form-help {
+    color: var(--light-grey);
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
 }
 
 .btn-search {
@@ -631,6 +686,7 @@
     display: flex;
     align-items: center;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .quantity-controls {
@@ -653,9 +709,14 @@
     transition: all 0.3s ease;
 }
 
-.qty-btn:hover {
+.qty-btn:hover:not(:disabled) {
     background: var(--gold);
     color: var(--charcoal);
+}
+
+.qty-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .quantity {
@@ -678,6 +739,130 @@
 .remove-btn:hover {
     background: var(--red);
     color: var(--white);
+}
+
+/* LTI Switch Styles */
+.lti-switch-container {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.lti-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.lti-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.lti-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--card-bg-4);
+    border: 1px solid var(--border-1);
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.lti-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--light-grey);
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.lti-switch input:checked + .lti-slider {
+    background-color: #ffd700;
+    border-color: #ffd700;
+}
+
+.lti-switch input:checked + .lti-slider:before {
+    transform: translateX(26px);
+    background-color: var(--charcoal);
+}
+
+.lti-label {
+    color: var(--lighter-grey);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* Küçük LTI Switch (Sepet için) */
+.lti-switch-small {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.lti-switch-small input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.lti-slider-small {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--card-bg-4);
+    border: 1px solid var(--border-1);
+    transition: 0.3s;
+    border-radius: 20px;
+}
+
+.lti-slider-small:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--light-grey);
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.lti-switch-small input:checked + .lti-slider-small {
+    background-color: #ffd700;
+    border-color: #ffd700;
+}
+
+.lti-switch-small input:checked + .lti-slider-small:before {
+    transform: translateX(20px);
+    background-color: var(--charcoal);
+}
+
+.lti-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-direction: column;
+}
+
+.lti-label-small {
+    font-size: 0.7rem;
+    color: var(--light-grey);
+    font-weight: 600;
 }
 
 /* Animasyonlar */
@@ -739,6 +924,7 @@
     
     .cart-item-controls {
         justify-content: center;
+        width: 100%;
     }
     
     .hangar-title {
@@ -783,5 +969,15 @@
     
     .search-form {
         padding: 1rem;
+    }
+    
+    .cart-item-controls {
+        gap: 0.5rem;
+    }
+    
+    .lti-switch-container {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
     }
 }
