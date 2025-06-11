@@ -7,8 +7,8 @@ $current_year = date('Y');
 
 // Site bilgileri (isteğe bağlı olarak database'den de alınabilir)
 $site_name = "Ilgarion Turanis";
-$discord_link = "#"; // Discord sunucu linki
-$youtube_link = "#"; // YouTube kanalı
+$discord_link = "https://discord.gg/aBsfF5e7EV"; // Discord sunucu linki
+$youtube_link = "https://www.youtube.com/@melkan5/videos"; // YouTube kanalı
 $twitter_link = "#"; // Twitter/X hesabı
 ?>
 
@@ -43,13 +43,13 @@ $twitter_link = "#"; // Twitter/X hesabı
         <!-- Sağ taraf - Sosyal medya ve telif hakkı -->
         <div class="footer-right">
             <div class="footer-social">
-                <a href="<?= htmlspecialchars($discord_link) ?>" class="social-link discord" title="Discord">
+                <a href="<?= htmlspecialchars($discord_link) ?>" class="social-link discord" title="Discord" target="_blank">
                     <i class="fab fa-discord"></i>
                 </a>
-                <a href="<?= htmlspecialchars($youtube_link) ?>" class="social-link youtube" title="YouTube">
+                <a href="<?= htmlspecialchars($youtube_link) ?>" class="social-link youtube" title="YouTube" target="_blank">
                     <i class="fab fa-youtube"></i>
                 </a>
-                <a href="<?= htmlspecialchars($twitter_link) ?>" class="social-link twitter" title="Twitter">
+                <a href="<?= htmlspecialchars($twitter_link) ?>" class="social-link twitter" title="Twitter" target="_blank">
                     <i class="fab fa-twitter"></i>
                 </a>
             </div>

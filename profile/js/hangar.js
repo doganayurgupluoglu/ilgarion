@@ -1,4 +1,4 @@
-// js/hangar.js - Hangar Yönetimi JavaScript (LTI Desteği ile)
+// js/hangar.js - Hangar Yönetimi JavaScript (LTI has_lti sütunu ile)
 
 // Sepet sistemi
 let cart = [];
@@ -130,8 +130,10 @@ function addToCart(button) {
     const existingIndex = cart.findIndex(item => item.id === shipData.id);
     
     if (existingIndex !== -1) {
-        // Miktarı artır
-        cart[existingIndex].quantity++;
+        // Miktarı artır (LTI değilse)
+        if (!cart[existingIndex].has_lti) {
+            cart[existingIndex].quantity++;
+        }
     } else {
         // Yeni öğe ekle
         cart.push({
@@ -210,11 +212,11 @@ function displayCartItems() {
                 </div>
                 <div class="cart-item-controls">
                     <div class="quantity-controls">
-                        <button onclick="changeQuantity(${index}, -1)" class="qty-btn" ${ship.has_lti ? 'disabled' : ''}>
+                        <button onclick="changeQuantity(${index}, -1)" class="qty-btn">
                             <i class="fas fa-minus"></i>
                         </button>
                         <span class="quantity">${ship.quantity}</span>
-                        <button onclick="changeQuantity(${index}, 1)" class="qty-btn" ${ship.has_lti ? 'disabled' : ''}>
+                        <button onclick="changeQuantity(${index}, 1)" class="qty-btn">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
@@ -239,17 +241,11 @@ function displayCartItems() {
 // LTI toggle fonksiyonu
 function toggleLTI(index, isLTI) {
     cart[index].has_lti = isLTI;
-    if (isLTI) {
-        cart[index].quantity = 1; // LTI ise quantity 1 olmalı
-    }
     displayCartItems();
 }
 
 // Miktar değiştirme
 function changeQuantity(index, change) {
-    if (cart[index].has_lti) {
-        return; // LTI gemilerin quantity'si değiştirilemez
-    }
     cart[index].quantity = Math.max(1, cart[index].quantity + change);
     displayCartItems();
     updateCartUI();
@@ -337,30 +333,8 @@ function editShip(shipId) {
                 document.getElementById('edit_quantity').value = data.ship.quantity;
                 document.getElementById('edit_notes').value = data.ship.user_notes || '';
                 
-                // LTI durumunu set et (quantity=1 ise LTI)
-                const isLTI = data.ship.quantity === 1;
-                document.getElementById('edit_is_lti').checked = isLTI;
-                
-                // LTI switch değişiklik event'i ekle
-                const ltiSwitch = document.getElementById('edit_is_lti');
-                const quantityInput = document.getElementById('edit_quantity');
-                
-                ltiSwitch.addEventListener('change', function() {
-                    if (this.checked) {
-                        quantityInput.value = 1;
-                        quantityInput.disabled = true;
-                    } else {
-                        quantityInput.disabled = false;
-                        if (quantityInput.value == 1) {
-                            quantityInput.value = 2;
-                        }
-                    }
-                });
-                
-                // İlk durumu ayarla
-                if (isLTI) {
-                    quantityInput.disabled = true;
-                }
+                // LTI durumunu set et (has_lti sütununa göre)
+                document.getElementById('edit_is_lti').checked = data.ship.has_lti;
                 
                 document.getElementById('editShipModal').style.display = 'flex';
             } else {
@@ -375,13 +349,6 @@ function editShip(shipId) {
 
 function closeEditShipModal() {
     document.getElementById('editShipModal').style.display = 'none';
-    
-    // Event listener'ları temizle
-    const ltiSwitch = document.getElementById('edit_is_lti');
-    const quantityInput = document.getElementById('edit_quantity');
-    
-    ltiSwitch.replaceWith(ltiSwitch.cloneNode(true));
-    quantityInput.disabled = false;
 }
 
 // Gemi silme

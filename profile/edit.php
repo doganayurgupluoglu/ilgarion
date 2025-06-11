@@ -492,7 +492,6 @@ document.addEventListener('DOMContentLoaded', function() {
     border-radius: 12px;
     padding: 2rem;
     text-align: center;
-    margin-bottom: 2rem;
 }
 
 .form-title {

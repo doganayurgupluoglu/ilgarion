@@ -1,5 +1,5 @@
 <?php
-// api/get_ship.php - Hangar gemisi bilgilerini getir (LTI desteği ile)
+// api/get_ship.php - Hangar gemisi bilgilerini getir (has_lti sütunu ile)
 
 session_start();
 
@@ -46,11 +46,10 @@ if ($ship_id <= 0) {
 }
 
 try {
-    // Güvenli sorgu ile gemi bilgilerini al (LTI bilgisi dahil)
+    // Güvenli sorgu ile gemi bilgilerini al (has_lti sütunu ile)
     $query = "
         SELECT id, ship_api_id, ship_name, ship_manufacturer, ship_focus, 
-               ship_size, ship_image_url, quantity, user_notes, added_at,
-               CASE WHEN quantity = 1 THEN 1 ELSE 0 END as has_lti
+               ship_size, ship_image_url, quantity, has_lti, user_notes, added_at
         FROM user_hangar 
         WHERE id = :ship_id AND user_id = :user_id
     ";

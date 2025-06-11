@@ -1,5 +1,5 @@
 <?php
-// profile/hangar.php - API Entegrasyonlu Hangar Yönetimi (Basit LTI Mantığı)
+// profile/hangar.php - API Entegrasyonlu Hangar Yönetimi (LTI has_lti sütunu ile)
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -56,7 +56,7 @@ $error_message = $_SESSION['hangar_error_message'] ?? null;
 unset($_SESSION['hangar_success_message'], $_SESSION['hangar_error_message']);
 
 /**
- * Sepetteki gemileri hangara ekleme (quantity=1 ise LTI mantığı)
+ * Sepetteki gemileri hangara ekleme (has_lti ile LTI kontrolü)
  */
 function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
     try {
@@ -77,11 +77,6 @@ function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
                 $quantity = max(1, (int)($ship_data['quantity'] ?? 1));
                 $has_lti = isset($ship_data['has_lti']) && $ship_data['has_lti'] === true;
                 
-                // LTI mantığı: LTI varsa quantity=1, yoksa girilen miktar
-                if ($has_lti) {
-                    $quantity = 1;
-                }
-                
                 // Gemi bilgilerini hazırla
                 $ship_name = $ship_data['name'] ?? 'Bilinmeyen Gemi';
                 $ship_manufacturer = $ship_data['manufacturer']['name'] ?? '';
@@ -100,36 +95,30 @@ function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
                 }
                 
                 // Aynı gemi zaten varsa kontrol et
-                $check_query = "SELECT id, quantity FROM user_hangar WHERE user_id = :user_id AND ship_api_id = :ship_api_id";
+                $check_query = "SELECT id, quantity, has_lti FROM user_hangar WHERE user_id = :user_id AND ship_api_id = :ship_api_id";
                 $check_stmt = execute_safe_query($pdo, $check_query, [':user_id' => $user_id, ':ship_api_id' => $ship_api_id]);
                 $existing_ship = $check_stmt->fetch();
                 
                 if ($existing_ship) {
                     // Mevcut gemiyi güncelle
-                    if ($has_lti) {
-                        // LTI ise quantity'yi 1 yap (LTI'yi koru)
-                        $new_quantity = 1;
+                    if ($has_lti && !$existing_ship['has_lti']) {
+                        // Yeni gemi LTI ise ve mevcut değilse, LTI'ye çevir
+                        $update_query = "UPDATE user_hangar SET quantity = quantity + :quantity, has_lti = 1 WHERE id = :id";
                     } else {
-                        // LTI değilse ve mevcut gemi LTI değilse (quantity > 1) miktarı artır
-                        if ($existing_ship['quantity'] == 1) {
-                            // Mevcut gemi LTI ise, yeni gemi LTI değilse quantity'yi artırma
-                            $new_quantity = $existing_ship['quantity'] + $quantity;
-                        } else {
-                            $new_quantity = $existing_ship['quantity'] + $quantity;
-                        }
+                        // Normal quantity artışı
+                        $update_query = "UPDATE user_hangar SET quantity = quantity + :quantity WHERE id = :id";
                     }
                     
-                    $update_query = "UPDATE user_hangar SET quantity = :quantity WHERE id = :id";
                     execute_safe_query($pdo, $update_query, [
-                        ':quantity' => $new_quantity,
+                        ':quantity' => $quantity,
                         ':id' => $existing_ship['id']
                     ]);
                 } else {
                     // Yeni gemi ekle
                     $insert_query = "
                         INSERT INTO user_hangar 
-                        (user_id, ship_api_id, ship_name, ship_manufacturer, ship_focus, ship_size, ship_image_url, quantity)
-                        VALUES (:user_id, :ship_api_id, :ship_name, :ship_manufacturer, :ship_focus, :ship_size, :ship_image_url, :quantity)
+                        (user_id, ship_api_id, ship_name, ship_manufacturer, ship_focus, ship_size, ship_image_url, quantity, has_lti)
+                        VALUES (:user_id, :ship_api_id, :ship_name, :ship_manufacturer, :ship_focus, :ship_size, :ship_image_url, :quantity, :has_lti)
                     ";
                     
                     $params = [
@@ -140,7 +129,8 @@ function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
                         ':ship_focus' => $ship_focus ?: null,
                         ':ship_size' => $ship_size ?: null,
                         ':ship_image_url' => $ship_image_url,
-                        ':quantity' => $quantity
+                        ':quantity' => $quantity,
+                        ':has_lti' => $has_lti ? 1 : 0
                     ];
                     
                     execute_safe_query($pdo, $insert_query, $params);
@@ -174,17 +164,13 @@ function addShipsFromCart(PDO $pdo, int $user_id, array $post_data): array {
 }
 
 /**
- * Kullanıcının hangar gemilerini çeker (quantity=1 ise LTI)
+ * Kullanıcının hangar gemilerini çeker (has_lti sütunu kullanarak)
  */
 function getUserHangarShips(PDO $pdo, int $user_id): array {
     try {
         $query = "
             SELECT id, ship_api_id, ship_name, ship_manufacturer, ship_focus, 
-                   ship_size, ship_image_url, quantity, user_notes, added_at,
-                   CASE 
-                       WHEN quantity = 1 THEN 1 
-                       ELSE 0 
-                   END as has_lti,
+                   ship_size, ship_image_url, quantity, has_lti, user_notes, added_at,
                    CASE 
                        WHEN ship_api_id LIKE 'api_%' THEN 'api'
                        WHEN ship_api_id LIKE 'manual_%' THEN 'manual'
@@ -205,7 +191,7 @@ function getUserHangarShips(PDO $pdo, int $user_id): array {
 }
 
 /**
- * Hangar istatistikleri (quantity=1 olanlar LTI)
+ * Hangar istatistikleri (has_lti sütunu kullanarak)
  */
 function getHangarStatistics(PDO $pdo, int $user_id): array {
     try {
@@ -215,7 +201,7 @@ function getHangarStatistics(PDO $pdo, int $user_id): array {
                 SUM(quantity) as total_ships,
                 COUNT(DISTINCT ship_manufacturer) as manufacturers,
                 COUNT(DISTINCT ship_size) as sizes,
-                SUM(CASE WHEN quantity = 1 THEN 1 ELSE 0 END) as lti_ships
+                SUM(CASE WHEN has_lti = 1 THEN 1 ELSE 0 END) as lti_ships
             FROM user_hangar 
             WHERE user_id = :user_id
         ";
@@ -238,32 +224,28 @@ function getHangarStatistics(PDO $pdo, int $user_id): array {
 }
 
 /**
- * Hangar gemisini güncelleme (quantity=1 ise LTI mantığı)
+ * Hangar gemisini güncelleme (has_lti ile LTI kontrolü)
  */
 function updateHangarShip(PDO $pdo, int $user_id, array $post_data): array {
     try {
         $ship_id = (int)($post_data['ship_id'] ?? 0);
         $quantity = max(1, (int)($post_data['quantity'] ?? 1));
-        $is_lti = isset($post_data['is_lti']) ? (bool)$post_data['is_lti'] : false;
+        $has_lti = isset($post_data['has_lti']) && $post_data['has_lti'] === 'on';
         $user_notes = trim($post_data['user_notes'] ?? '');
         
         if (!$ship_id) {
             return ['success' => false, 'message' => 'Geçersiz gemi ID.'];
         }
         
-        // LTI seçildiyse quantity'yi 1 yap
-        if ($is_lti) {
-            $quantity = 1;
-        }
-        
         $query = "
             UPDATE user_hangar 
-            SET quantity = :quantity, user_notes = :user_notes
+            SET quantity = :quantity, has_lti = :has_lti, user_notes = :user_notes
             WHERE id = :ship_id AND user_id = :user_id
         ";
         
         $params = [
             ':quantity' => $quantity,
+            ':has_lti' => $has_lti ? 1 : 0,
             ':user_notes' => $user_notes ?: null,
             ':ship_id' => $ship_id,
             ':user_id' => $user_id
@@ -457,7 +439,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <!-- LTI Badge (quantity=1 ise göster) -->
+                                    <!-- LTI Badge (has_lti=1 ise göster) -->
                                     <?php if ($ship['has_lti']): ?>
                                         <div class="lti-badge">
                                             <i class="fas fa-shield-alt"></i>
@@ -657,7 +639,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                         <i class="fas fa-hashtag"></i> Adet
                     </label>
                     <input type="number" id="edit_quantity" name="quantity" class="form-input" min="1" required>
-                    <small class="form-help">Not: Adet 1 ise LTI (Lifetime Insurance) olarak kabul edilir.</small>
+                    <small class="form-help">Sahip olduğunuz bu geminin toplam adedi.</small>
                 </div>
                 
                 <div class="form-group">
@@ -666,12 +648,12 @@ include BASE_PATH . '/src/includes/navbar.php';
                     </label>
                     <div class="lti-switch-container">
                         <label class="lti-switch">
-                            <input type="checkbox" id="edit_is_lti" name="is_lti">
+                            <input type="checkbox" id="edit_is_lti" name="has_lti">
                             <span class="lti-slider"></span>
                         </label>
                         <span class="lti-label">Bu gemi LTI'ye sahip</span>
                     </div>
-                    <small class="form-help">LTI seçilirse adet otomatik olarak 1 yapılır.</small>
+                    <small class="form-help">LTI gemiler ömür boyu sigortaya sahiptir.</small>
                 </div>
                 
                 <div class="form-group">
