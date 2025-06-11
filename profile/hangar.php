@@ -50,10 +50,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $hangar_ships = getUserHangarShips($pdo, $current_user_id);
 $hangar_stats = getHangarStatistics($pdo, $current_user_id);
 
+// Sidebar için kullanıcı verilerini hazırla
+$user_data = getUserSidebarData($pdo, $current_user_id);
+
 // Session mesajlarını al ve temizle
 $success_message = $_SESSION['hangar_success_message'] ?? null;
 $error_message = $_SESSION['hangar_error_message'] ?? null;
 unset($_SESSION['hangar_success_message'], $_SESSION['hangar_error_message']);
+
+/**
+ * Sidebar için kullanıcı verilerini çeker
+ */
+function getUserSidebarData(PDO $pdo, int $user_id): ?array {
+    try {
+        $query = "
+            SELECT u.id, u.username, u.email, u.avatar_path,
+                   (SELECT r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = u.id ORDER BY r.priority ASC LIMIT 1) as primary_role_name,
+                   (SELECT r.color FROM roles r JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = u.id ORDER BY r.priority ASC LIMIT 1) as primary_role_color
+            FROM users u
+            WHERE u.id = :user_id
+        ";
+        
+        $stmt = execute_safe_query($pdo, $query, [':user_id' => $user_id]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            return null;
+        }
+        
+        // Avatar path düzeltme
+        $avatar_path = $user['avatar_path'];
+        if (empty($avatar_path)) {
+            $avatar_path = '/assets/logo.png';
+        } elseif (strpos($avatar_path, '../assets/') === 0) {
+            $avatar_path = str_replace('../assets/', '/assets/', $avatar_path);
+        } elseif (strpos($avatar_path, 'uploads/') === 0) {
+            $avatar_path = '/' . $avatar_path;
+        }
+        
+        return [
+            'id' => (int)$user['id'],
+            'username' => $user['username'],
+            'email' => $user['email'],
+            'avatar_path' => $avatar_path,
+            'primary_role_name' => $user['primary_role_name'] ?: 'Üye',
+            'primary_role_color' => $user['primary_role_color'] ?: '#bd912a'
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Sidebar user data error: " . $e->getMessage());
+        return null;
+    }
+}
 
 /**
  * Sepetteki gemileri hangara ekleme (has_lti ile LTI kontrolü)
