@@ -297,7 +297,6 @@
 .profile-role {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     font-size: 1rem;
     font-weight: 500;
     margin-bottom: 1.5rem;
@@ -383,47 +382,6 @@
     color: var(--light-grey);
     font-style: italic;
     margin: 0 0 1rem 0;
-}
-
-/* Roller */
-.user-roles {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.role-badge {
-    background: var(--card-bg-3);
-    border: 1px solid var(--border-1-featured);
-    color: var(--gold);
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 500;
-}
-
-/* Beceri Etiketleri */
-.skill-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.skill-tag {
-    background: var(--card-bg-4);
-    border: 1px solid var(--turquase);
-    color: var(--turquase);
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.skill-tag i {
-    font-size: 0.75rem;
 }
 
 /* İstatistik Kartları */

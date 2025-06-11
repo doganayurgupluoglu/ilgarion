@@ -264,9 +264,9 @@ function formatTimeAgo($datetime) {
                 </div>
                 
                 <div class="profile-info-section">
-                    <h1 class="profile-username"><?= htmlspecialchars($user_data['username']) ?></h1>
+                    <h1 class="profile-username" style="color: <?= htmlspecialchars($user_data['primary_role_color']) ?>"><?= htmlspecialchars($user_data['username']) ?></h1>
                     <div class="profile-role" style="color: <?= htmlspecialchars($user_data['primary_role_color']) ?>">
-                        <i class="fas fa-badge"></i> <?= htmlspecialchars($user_data['primary_role_name']) ?>
+                    <?= htmlspecialchars($user_data['primary_role_name']) ?>
                     </div>
                     
                     <div class="profile-details">
@@ -327,44 +327,6 @@ function formatTimeAgo($datetime) {
                         <p class="no-content">Henüz bir açıklama eklenmemiş.</p>
                         <a href="/profile/edit.php" class="btn btn-secondary btn-sm">
                             <i class="fas fa-plus"></i> Açıklama Ekle
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Roller -->
-            <div class="profile-section">
-                <h3 class="section-title">
-                    <i class="fas fa-users-cog"></i> Roller
-                </h3>
-                <div class="user-roles">
-                    <?php if (!empty($user_data['all_roles'])): ?>
-                        <?php $roles = explode(', ', $user_data['all_roles']); ?>
-                        <?php foreach ($roles as $role): ?>
-                            <span class="role-badge"><?= htmlspecialchars($role) ?></span>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <p class="no-content">Henüz rol atanmamış.</p>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Beceri Etiketleri -->
-            <div class="profile-section">
-                <h3 class="section-title">
-                    <i class="fas fa-tags"></i> Beceri Alanları
-                </h3>
-                <div class="skill-tags">
-                    <?php if (!empty($user_data['skill_tags'])): ?>
-                        <?php foreach ($user_data['skill_tags'] as $skill): ?>
-                            <span class="skill-tag">
-                                <i class="fas fa-star"></i> <?= htmlspecialchars($skill['tag_name']) ?>
-                            </span>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <p class="no-content">Henüz beceri alanı eklenmemiş.</p>
-                        <a href="/profile/edit.php" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-plus"></i> Beceri Ekle
                         </a>
                     <?php endif; ?>
                 </div>

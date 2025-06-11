@@ -121,7 +121,7 @@ if (empty($sidebar_avatar)) {
                     <i class="fas fa-images"></i>
                     <span>Galeri</span>
                 </a>
-                <a href="/loadouts/" class="quick-action-btn" title="Teçhizat">
+                <a href="/events/loadouts/" class="quick-action-btn" title="Teçhizat">
                     <i class="fas fa-cogs"></i>
                     <span>Teçhizat</span>
                 </a>

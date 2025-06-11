@@ -319,7 +319,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                              alt="<?= htmlspecialchars($user_data['username']) ?> Avatar" 
                              class="avatar-image">
                         <div class="avatar-info">
-                            <h4 class="avatar-username"><?= htmlspecialchars($user_data['username']) ?></h4>
+                            <h4 class="avatar-username" style="color: <?= htmlspecialchars($user_data['primary_role_color']) ?>"><?= htmlspecialchars($user_data['username']) ?></h4>
                             <div class="avatar-role" style="color: <?= htmlspecialchars($user_data['primary_role_color']) ?>">
                                 <i class="fas fa-badge"></i> <?= htmlspecialchars($user_data['primary_role_name']) ?>
                             </div>
