@@ -37,13 +37,6 @@ $sidebar_items = [
         'active' => $current_page === 'hangar'
     ],
     [
-        'id' => 'skills',
-        'title' => 'Beceri Alanları',
-        'icon' => 'fas fa-tags',
-        'url' => '/profile/skills.php',
-        'active' => $current_page === 'skills'
-    ],
-    [
         'id' => 'security',
         'title' => 'Güvenlik Ayarları',
         'icon' => 'fas fa-shield-alt',
