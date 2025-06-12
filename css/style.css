@@ -44,6 +44,7 @@ html {
     font-family: var(--font);
     color: white;
     height: 100%;
+    font-size: 16px;
 }
 body {
     padding-top: var(--navbar-height) !important; 
@@ -113,49 +114,6 @@ body {
     margin: 0 0.5rem;
     color: var(--light-grey);
 }
-.navbar-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    height: 100%;
-}
-.navbar-marka {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 25px;
-}
-.logo-img {
-    max-width: 60px;
-}
-.navbar-brand {
-    color: var(--light-gold);
-    font-size: 1.8rem;
-}
-
-.main-navbar {
-    height: 120px;
-    background-color: var(--black);
-    padding: 0 50px;
-    border-bottom: 1px solid var(--dark-gold-green-border);
-}
-.navbar-nav {
-    display: flex;
-    align-items: center;
-    justify-content: center;    
-    gap: 40px;
-    list-style-type: none;
-}
-.navbar-nav a {
-    font-size: 1.2rem;
-    color: var(--gold);
-    text-decoration: none;
-    transition: .4s all;
-}
-.navbar-nav a:hover {
-    color: var(--turquase);
-}
-
 .main-content {
     display: flex;
     align-items: center;

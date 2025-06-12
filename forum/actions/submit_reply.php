@@ -10,6 +10,13 @@ require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/forum_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+require_once BASE_PATH . '/htmlpurifier-4.15.0/library/HTMLPurifier.auto.php';
+
+// Setup HTML Purifier
+$config = HTMLPurifier_Config::createDefault();
+$config->set('HTML.SafeIframe', true); // Allow iframes
+$config->set('URI.SafeIframeRegexp', '%^(https?://)?(www\.youtube(?:-nocookie)?\.com/embed/)%'); // Allow YouTube iframes
+$purifier = new HTMLPurifier($config);
 
 header('Content-Type: application/json');
 
@@ -72,8 +79,11 @@ if (!has_permission($pdo, 'forum.topic.reply')) {
 }
 
 $topic_id = (int)($_POST['topic_id'] ?? 0);
-$content = trim($_POST['content'] ?? '');
+$dirty_content = trim($_POST['content'] ?? '');
 $add_dynamic = $_POST['add_dynamic'] ?? 'false'; // JS'den gelen dinamik ekleme isteği
+
+// Purify the user's HTML content before any other validation
+$content = $purifier->purify($dirty_content);
 
 // Input validation
 if (!$topic_id) {
@@ -110,29 +120,6 @@ if (strlen($content) > 10000) {
         'message' => 'Yanıt en fazla 10.000 karakter olabilir.'
     ]);
     exit;
-}
-
-/**
- * Avatar path'ini düzeltir
- */
-function fix_avatar_path($avatar_path) {
-    if (empty($avatar_path)) {
-        return '/assets/logo.png';
-    }
-    
-    if (strpos($avatar_path, '../assets/') === 0) {
-        return str_replace('../assets/', '/assets/', $avatar_path);
-    }
-    
-    if (strpos($avatar_path, '/uploads/') === 0) {
-        return '' . $avatar_path;
-    }
-    
-    if (strpos($avatar_path, '/assets/') === 0 || strpos($avatar_path, '') === 0) {
-        return $avatar_path;
-    }
-    
-    return '/assets/logo.png';
 }
 
 try {
@@ -249,20 +236,20 @@ try {
         // Audit log
         audit_log($pdo, $_SESSION['user_id'], 'forum_post_created', 'forum_post', $post_id, null, [
             'topic_id' => $topic_id,
-            'content_length' => strlen($content)
+            'post_id' => $post_id
         ]);
         
-        // Response verisi hazırla
-        $response = [
+        $response_data = [
             'success' => true,
             'message' => 'Yanıtınız başarıyla gönderildi.',
+            'last_page' => $last_page,
             'post_id' => $post_id,
-            'redirect_url' => 'topic.php?id=' . $topic_id . '&page=' . $last_page . '#post-' . $post_id
+            'redirect_url' => "/forum/topic.php?id={$topic_id}&page={$last_page}#post-{$post_id}"
         ];
         
-        // Dinamik ekleme için ek veriler
-        if ($add_dynamic === 'true' && $user_data) {
-            $response['post_data'] = [
+        // Eğer dinamik ekleme isteniyorsa, yeni post verisini gönder
+        if ($user_data) {
+            $response_data['post_data'] = [
                 'id' => $post_id,
                 'user_id' => $user_data['id'],
                 'username' => htmlspecialchars($user_data['username']),
@@ -270,39 +257,34 @@ try {
                 'role_name' => htmlspecialchars($user_data['role_name'] ?? 'Üye'),
                 'role_color' => $user_data['role_color'] ?? '#bd912a',
                 'join_date' => date('M Y', strtotime($user_data['created_at'])),
-                'content_html' => parse_bbcode($content),
-                'content_text' => htmlspecialchars(strip_tags($content)),
-                'created_at' => date('Y-m-d H:i:s')
+                'content_html' => $content, // Already purified HTML
+                'can_like' => true,
+                'can_edit' => true,
+                'can_delete' => true
             ];
         }
+
+        echo json_encode($response_data);
+        exit;
         
-        echo json_encode($response);
-        
-    } catch (Exception $e) {
+    } catch (PDOException $e) {
         $pdo->rollBack();
-        throw $e;
+        error_log("Database error in submit_reply.php: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Veritabanı hatası oluştu. Yanıt kaydedilemedi.'
+        ]);
+        exit;
     }
     
-} catch (SecurityException $e) {
-    error_log("Forum reply security violation: " . $e->getMessage());
-    http_response_code(403);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Güvenlik ihlali tespit edildi.'
-    ]);
-} catch (DatabaseException $e) {
-    error_log("Forum reply database error: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Veritabanı hatası oluştu.'
-    ]);
 } catch (Exception $e) {
-    error_log("Forum reply general error: " . $e->getMessage());
+    error_log("General error in submit_reply.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Beklenmeyen bir hata oluştu.'
+        'message' => 'Beklenmedik bir hata oluştu: ' . $e->getMessage()
     ]);
+    exit;
 }
 ?>

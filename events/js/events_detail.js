@@ -394,47 +394,59 @@ function handleParticipantApproval(event) {
 function handleParticipantRemoval(event) {
     const button = event.target.closest('.btn-remove');
     if (!button) return;
-    
+
     const participationId = button.getAttribute('data-participation-id');
-    
-    if (!confirm('Bu katılımcıyı etkinlikten kaldırmak istediğinizden emin misiniz?\n\nBu işlem geri alınamaz.')) {
+    const eventId = button.getAttribute('data-event-id');
+    const participantName = button.closest('.participant-card').querySelector('.participant-name').textContent.trim();
+
+    if (!participationId || !eventId) {
+        showErrorMessage('Gerekli katılım bilgileri eksik.');
         return;
     }
-    
+
+    if (!confirm(`${participantName} adlı katılımcıyı etkinlikten kaldırmak istediğinizden emin misiniz?`)) {
+        return;
+    }
+
     const formData = new FormData();
     formData.append('action', 'remove_participant');
     formData.append('participation_id', participationId);
-    formData.append('csrf_token', eventData.csrfToken);
-    
-    const originalContent = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    button.disabled = true;
-    
+    formData.append('event_id', eventId);
+    formData.append('csrf_token', window.eventData.csrfToken);
+
+    showLoadingState('Katılımcı kaldırılıyor...');
+
     fetch('actions/participate.php', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        hideLoadingState();
         if (data.success) {
             showSuccessMessage(data.message);
-            
-            // Katılımcıyı listeden kaldır
             const participantCard = button.closest('.participant-card');
             if (participantCard) {
-                removeParticipantFromList(participantCard);
+                participantCard.style.transition = 'opacity 0.5s ease';
+                participantCard.style.opacity = '0';
+                setTimeout(() => {
+                    participantCard.remove();
+                    updateParticipantCounts();
+                }, 500);
             }
         } else {
-            button.innerHTML = originalContent;
-            button.disabled = false;
-            showErrorMessage(data.message || 'Kaldırma sırasında bir hata oluştu.');
+            showErrorMessage(data.message || 'Katılımcı kaldırılamadı.');
         }
     })
     .catch(error => {
-        button.innerHTML = originalContent;
-        button.disabled = false;
-        console.error('Remove participant error:', error);
-        showErrorMessage('Bağlantı hatası oluştu.');
+        hideLoadingState();
+        console.error('Participant removal error:', error);
+        showErrorMessage('Bağlantı hatası veya sunucu tarafında bir sorun oluştu.');
     });
 }
 

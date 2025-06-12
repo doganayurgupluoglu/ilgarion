@@ -12,7 +12,7 @@ require_once BASE_PATH . '/src/functions/enhanced_role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_events_role_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 require_once BASE_PATH . '/src/functions/webhook_functions.php';
-require_once BASE_PATH . '/src/functions/Parsedown.php'; // Markdown parser
+require_once BASE_PATH . '/htmlpurifier-4.15.0/library/HTMLPurifier.auto.php';
 
 // Events layout system include
 require_once 'includes/events_layout.php';
@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Form verilerini al ve temizle
     $event_title = trim($_POST['event_title'] ?? '');
-    $event_description = trim($_POST['event_description'] ?? '');
+    $event_description = $_POST['event_description'] ?? '';
     $event_date = trim($_POST['event_date'] ?? '');
     $event_location = trim($_POST['event_location'] ?? '');
     $visibility = $_POST['visibility'] ?? 'public';
@@ -98,6 +98,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Status belirleme
     $status = ($action === 'draft') ? 'draft' : 'published';
     
+    // HTML Purifier ile açıklamayı temizle
+    $config = HTMLPurifier_Config::createDefault();
+    $cache_path = BASE_PATH . '/htmlpurifier-4.15.0/cache';
+    if (!is_dir($cache_path)) {
+        mkdir($cache_path, 0755, true);
+    }
+    $config->set('Cache.SerializerPath', $cache_path);
+    $config->set('HTML.SafeIframe', true);
+    $config->set('URI.SafeIframeRegexp', '%^(https?://)?(www\.)?(youtube\.com/embed/|youtube-nocookie\.com/embed/)%');
+    $config->set('HTML.Allowed', 'h1,h2,h3,h4,h5,h6,b,strong,i,em,u,a[href|title],ul,ol,li,p[style],br,span[style],img[style|width|height|alt|src],iframe[src|width|height|frameborder|allow|allowfullscreen|title]');
+    $config->set('CSS.AllowedProperties', 'text-align,color,max-width,height,display,border-radius');
+    $purifier = new HTMLPurifier($config);
+    $clean_event_description = $purifier->purify($event_description);
+    
     // Validasyon
     $errors = [];
     
@@ -105,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Etkinlik başlığı zorunludur.";
     }
     
-    if (empty($event_description)) {
+    if (empty($clean_event_description)) {
         $errors[] = "Etkinlik açıklaması zorunludur.";
     }
     
@@ -173,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $stmt->execute([
                     ':title' => $event_title,
-                    ':description' => $event_description,
+                    ':description' => $clean_event_description,
                     ':date' => $event_date,
                     ':location' => $event_location,
                     ':thumbnail' => $thumbnail_path,
@@ -199,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([
                     ':user_id' => $current_user_id,
                     ':title' => $event_title,
-                    ':description' => $event_description,
+                    ':description' => $clean_event_description,
                     ':date' => $event_date,
                     ':location' => $event_location,
                     ':thumbnail' => $thumbnail_path,
@@ -396,94 +410,13 @@ function handleThumbnailUpload($file) {
 
             <div class="form-row">
                 <div class="form-group full-width">
-                    <label for="event_description">Etkinlik Açıklaması * <span class="markdown-indicator">Markdown Destekli</span></label>
-                    <div class="markdown-editor">
-                        <div class="editor-tabs">
-                            <button type="button" class="tab-button active" data-tab="editor">
-                                <i class="fas fa-edit"></i> Düzenle
-                            </button>
-                            <button type="button" class="tab-button" data-tab="preview">
-                                <i class="fas fa-eye"></i> Önizleme
-                            </button>
-                        </div>
-                        
-                        <div class="editor-toolbar">
-                            <button type="button" class="toolbar-btn" data-action="bold" title="Kalın (Ctrl+B)">
-                                <i class="fas fa-bold"></i>
-                            </button>
-                            <button type="button" class="toolbar-btn" data-action="italic" title="İtalik (Ctrl+I)">
-                                <i class="fas fa-italic"></i>
-                            </button>
-                            <button type="button" class="toolbar-btn" data-action="strikethrough" title="Üstü Çizili">
-                                <i class="fas fa-strikethrough"></i>
-                            </button>
-                            <div class="toolbar-separator"></div>
-                            <button type="button" class="toolbar-btn" data-action="heading" title="Başlık">
-                                <i class="fas fa-heading"></i>
-                            </button>
-                            <button type="button" class="toolbar-btn" data-action="quote" title="Alıntı">
-                                <i class="fas fa-quote-right"></i>
-                            </button>
-                            <button type="button" class="toolbar-btn" data-action="code" title="Kod">
-                                <i class="fas fa-code"></i>
-                            </button>
-                            <div class="toolbar-separator"></div>
-                            <button type="button" class="toolbar-btn" data-action="list-ul" title="Madde İşaretli Liste">
-                                <i class="fas fa-list-ul"></i>
-                            </button>
-                            <button type="button" class="toolbar-btn" data-action="list-ol" title="Numaralı Liste">
-                                <i class="fas fa-list-ol"></i>
-                            </button>
-                            <button type="button" class="toolbar-btn" data-action="link" title="Bağlantı">
-                                <i class="fas fa-link"></i>
-                            </button>
-                            <button type="button" class="toolbar-btn" data-action="image" title="Resim URL'si">
-                                <i class="fas fa-image"></i>
-                            </button>
-                            <button type="button" class="toolbar-btn" data-action="image-upload" title="Resim Yükle">
-                                <i class="fas fa-upload"></i>
-                            </button>
-                        </div>
-                        
-                        <div class="editor-content">
-                            <div class="tab-content active" id="editor-tab">
-                                <textarea id="event_description" 
-                                          name="event_description" 
-                                          required
-                                          class="markdown-textarea"
-                                          placeholder="Etkinliğinizin detaylarını markdown formatında yazın...
-
-Örnek kullanım:
-# Ana Başlık
-## Alt Başlık
-
-**Kalın metin** ve *italik metin*
-
-- Madde işaretli liste
-- İkinci madde
-
-1. Numaralı liste
-2. İkinci madde
-
-> Alıntı metni
-
-`Kod örneği`
-
-[Bağlantı metni](https://example.com)
-
-![Resim açıklaması](https://example.com/resim.jpg)
-
-💡 İpucu: Toolbar'daki 📤 butonunu kullanarak resim yükleyebilirsiniz!"><?= $edit_mode ? htmlspecialchars($event_data['event_description']) : '' ?></textarea>
-                            </div>
-                            
-                            <div class="tab-content" id="preview-tab">
-                                <div class="markdown-preview">
-                                    <p class="preview-placeholder">Önizleme için açıklama yazın...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <small>Markdown formatını kullanarak zengin metin oluşturabilirsiniz</small>
+                    <label for="event_description">Etkinlik Açıklaması *</label>
+                    <?php
+                        $textarea_name = 'event_description';
+                        $initial_content = $edit_mode ? $event_data['event_description'] : '';
+                        include BASE_PATH . '/editor/wysiwyg_editor.php';
+                    ?>
+                    <small>WYSIWYG editörünü kullanarak zengin metin oluşturabilirsiniz</small>
                 </div>
             </div>
         </div>

@@ -43,119 +43,133 @@ $can_edit_all = $is_logged_in && has_permission($pdo, 'event.edit_all');
 $can_delete_all = $is_logged_in && has_permission($pdo, 'event.delete_all');
 $can_view_all = $is_logged_in && has_permission($pdo, 'event.view_all');
 
+// Etkinlikleri ve sayfa sayısını tutacak değişkenler
+$upcoming_events = [];
+$past_events = [];
+$total_count = 0;
+$total_pages = 0;
+$is_filtering = !empty($status) || !empty($search) || $filter !== 'all';
+
 // MEVCUT VERITABANI YAPISINA GÖRE etkinlikleri listele
 try {
-    // Temel WHERE koşulları
-    $where_parts = [];
-    $bind_params = [];
-    
-    // Görünürlük kontrolü
-    if (!$is_logged_in) {
-        // Giriş yapmayan kullanıcılar sadece public etkinlikleri görebilir
-        $where_parts[] = "e.visibility = 'public'";
-    } else if (!$can_view_all) {
-        // Normal kullanıcılar public ve members_only görebilir
-        $where_parts[] = "(e.visibility = 'public' OR e.visibility = 'members_only')";
-    }
-    // Admin/moderatörler tüm etkinlikleri görebilir (where koşulu eklenmez)
-    
-    // Status filtresi
-    if (!empty($status)) {
-        $where_parts[] = "e.status = ?";
-        $bind_params[] = $status;
+    $select_fields = "e.id, e.event_title, e.event_description, e.event_thumbnail_path,
+           e.event_location, e.event_date, e.visibility, e.status, 
+           e.created_at, e.created_by_user_id,
+           u.username as creator_username,
+           u.ingame_name as creator_ingame_name,
+           (SELECT r.color FROM user_roles ur 
+            JOIN roles r ON ur.role_id = r.id 
+            WHERE ur.user_id = u.id 
+            ORDER BY r.priority ASC LIMIT 1) as creator_role_color,
+           (SELECT COUNT(*) FROM event_participations ep 
+            WHERE ep.event_id = e.id AND ep.participation_status = 'confirmed') as confirmed_participants,
+           (SELECT COUNT(*) FROM event_participations ep 
+            WHERE ep.event_id = e.id) as total_participants";
+
+    if ($is_filtering) {
+        // FİLTRELİ GÖRÜNÜM LOGİĞİ
+        $where_parts = [];
+        $bind_params = [];
+        
+        // Görünürlük
+        if (!$is_logged_in) {
+            $where_parts[] = "e.visibility = 'public'";
+        } else if (!$can_view_all) {
+            $where_parts[] = "(e.visibility = 'public' OR e.visibility = 'members_only')";
+        }
+        
+        // Status filtresi
+        if (!empty($status)) {
+            $where_parts[] = "e.status = ?";
+            $bind_params[] = $status;
+        } else {
+            $where_parts[] = "e.status != 'draft'";
+        }
+        
+        // Arama filtresi
+        if (!empty($search)) {
+            $where_parts[] = "(e.event_title LIKE ? OR e.event_description LIKE ? OR e.event_location LIKE ?)";
+            $search_term = '%' . $search . '%';
+            array_push($bind_params, $search_term, $search_term, $search_term);
+        }
+        
+        // "My events" filtresi
+        if ($is_logged_in && $filter === 'my_events') {
+            $where_parts[] = "e.created_by_user_id = ?";
+            $bind_params[] = $current_user_id;
+        }
+        
+        $where_clause = !empty($where_parts) ? "WHERE " . implode(" AND ", $where_parts) : "";
+        
+        // Count sorgusu
+        $count_sql = "SELECT COUNT(DISTINCT e.id) FROM events e $where_clause";
+        $count_stmt = $pdo->prepare($count_sql);
+        $count_stmt->execute($bind_params);
+        $total_count = $count_stmt->fetchColumn();
+
+        // Sıralama
+        $order_clause = "ORDER BY e.event_date DESC"; // Varsayılan
+        // Sıralama mantığı burada kalabilir...
+
+        // Ana veri sorgusu
+        $sql = "SELECT $select_fields FROM events e LEFT JOIN users u ON e.created_by_user_id = u.id $where_clause $order_clause LIMIT ? OFFSET ?";
+        $stmt = $pdo->prepare($sql);
+        $all_params = array_merge($bind_params, [$per_page, $offset]);
+        $stmt->execute($all_params);
+        $upcoming_events = $stmt->fetchAll(PDO::FETCH_ASSOC); // Filtrelendiğinde tüm sonuçlar "upcoming" olarak kabul edilir
+
     } else {
-        // Sadece yayınlanmış etkinlikleri göster (draft hariç)
-        $where_parts[] = "e.status != 'draft'";
+        // VARSAYILAN (FİLTRESİZ) GÖRÜNÜM LOGİĞİ
+
+        // 1. Yaklaşan etkinlikleri al (sayfalamalı)
+        $upcoming_where_parts = ["(e.event_date >= NOW() AND e.status = 'published')"];
+        $upcoming_bind_params = [];
+
+        if (!$is_logged_in) {
+            $upcoming_where_parts[] = "e.visibility = 'public'";
+        } elseif (!$can_view_all) {
+            $upcoming_where_parts[] = "(e.visibility = 'public' OR e.visibility = 'members_only')";
+        }
+
+        $upcoming_where_clause = "WHERE " . implode(" AND ", $upcoming_where_parts);
+        
+        $upcoming_count_sql = "SELECT COUNT(DISTINCT e.id) FROM events e $upcoming_where_clause";
+        $upcoming_count_stmt = $pdo->prepare($upcoming_count_sql);
+        $upcoming_count_stmt->execute($upcoming_bind_params);
+        $total_count = $upcoming_count_stmt->fetchColumn();
+
+        $upcoming_sql = "SELECT $select_fields FROM events e LEFT JOIN users u ON e.created_by_user_id = u.id $upcoming_where_clause ORDER BY e.event_date ASC LIMIT ? OFFSET ?";
+        $upcoming_stmt = $pdo->prepare($upcoming_sql);
+        $upcoming_all_params = array_merge($upcoming_bind_params, [$per_page, $offset]);
+        $upcoming_stmt->execute($upcoming_all_params);
+        $upcoming_events = $upcoming_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 2. Geçmiş etkinlikleri al (sayfalamasız)
+        $past_where_parts = ["(e.event_date < NOW() OR e.status IN ('completed', 'cancelled'))", "e.status != 'draft'"];
+        $past_bind_params = [];
+
+        if (!$is_logged_in) {
+            $past_where_parts[] = "e.visibility = 'public'";
+        } elseif (!$can_view_all) {
+            $past_where_parts[] = "(e.visibility = 'public' OR e.visibility = 'members_only')";
+        }
+        
+        $past_where_clause = "WHERE " . implode(" AND ", $past_where_parts);
+
+        $past_sql = "SELECT $select_fields FROM events e LEFT JOIN users u ON e.created_by_user_id = u.id $past_where_clause ORDER BY e.event_date DESC";
+        $past_stmt = $pdo->prepare($past_sql);
+        $past_stmt->execute($past_bind_params);
+        $past_events = $past_stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
-    // Arama filtresi
-    if (!empty($search)) {
-        $where_parts[] = "(e.event_title LIKE ? OR e.event_description LIKE ? OR e.event_location LIKE ?)";
-        $search_term = '%' . $search . '%';
-        $bind_params[] = $search_term;
-        $bind_params[] = $search_term;
-        $bind_params[] = $search_term;
-    }
-    
-    // My events filtresi
-    if ($is_logged_in && $filter === 'my_events') {
-        $where_parts[] = "e.created_by_user_id = ?";
-        $bind_params[] = $current_user_id;
-    }
-    
-    $where_clause = !empty($where_parts) ? "WHERE " . implode(" AND ", $where_parts) : "";
-    
-    // Sıralama
-    $order_clause = "ORDER BY e.event_date DESC";
-    switch ($sort) {
-        case 'date_asc':
-            $order_clause = "ORDER BY e.event_date ASC";
-            break;
-        case 'date_desc':
-            $order_clause = "ORDER BY e.event_date DESC";
-            break;
-        case 'title':
-            $order_clause = "ORDER BY e.event_title ASC";
-            break;
-        case 'newest':
-            $order_clause = "ORDER BY e.created_at DESC";
-            break;
-        case 'oldest':
-            $order_clause = "ORDER BY e.created_at ASC";
-            break;
-        default:
-            $order_clause = "ORDER BY e.event_date DESC";
-            break;
-    }
-    
-    // COUNT sorgusu
-    $count_sql = "
-        SELECT COUNT(DISTINCT e.id)
-        FROM events e
-        LEFT JOIN users u ON e.created_by_user_id = u.id
-        $where_clause
-    ";
-    
-    $count_stmt = $pdo->prepare($count_sql);
-    $count_stmt->execute($bind_params);
-    $total_count = $count_stmt->fetchColumn();
-    
-    // Ana veri sorgusu
-    $sql = "
-        SELECT e.id, e.event_title, e.event_description, e.event_thumbnail_path,
-               e.event_location, e.event_date, e.visibility, e.status, 
-               e.created_at, e.created_by_user_id,
-               u.username as creator_username,
-               u.ingame_name as creator_ingame_name,
-               (SELECT r.color FROM user_roles ur 
-                JOIN roles r ON ur.role_id = r.id 
-                WHERE ur.user_id = u.id 
-                ORDER BY r.priority ASC LIMIT 1) as creator_role_color,
-               (SELECT COUNT(*) FROM event_participations ep 
-                WHERE ep.event_id = e.id AND ep.participation_status = 'confirmed') as confirmed_participants,
-               (SELECT COUNT(*) FROM event_participations ep 
-                WHERE ep.event_id = e.id) as total_participants
-        FROM events e
-        LEFT JOIN users u ON e.created_by_user_id = u.id
-        $where_clause
-        $order_clause
-        LIMIT ? OFFSET ?
-    ";
-    
-    $stmt = $pdo->prepare($sql);
-    
-    // Parametreleri ekle
-    $all_params = array_merge($bind_params, [$per_page, $offset]);
-    $stmt->execute($all_params);
-    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Sayfalama hesaplamaları
+    // Sayfalama hesaplamaları (her iki durum için de $total_count kullanılır)
     $total_pages = ceil($total_count / $per_page);
     
 } catch (PDOException $e) {
     error_log("Events index error: " . $e->getMessage());
     $_SESSION['error_message'] = "Etkinlikler yüklenirken bir hata oluştu.";
-    $events = [];
+    $upcoming_events = [];
+    $past_events = [];
     $total_count = 0;
     $total_pages = 0;
 }
@@ -304,7 +318,7 @@ events_layout_start($breadcrumb_items, $page_title);
                 } elseif (!empty($status)) {
                     echo ucfirst($status) . " Etkinlikler";
                 } else {
-                    echo "Tüm Etkinlikler";
+                    echo "Yaklaşan Etkinlikler";
                 }
                 ?>
             </h2>
@@ -313,28 +327,34 @@ events_layout_start($breadcrumb_items, $page_title);
             </div>
         </div>
 
-        <?php if (empty($events)): ?>
+        <?php if (empty($upcoming_events)): ?>
             <div class="empty-events">
                 <i class="fas fa-calendar-times"></i>
-                <h3>Etkinlik Bulunamadı</h3>
+                <h3>
+                    <?php if ($is_filtering): ?>
+                        Etkinlik Bulunamadı
+                    <?php else: ?>
+                        Yaklaşan Etkinlik Bulunamadı
+                    <?php endif; ?>
+                </h3>
                 <p>
-                    <?php if (!empty($search) || !empty($status) || $filter !== 'all'): ?>
+                    <?php if ($is_filtering): ?>
                         Arama kriterlerinize uygun etkinlik bulunamadı. Filtreleri değiştirmeyi deneyin.
                     <?php else: ?>
-                        Henüz hiç etkinlik oluşturulmamış.
+                        Görünüşe göre ufukta yeni bir etkinlik yok.
                     <?php endif; ?>
                 </p>
                 <?php if ($can_create_event): ?>
                     <a href="create.php" class="btn-action-primary">
                         <i class="fas fa-plus"></i>
-                        İlk Etkinliği Oluştur
+                        Yeni Etkinlik Oluştur
                     </a>
                 <?php endif; ?>
             </div>
         <?php else: ?>
             <!-- Events Grid -->
             <div class="events-grid">
-                <?php foreach ($events as $event): ?>
+                <?php foreach ($upcoming_events as $event): ?>
                     <div class="event-card" data-event-id="<?= $event['id'] ?>">
                         <!-- Event Thumbnail -->
                         <div class="event-thumbnail">
@@ -348,16 +368,28 @@ events_layout_start($breadcrumb_items, $page_title);
                             <?php endif; ?>
                             
                             <!-- Status Badge -->
-                            <span class="status-badge status-<?= $event['status'] ?>">
-                                <?php
-                                switch($event['status']) {
-                                    case 'published': echo 'Aktif'; break;
-                                    case 'draft': echo 'Taslak'; break;
-                                    case 'cancelled': echo 'İptal'; break;
-                                    case 'completed': echo 'Tamamlandı'; break;
-                                    default: echo ucfirst($event['status']);
+                            <?php
+                                $event_date_obj = new DateTime($event['event_date']);
+                                $now = new DateTime();
+                                
+                                $status_text = '';
+                                $status_class = $event['status'];
+
+                                if ($status_class == 'cancelled') {
+                                    $status_text = 'İptal';
+                                } elseif ($status_class == 'completed') {
+                                    $status_text = 'Tamamlandı';
+                                } elseif ($event_date_obj < $now && $status_class == 'published') {
+                                    $status_text = 'Geçmiş';
+                                    $status_class = 'past';
+                                } elseif ($status_class == 'published') {
+                                    $status_text = 'Aktif';
+                                } else {
+                                    $status_text = ucfirst($status_class);
                                 }
-                                ?>
+                            ?>
+                            <span class="status-badge status-<?= htmlspecialchars($status_class) ?>">
+                                <?= htmlspecialchars($status_text) ?>
                             </span>
                             
                             <!-- Visibility Badge -->
@@ -428,7 +460,12 @@ events_layout_start($breadcrumb_items, $page_title);
                                 </a>
                                 
                                 <?php if ($is_logged_in): ?>
-                                    <?php if ($event['status'] === 'published'): ?>
+                                    <?php
+                                        $event_date_obj = new DateTime($event['event_date']);
+                                        $now = new DateTime();
+                                        $is_active_for_participation = $event_date_obj >= $now && $event['status'] === 'published';
+                                    ?>
+                                    <?php if ($is_active_for_participation): ?>
                                         <button type="button" class="btn-event-secondary participate-btn" 
                                                 data-event-id="<?= $event['id'] ?>">
                                             <i class="fas fa-hand-paper"></i>
@@ -450,6 +487,137 @@ events_layout_start($breadcrumb_items, $page_title);
             </div>
         <?php endif; ?>
     </div>
+
+    <!-- Geçmiş Etkinlikler Akordiyonu -->
+    <?php if (!$is_filtering && !empty($past_events)): ?>
+    <div class="past-events-accordion">
+        <div class="accordion" id="pastEventsAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingPast">
+                    <button class="accordion-button" type="button" id="past-events-toggle">
+                        <span>
+                            <i class="fas fa-history"></i>
+                            Geçmiş Etkinlikler (<?= count($past_events) ?>)
+                        </span>
+                        <i class="fas fa-chevron-down arrow-icon"></i>
+                    </button>
+                </h2>
+                <div id="collapsePast" class="accordion-collapse">
+                    <div class="accordion-body">
+                        <div class="events-grid">
+                            <?php foreach ($past_events as $event): ?>
+                                <div class="event-card" data-event-id="<?= $event['id'] ?>">
+                                    <!-- Event Thumbnail -->
+                                    <div class="event-thumbnail">
+                                        <?php if (!empty($event['event_thumbnail_path'])): ?>
+                                            <img src="<?= htmlspecialchars($event['event_thumbnail_path']) ?>" 
+                                                 alt="<?= htmlspecialchars($event['event_title']) ?>">
+                                        <?php else: ?>
+                                            <div class="default-thumbnail">
+                                                <i class="fas fa-calendar-alt"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Status Badge -->
+                                        <?php
+                                            $event_date_obj = new DateTime($event['event_date']);
+                                            $now = new DateTime();
+                                            
+                                            $status_text = '';
+                                            $status_class = $event['status'];
+
+                                            if ($status_class == 'cancelled') {
+                                                $status_text = 'İptal';
+                                            } elseif ($status_class == 'completed') {
+                                                $status_text = 'Tamamlandı';
+                                            } elseif ($event_date_obj < $now) {
+                                                $status_text = 'Geçmiş';
+                                                $status_class = 'past';
+                                            } else {
+                                                $status_text = ucfirst($status_class);
+                                            }
+                                        ?>
+                                        <span class="status-badge status-<?= htmlspecialchars($status_class) ?>">
+                                            <?= htmlspecialchars($status_text) ?>
+                                        </span>
+                                        
+                                        <!-- Visibility Badge -->
+                                        <?php if ($event['visibility'] !== 'public'): ?>
+                                            <span class="visibility-badge">
+                                                <i class="fas fa-<?= $event['visibility'] === 'members_only' ? 'users' : 'lock' ?>"></i>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Event Content -->
+                                    <div class="event-content">
+                                        <h3 class="event-title">
+                                            <a href="detail.php?id=<?= $event['id'] ?>">
+                                                <?= htmlspecialchars($event['event_title']) ?>
+                                            </a>
+                                        </h3>
+                                        
+                                        <p class="event-description">
+                                            <?= htmlspecialchars(mb_substr($event['event_description'], 0, 120)) ?>
+                                            <?= mb_strlen($event['event_description']) > 120 ? '...' : '' ?>
+                                        </p>
+
+                                        <!-- Event Meta -->
+                                        <div class="event-meta">
+                                            <div class="event-date">
+                                                <i class="fas fa-calendar"></i>
+                                                <span><?= date('d.m.Y H:i', strtotime($event['event_date'])) ?></span>
+                                            </div>
+                                            
+                                            <?php if (!empty($event['event_location'])): ?>
+                                                <div class="event-location">
+                                                    <i class="fas fa-map-marker-alt"></i>
+                                                    <span><?= htmlspecialchars($event['event_location']) ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                            
+                                            <div class="event-participants">
+                                                <i class="fas fa-users"></i>
+                                                <span><?= $event['confirmed_participants'] ?> katılımcı</span>
+                                                <?php if ($event['total_participants'] > $event['confirmed_participants']): ?>
+                                                    <small>(<?= $event['total_participants'] - $event['confirmed_participants'] ?> beklemede)</small>
+                                                <?php endif; ?>
+                                            </div>
+                                            
+                                            <div class="event-creator">
+                                                <i class="fas fa-user"></i>
+                                                <span>Oluşturan: </span>
+                                                <?php if ($is_logged_in): ?>
+                                                    <span class="user-link" 
+                                                          data-user-id="<?= $event['created_by_user_id'] ?>"
+                                                          style="color: <?= htmlspecialchars($event['creator_role_color'] ?? '#bd912a') ?>; cursor: pointer; font-weight: 500;">
+                                                        <?= htmlspecialchars($event['creator_username'] ?? 'Bilinmeyen') ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span style="color: #bd912a; font-weight: 500;">
+                                                        <?= htmlspecialchars($event['creator_username'] ?? 'Bilinmeyen') ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+
+                                        <!-- Event Actions -->
+                                        <div class="event-actions">
+                                            <a href="detail.php?id=<?= $event['id'] ?>" class="btn-event-primary">
+                                                <i class="fas fa-eye"></i>
+                                                Detayları Gör
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Sayfalama -->
     <?php if ($total_pages > 1): ?>
@@ -534,6 +702,22 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('filtersForm').submit();
         }
     });
+
+    // Custom Accordion Logic
+    const pastEventsToggle = document.getElementById('past-events-toggle');
+    if (pastEventsToggle) {
+        const content = document.getElementById('collapsePast');
+        
+        pastEventsToggle.addEventListener('click', function() {
+            this.classList.toggle('active');
+            
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+            }
+        });
+    }
 });
 </script>
 

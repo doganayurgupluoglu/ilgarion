@@ -1,0 +1,517 @@
+/* =================================
+   Modern Navbar Stilleri
+   ================================= */
+   .main-navbar {
+    height: var(--navbar-height, 70px);
+    background-color: rgba(22, 20, 18, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 0 2rem;
+    border-bottom: 1px solid var(--border-1);
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+    z-index: 1050;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.main-navbar.scrolled {
+    background-color: rgba(29, 26, 24, 0.11);
+    border-bottom: 1px solid var(--border-1-hover);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.navbar-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* =================================
+   Sol Taraf: Logo ve Marka
+   ================================= */
+.navbar-left {
+    flex: 0 0 auto;
+    min-width: 200px;
+}
+
+.navbar-brand-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    padding: 0.5rem 0;
+    transition: transform 0.2s ease;
+}
+
+.logo-img {
+    height: 70px;
+    width: auto;
+    transition: filter 0.3s ease;
+}
+
+.navbar-brand-link:hover .logo-img {
+    filter: drop-shadow(0 0 8px rgba(184, 132, 92, 0.3));
+}
+
+.navbar-brand-text {
+    color: var(--gold);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-family: var(--font);
+}
+
+/* =================================
+   Orta: Navigasyon Linkleri
+   ================================= */
+.navbar-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    max-width: 600px;
+}
+
+.navbar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-item {
+    position: relative;
+}
+
+.nav-link {
+    font-size: 0.80rem;
+    font-weight: 500;
+    color: var(--lighter-grey, #b3b3b3);
+    text-decoration: none;
+    padding: 10px 5px;
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-link:hover, .nav-link.active {
+    color: var(--light-gold, #C69653);
+}
+
+.nav-link.active {
+    color: var(--gold, #b8845c);
+}
+
+.nav-link i {
+    font-size: .85rem;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover i {
+    color: var(--gold);
+}
+
+/* =================================
+   Sağ Taraf: Auth ve Kullanıcı Aksiyonları
+   ================================= */
+.navbar-right {
+    flex: 0 0 auto;
+    min-width: 200px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.auth-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* =================================
+   Butonlar
+   ================================= */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-nav-primary {
+    background-color: var(--gold);
+    color: var(--charcoal);
+    border-color: var(--gold);
+}
+
+.btn-nav-primary:hover {
+    background-color: var(--light-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(184, 132, 92, 0.3);
+}
+
+.btn-nav-secondary {
+    background-color: transparent;
+    color: var(--gold);
+    border-color: var(--border-1-hover);
+}
+
+.btn-nav-secondary:hover {
+    background-color: var(--card-bg-2);
+    border-color: var(--gold);
+    transform: translateY(-1px);
+}
+
+/* =================================
+   Dropdown Genel Stilleri
+   ================================= */
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 0.5rem;
+    min-width: 280px;
+    z-index: 1100;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.dropdown-toggle {
+    position: relative;
+}
+
+.dropdown-toggle .fa-caret-down {
+    font-size: 0.8rem;
+    margin-left: 0.25rem;
+    transition: transform 0.3s ease;
+}
+
+.dropdown-toggle:hover .fa-caret-down {
+    transform: rotate(180deg);
+}
+
+.dropdown-divider {
+    height: 1px;
+    background-color: var(--border-1);
+    margin: 0.5rem 0;
+}
+
+.dropdown-header {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    color: var(--light-grey);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.75px;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    color: var(--lighter-grey);
+    font-size: 0.9rem;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.dropdown-item:hover {
+    background-color: var(--card-bg-2);
+    color: var(--white);
+    transform: translateX(4px);
+}
+
+.dropdown-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--gold);
+    transition: transform 0.2s ease;
+}
+
+.dropdown-item:hover i {
+    transform: scale(1.1);
+}
+
+/* =================================
+   Create Dropdown
+   ================================= */
+.create-dropdown {
+    right: auto;
+    left: 0;
+}
+
+/* =================================
+   Notification Dropdown
+   ================================= */
+.notification-bell {
+    font-size: 1.1rem;
+    position: relative;
+    padding: 0.75rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.notification-bell:hover {
+    background-color: var(--card-bg-2);
+    color: var(--gold);
+}
+
+.notification-count {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background-color: var(--red);
+    color: var(--white);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    border: 2px solid var(--card-bg);
+}
+
+.notification-menu {
+    min-width: 320px;
+}
+
+.notification-header {
+    padding: 1rem;
+    background-color: var(--card-bg-4);
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    color: var(--white);
+    border-bottom: 1px solid var(--border-1);
+}
+
+.notification-footer {
+    padding: 0.75rem 1rem;
+    text-align: center;
+    background-color: var(--card-bg-4);
+
+    border-top: 1px solid var(--border-1);
+}
+
+.notification-footer a {
+    color: var(--gold);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.notification-footer a:hover {
+    color: var(--light-gold);
+}
+
+.notification-item {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-1);
+    transition: background-color 0.2s ease;
+}
+
+.notification-item:hover {
+    background-color: var(--card-bg-2);
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-item p {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.9rem;
+    color: var(--lighter-grey);
+}
+
+.notification-item small {
+    color: var(--light-grey);
+    font-size: 0.8rem;
+}
+
+/* =================================
+   Profile Dropdown
+   ================================= */
+.profile-avatar-sm {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+    transition: all 0.3s ease;
+}
+
+.profile-avatar-link {
+    padding: 0.25rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.profile-avatar-link:hover {
+    background-color: var(--card-bg-2);
+}
+
+.profile-avatar-link:hover .profile-avatar-sm {
+    border-color: var(--light-gold);
+    transform: scale(1.05);
+}
+
+.profile-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1rem;
+    background-color: var(--card-bg-4);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.profile-avatar-md {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+}
+
+.profile-dropdown-userinfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.profile-dropdown-userinfo .username {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.profile-dropdown-userinfo .view-profile-link {
+    font-size: 0.8rem;
+    color: var(--gold);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.profile-dropdown-userinfo .view-profile-link:hover {
+    color: var(--gold);
+}
+
+.dropdown-section {
+    margin: 0.5rem 0;
+}
+
+/* Logout link */
+.profile-menu-dropdown .logout-link {
+    color: var(--red);
+    margin-top: 0.5rem;
+}
+
+.profile-menu-dropdown .logout-link i {
+    color: var(--red);
+}
+
+.profile-menu-dropdown .logout-link:hover {
+    background-color: rgba(235, 0, 0, 0.1);
+}
+
+/* =================================
+   Responsive Design
+   ================================= */
+@media (max-width: 1200px) {
+    .navbar-nav {
+        gap: 1.5rem;
+    }
+    
+    .nav-link {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .main-navbar {
+        padding: 0 1.5rem;
+    }
+    
+    .navbar-nav {
+        gap: 1rem;
+    }
+    
+    .nav-link span {
+        display: none;
+    }
+    
+    .nav-link {
+        padding: 0.75rem;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        justify-content: center;
+    }
+    
+    .nav-link i {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-navbar {
+        padding: 0 1rem;
+    }
+    
+    .navbar-brand-text {
+        display: none;
+    }
+    
+    .navbar-nav {
+        gap: 0.5rem;
+    }
+    
+    .dropdown-menu {
+        min-width: 240px;
+        right: -20px;
+    }
+}

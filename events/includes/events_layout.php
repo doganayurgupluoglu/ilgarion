@@ -100,7 +100,7 @@ function can_access_events_section($section) {
         case 'loadouts':
             return true; // Teçhizat setlerini herkes görebilir
         case 'roles':
-            return is_user_approved(); // Roller için onaylı üye gerekli
+            return true; // Rolleri artık herkes görebilir
         default:
             return false;
     }

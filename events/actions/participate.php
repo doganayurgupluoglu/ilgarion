@@ -8,6 +8,7 @@ if (session_status() == PHP_SESSION_NONE) {
 require_once '../../src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+require_once BASE_PATH . '/src/functions/role_functions.php';
 
 // JSON response fonksiyonu
 function send_json_response($success = false, $message = '', $data = null, $status_code = 200) {
@@ -96,7 +97,7 @@ function handle_join_role() {
                ers.id as slot_id, ers.slot_count, ers.role_id,
                er.role_name,
                (SELECT COUNT(*) FROM event_participations ep2 
-                WHERE ep2.role_slot_id = ers.id AND ep2.participation_status = 'confirmed') as current_participants
+                WHERE ep2.role_slot_id = ers.id AND ep2.participation_status IN ('confirmed', 'maybe')) as current_participants
         FROM events e
         JOIN event_role_slots ers ON e.id = ers.event_id
         JOIN event_roles er ON ers.role_id = er.id
@@ -362,45 +363,67 @@ function handle_approve_participant() {
 // Katılımcıyı kaldırma (organize edenler için)
 function handle_remove_participant() {
     global $pdo, $current_user_id;
-    
+
     $participation_id = (int)($_POST['participation_id'] ?? 0);
-    
-    if (!$participation_id) {
-        send_error('Geçersiz katılım ID');
+    $event_id = (int)($_POST['event_id'] ?? 0);
+
+    if (!$participation_id || !$event_id) {
+        send_error('Geçersiz katılım veya etkinlik ID.');
+        return;
     }
-    
-    // Katılım kaydını ve yetkileri kontrol et
-    $stmt = $pdo->prepare("
-        SELECT ep.*, e.created_by_user_id, u.username
-        FROM event_participations ep
-        JOIN events e ON ep.event_id = e.id
-        JOIN users u ON ep.user_id = u.id
-        WHERE ep.id = :participation_id
-    ");
-    
-    $stmt->execute([':participation_id' => $participation_id]);
-    $participation = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$participation) {
-        send_error('Katılım kaydı bulunamadı');
+
+    $pdo->beginTransaction();
+
+    try {
+        // Adım 1: Gerekli bilgileri al (Katılımcı, Etkinlik Sahibi)
+        $stmt = $pdo->prepare("
+            SELECT
+                ep.user_id,
+                e.created_by_user_id,
+                u.username
+            FROM event_participations AS ep
+            JOIN events AS e ON ep.event_id = e.id
+            JOIN users AS u ON ep.user_id = u.id
+            WHERE ep.id = :participation_id AND ep.event_id = :event_id
+        ");
+        $stmt->execute([
+            ':participation_id' => $participation_id,
+            ':event_id' => $event_id
+        ]);
+        $participation = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$participation) {
+            $pdo->rollBack();
+            send_error('Katılım kaydı bulunamadı veya sağlanan bilgiler eşleşmiyor.');
+            return;
+        }
+
+        // Adım 2: Yetki kontrolü (Doğru fonksiyonlarla)
+        $is_event_creator = ($participation['created_by_user_id'] == $current_user_id);
+        $has_manage_permission = has_permission($pdo, 'event.manage_participants');
+
+        if (!$is_event_creator && !$has_manage_permission) {
+            $pdo->rollBack();
+            send_error('Bu katılımcıyı kaldırma yetkiniz yok.', 403);
+            return;
+        }
+
+        // Adım 3: Silme işlemini gerçekleştir
+        $delete_stmt = $pdo->prepare("DELETE FROM event_participations WHERE id = :participation_id");
+        $delete_stmt->execute([':participation_id' => $participation_id]);
+
+        if ($delete_stmt->rowCount() > 0) {
+            $pdo->commit();
+            send_json_response(true, htmlspecialchars($participation['username']) . ' adlı katılımcı etkinlikten başarıyla kaldırıldı.');
+        } else {
+            $pdo->rollBack();
+            send_error('Katılımcı kaldırılamadı, veritabanı hatası veya kayıt zaten silinmiş olabilir.', 500);
+        }
+
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Participant removal error: " . $e->getMessage());
+        send_error('Beklenmedik bir sunucu hatası oluştu. Lütfen sistem yöneticisine bildirin.', 500);
     }
-    
-    // Yetki kontrolü - etkinlik sahibi veya admin
-    $can_manage = has_permission($pdo, 'event.manage_participants') || 
-                  $participation['created_by_user_id'] == $current_user_id;
-    
-    if (!$can_manage) {
-        send_error('Bu işlemi yapma yetkiniz yok', 403);
-    }
-    
-    // Kaldırma
-    $delete_stmt = $pdo->prepare("
-        DELETE FROM event_participations 
-        WHERE id = :participation_id
-    ");
-    
-    $delete_stmt->execute([':participation_id' => $participation_id]);
-    
-    send_json_response(true, $participation['username'] . ' etkinlikten kaldırıldı');
 }
 ?>

@@ -62,10 +62,6 @@
                     <i class="fas fa-user"></i>
                     Profilini Görüntüle
                 </a>
-                <button class="btn-send-message" style="display: none;">
-                    <i class="fas fa-envelope"></i>
-                    Mesaj Gönder
-                </button>
             </div>
         </div>
         
@@ -267,8 +263,7 @@
     flex-wrap: wrap;
 }
 
-.btn-view-profile,
-.btn-send-message {
+.btn-view-profile {
     flex: 1;
     padding: 8px 12px;
     border-radius: 4px;
@@ -297,17 +292,7 @@
     color: var(--charcoal);
 }
 
-.btn-send-message {
-    background: transparent;
-    color: var(--turquase);
-    border: 1px solid var(--turquase);
-}
 
-.btn-send-message:hover {
-    background: var(--turquase);
-    color: var(--charcoal);
-    transform: translateY(-1px);
-}
 
 .popover-error {
     padding: 20px;
@@ -339,8 +324,7 @@
         flex-direction: column;
     }
     
-    .btn-view-profile,
-    .btn-send-message {
+    .btn-view-profile {
         flex: none;
         width: 100%;
     }
@@ -568,15 +552,7 @@ function populateUserPopover(userData) {
     
     // Profile link
     const profileLink = userInfoDiv.querySelector('.btn-view-profile');
-    profileLink.href = `/public/view_profile.php?user_id=${userData.id}`;
-    
-    // Message button
-    const messageBtn = userInfoDiv.querySelector('.btn-send-message');
-    if (userData.can_message) {
-        messageBtn.style.display = 'flex';
-    } else {
-        messageBtn.style.display = 'none';
-    }
+    profileLink.href = `/view_profile.php?user_id=${userData.id}`;
     
     // Show user info, hide loading
     loadingDiv.style.display = 'none';

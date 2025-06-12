@@ -16,6 +16,113 @@ require_once BASE_PATH . '/src/functions/sql_security_functions.php';
 // Session kontrolü
 check_user_session_validity();
 
+/**
+ * Forum istatistiklerini çeker
+ */
+function getForumStats(PDO $pdo, int $user_id): array {
+    try {
+        // Topic sayısı
+        $topic_query = "SELECT COUNT(*) FROM forum_topics WHERE user_id = :user_id";
+        $stmt = execute_safe_query($pdo, $topic_query, [':user_id' => $user_id]);
+        $topic_count = $stmt->fetchColumn();
+        
+        // Post sayısı  
+        $post_query = "SELECT COUNT(*) FROM forum_posts WHERE user_id = :user_id";
+        $stmt = execute_safe_query($pdo, $post_query, [':user_id' => $user_id]);
+        $post_count = $stmt->fetchColumn();
+        
+        return [
+            'topics' => (int)$topic_count,
+            'posts' => (int)$post_count
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Forum stats error: " . $e->getMessage());
+        return ['topics' => 0, 'posts' => 0];
+    }
+}
+
+/**
+ * Galeri istatistiklerini çeker
+ */
+function getGalleryStats(PDO $pdo, int $user_id): array {
+    try {
+        // Fotoğraf sayısı
+        $photo_query = "SELECT COUNT(*) FROM gallery_photos WHERE user_id = :user_id";
+        $stmt = execute_safe_query($pdo, $photo_query, [':user_id' => $user_id]);
+        $photo_count = $stmt->fetchColumn();
+        
+        return [
+            'photos' => (int)$photo_count
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Gallery stats error: " . $e->getMessage());
+        return ['photos' => 0];
+    }
+}
+
+/**
+ * Kullanıcının online durumunu kontrol eder
+ */
+function checkUserOnlineStatus(PDO $pdo, int $user_id): bool {
+    try {
+        // Basit online kontrolü - audit log tablosundan son aktivite
+        $query = "
+            SELECT created_at 
+            FROM audit_log 
+            WHERE user_id = :user_id 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        ";
+        
+        $stmt = execute_safe_query($pdo, $query, [':user_id' => $user_id]);
+        $last_activity = $stmt->fetchColumn();
+        
+        if (!$last_activity) {
+            return false;
+        }
+        
+        // Son 15 dakika içinde aktivite varsa online
+        $last_activity_time = strtotime($last_activity);
+        $current_time = time();
+        
+        return ($current_time - $last_activity_time) <= (15 * 60); // 15 dakika
+        
+    } catch (Exception $e) {
+        error_log("Online status check error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * IP adresi güvenlik kontrolü
+ */
+function validateRequestSecurity(): bool {
+    // Temel güvenlik kontrolleri
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
+    
+    // Bot kontrolü
+    $bots = ['bot', 'spider', 'crawler', 'scraper'];
+    foreach ($bots as $bot) {
+        if (stripos($user_agent, $bot) !== false) {
+            return false;
+        }
+    }
+    
+    // Referer kontrolü (aynı domain)
+    if ($referer && !empty($_SERVER['HTTP_HOST'])) {
+        $host = $_SERVER['HTTP_HOST'];
+        if (strpos($referer, $host) === false) {
+            error_log("Invalid referer for popover API: " . $referer);
+            // Sadece log, bloklamayalım (CDN'ler için)
+        }
+    }
+    
+    return true;
+}
+
 // CORS headers (gerekirse)
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
@@ -124,6 +231,9 @@ function getUserPopoverData(PDO $pdo, int $target_user_id, ?int $current_user_id
         // Forum istatistikleri
         $forum_stats = getForumStats($pdo, $target_user_id);
         
+        // Galeri istatistikleri
+        $gallery_stats = getGalleryStats($pdo, $target_user_id);
+        
         // Online durumu (basit - son 15 dakika içinde aktivite)
         $is_online = checkUserOnlineStatus($pdo, $target_user_id);
         
@@ -147,6 +257,7 @@ function getUserPopoverData(PDO $pdo, int $target_user_id, ?int $current_user_id
             'primary_role_color' => $user['primary_role_color'] ?: '#bd912a',
             'forum_topics' => $forum_stats['topics'],
             'forum_posts' => $forum_stats['posts'],
+            'gallery_photos' => $gallery_stats['photos'],
             'is_online' => $is_online,
             'can_message' => $can_message
         ];
@@ -155,93 +266,6 @@ function getUserPopoverData(PDO $pdo, int $target_user_id, ?int $current_user_id
         error_log("User popover data error: " . $e->getMessage());
         return null;
     }
-}
-
-/**
- * Forum istatistiklerini çeker
- */
-function getForumStats(PDO $pdo, int $user_id): array {
-    try {
-        // Topic sayısı
-        $topic_query = "SELECT COUNT(*) FROM forum_topics WHERE user_id = :user_id";
-        $stmt = execute_safe_query($pdo, $topic_query, [':user_id' => $user_id]);
-        $topic_count = $stmt->fetchColumn();
-        
-        // Post sayısı  
-        $post_query = "SELECT COUNT(*) FROM forum_posts WHERE user_id = :user_id";
-        $stmt = execute_safe_query($pdo, $post_query, [':user_id' => $user_id]);
-        $post_count = $stmt->fetchColumn();
-        
-        return [
-            'topics' => (int)$topic_count,
-            'posts' => (int)$post_count
-        ];
-        
-    } catch (Exception $e) {
-        error_log("Forum stats error: " . $e->getMessage());
-        return ['topics' => 0, 'posts' => 0];
-    }
-}
-
-/**
- * Kullanıcının online durumunu kontrol eder
- */
-function checkUserOnlineStatus(PDO $pdo, int $user_id): bool {
-    try {
-        // Basit online kontrolü - audit log tablosundan son aktivite
-        $query = "
-            SELECT created_at 
-            FROM audit_log 
-            WHERE user_id = :user_id 
-            ORDER BY created_at DESC 
-            LIMIT 1
-        ";
-        
-        $stmt = execute_safe_query($pdo, $query, [':user_id' => $user_id]);
-        $last_activity = $stmt->fetchColumn();
-        
-        if (!$last_activity) {
-            return false;
-        }
-        
-        // Son 15 dakika içinde aktivite varsa online
-        $last_activity_time = strtotime($last_activity);
-        $current_time = time();
-        
-        return ($current_time - $last_activity_time) <= (15 * 60); // 15 dakika
-        
-    } catch (Exception $e) {
-        error_log("Online status check error: " . $e->getMessage());
-        return false;
-    }
-}
-
-/**
- * IP adresi güvenlik kontrolü
- */
-function validateRequestSecurity(): bool {
-    // Temel güvenlik kontrolleri
-    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-    $referer = $_SERVER['HTTP_REFERER'] ?? '';
-    
-    // Bot kontrolü
-    $bots = ['bot', 'spider', 'crawler', 'scraper'];
-    foreach ($bots as $bot) {
-        if (stripos($user_agent, $bot) !== false) {
-            return false;
-        }
-    }
-    
-    // Referer kontrolü (aynı domain)
-    if ($referer && !empty($_SERVER['HTTP_HOST'])) {
-        $host = $_SERVER['HTTP_HOST'];
-        if (strpos($referer, $host) === false) {
-            error_log("Invalid referer for popover API: " . $referer);
-            // Sadece log, bloklamayalım (CDN'ler için)
-        }
-    }
-    
-    return true;
 }
 
 // IP güvenlik kontrolü

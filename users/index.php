@@ -104,21 +104,25 @@ try {
 // Avatar path düzeltme fonksiyonu
 function fix_avatar_path($avatar_path) {
     if (empty($avatar_path)) {
-        return '/assets/logo.png';
+        return '/assets/logo.png'; // Varsayılan avatar
     }
-    
+
+    // '../assets/...' -> '/assets/...'
     if (strpos($avatar_path, '../assets/') === 0) {
         return str_replace('../assets/', '/assets/', $avatar_path);
     }
-    
-    if (strpos($avatar_path, '/uploads/') === 0) {
-        return '' . $avatar_path;
+
+    // 'uploads/...' -> '/uploads/...'
+    if (strpos($avatar_path, 'uploads/') === 0) {
+        return '/' . ltrim($avatar_path, '/');
     }
-    
-    if (strpos($avatar_path, '/assets/') === 0 || strpos($avatar_path, '') === 0) {
+
+    // Zaten '/uploads/...' veya '/assets/...' gibi doğru formatta ise
+    if (strpos($avatar_path, '/') === 0) {
         return $avatar_path;
     }
-    
+
+    // Tanınmayan format için varsayılan
     return '/assets/logo.png';
 }
 

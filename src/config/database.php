@@ -1,6 +1,10 @@
 <?php
 // src/config/database.php
-define('BASE_PATH', dirname(dirname(__DIR__))); // Proje kök dizini (örn: /path/to/your/ilgarion_turanis_website)
+
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', dirname(__DIR__, 2));
+}
+
 define('DB_HOST', 'localhost'); // Genellikle localhost'tur
 define('DB_USER', 'root');      // Verdiğin kullanıcı adı
 define('DB_PASS', '');      // Verdiğin şifre

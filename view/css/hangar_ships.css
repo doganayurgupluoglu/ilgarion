@@ -1,0 +1,294 @@
+/* view/css/hangar_ships.css - Hangar Ships Specific Styles */
+
+.ships-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.ship-card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid var(--border-1);
+    background: var(--card-bg);
+    position: relative;
+}
+
+.ship-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    border-color: var(--gold);
+}
+
+.ship-image-container {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+}
+
+.ship-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.ship-card:hover .ship-image {
+    transform: scale(1.05);
+}
+
+.ship-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom,
+        transparent 30%,
+        rgba(0, 0, 0, 0.6) 70%,
+        rgba(0, 0, 0, 0.8) 100%
+    );
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.ship-card:hover .ship-overlay {
+    opacity: 1;
+}
+
+.ship-badges {
+    display: flex;
+    gap: 0.5rem;
+    align-self: flex-start;
+}
+
+.ship-size-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ship-size-badge.small {
+    background: var(--turquase);
+    color: var(--body-bg);
+}
+
+.ship-size-badge.medium {
+    background: var(--gold);
+    color: var(--body-bg);
+}
+
+.ship-size-badge.large {
+    background: #FF6B35;
+    color: var(--white);
+}
+
+.ship-size-badge.capital {
+    background: var(--red);
+    color: var(--white);
+}
+
+.ship-quantity-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: var(--gold);
+    color: var(--body-bg);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.ship-info {
+    padding: 1.5rem;
+}
+
+.ship-title {
+    margin: 0 0 0.5rem 0;
+    color: var(--gold);
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.ship-manufacturer {
+    color: var(--turquase);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.ship-role {
+    color: var(--lighter-grey);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    font-style: italic;
+}
+
+.ship-specs {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.ship-spec {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: var(--card-bg-2);
+    border-radius: 8px;
+    border: 1px solid var(--border-1);
+}
+
+.ship-spec-label {
+    font-size: 0.75rem;
+    color: var(--light-grey);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ship-spec-value {
+    font-size: 0.9rem;
+    color: var(--lighter-grey);
+    font-weight: 500;
+}
+
+.ship-notes {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-top: 1rem;
+}
+
+.ship-notes-title {
+    font-size: 0.8rem;
+    color: var(--gold);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.ship-notes-content {
+    font-size: 0.85rem;
+    color: var(--lighter-grey);
+    line-height: 1.4;
+}
+
+.ship-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-1);
+    font-size: 0.8rem;
+    color: var(--light-grey);
+}
+
+.ship-acquisition-date {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Responsive Ships */
+@media (max-width: 1200px) {
+    .ships-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.25rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .ships-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .ship-image-container {
+        height: 150px;
+    }
+    
+    .ship-info {
+        padding: 1rem;
+    }
+    
+    .ship-specs {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .ship-spec {
+        padding: 0.5rem;
+    }
+    
+    .ship-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .ships-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Ship Placeholder for missing images */
+.ship-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--light-grey);
+    background: var(--card-bg-2);
+}
+
+.ship-placeholder i {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    color: var(--border-1);
+}
+
+/* Ship Header Styles */
+.ship-header {
+    border-bottom: 1px solid var(--border-1);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.ship-name {
+    margin: 0 0 0.25rem 0;
+    color: var(--gold);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* Ship Acquired Date */
+.ship-acquired {
+    font-size: 0.8rem;
+    color: var(--light-grey);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-1);
+} 

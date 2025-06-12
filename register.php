@@ -557,8 +557,6 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 
 .auth-links {
     text-align: center;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(189, 145, 42, 0.2);
 }
 
 .auth-link {

@@ -10,6 +10,13 @@ require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/forum_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+require_once BASE_PATH . '/htmlpurifier-4.15.0/library/HTMLPurifier.auto.php';
+
+// Setup HTML Purifier for output sanitization
+$output_config = HTMLPurifier_Config::createDefault();
+$output_config->set('HTML.SafeIframe', true);
+$output_config->set('URI.SafeIframeRegexp', '%^(https?://)?(www\.youtube(?:-nocookie)?\.com/embed/)%');
+$purifier = new HTMLPurifier($output_config);
 
 // Session kontrolü
 check_user_session_validity();
@@ -76,38 +83,6 @@ if (isset($_GET['page']) && $_GET['page'] === 'last') {
     $offset = ($page - 1) * $per_page;
     $posts_data = get_forum_topic_posts($pdo, $topic_id, $current_user_id, $per_page, $offset);
     $posts = $posts_data['posts'];
-}
-
-// Avatar path düzeltme fonksiyonu
-// Avatar path düzeltme fonksiyonu
-function fix_avatar_path($avatar_path)
-{
-    if (empty($avatar_path)) {
-        return '/assets/logo.png';
-    }
-
-    // uploads/avatars/ -> /uploads/avatars/
-    if (strpos($avatar_path, 'uploads/avatars/') === 0) {
-        return '/' . $avatar_path;
-    }
-
-    // ../assets/ -> /assets/
-    if (strpos($avatar_path, '../assets/') === 0) {
-        return str_replace('../assets/', '/assets/', $avatar_path);
-    }
-
-    // /assets/ ile başlıyorsa dokunma
-    if (strpos($avatar_path, '/assets/') === 0) {
-        return $avatar_path;
-    }
-
-    // /uploads/avatars/ ile başlıyorsa dokunma
-    if (strpos($avatar_path, '/uploads/avatars/') === 0) {
-        return $avatar_path;
-    }
-
-    // Varsayılan
-    return '/assets/logo.png';
 }
 
 // Sayfa başlığı
@@ -244,8 +219,8 @@ include BASE_PATH . '/src/includes/navbar.php';
         </div>
 
         <div class="post-content">
-            <div class="post-body">
-                <?= parse_bbcode($topic['content']) ?>
+            <div class="post-body" id="post-content-topic-<?= $topic['id'] ?>">
+                <?php echo $purifier->purify($topic['content']); ?>
             </div>
 
             <div class="post-footer">
@@ -261,15 +236,8 @@ include BASE_PATH . '/src/includes/navbar.php';
 
                     <div class="post-actions">
                         <?php if ($topic['can_edit']): ?>
-                            <button class="post-action-btn" onclick="editPost(0, 'topic')">
+                            <button class="post-action-btn edit" onclick="showInlineEditor('topic', <?= $topic['id'] ?>)">
                                 <i class="fas fa-edit"></i> Düzenle
-                            </button>
-                        <?php endif; ?>
-
-                        <?php if ($is_approved): ?>
-                            <button class="post-action-btn"
-                                onclick="quotePost('<?= htmlspecialchars($topic['author_username']) ?>', '<?= htmlspecialchars(strip_tags($topic['content'])) ?>', this)">
-                                <i class="fas fa-quote-left"></i> Alıntıla
                             </button>
                         <?php endif; ?>
                     </div>
@@ -369,8 +337,8 @@ include BASE_PATH . '/src/includes/navbar.php';
                     </div>
 
                     <div class="post-content">
-                        <div class="post-body">
-                            <?= parse_bbcode($post['content']) ?>
+                        <div class="post-body" id="post-content-post-<?= $post['id'] ?>">
+                            <?php echo $purifier->purify($post['content']); ?>
 
                             
                         </div>
@@ -404,19 +372,12 @@ include BASE_PATH . '/src/includes/navbar.php';
                                         </span>
                                     <?php endif; ?>
                                 </div>
+
                                 <?php if ($post['can_edit']): ?>
-                                    <button class="post-action-btn" onclick="editPost(<?= $post['id'] ?>, 'post')">
+                                    <button class="post-action-btn edit" onclick="showInlineEditor('post', <?= $post['id'] ?>)">
                                         <i class="fas fa-edit"></i> Düzenle
                                     </button>
                                 <?php endif; ?>
-
-                                <?php if ($is_approved): ?>
-                                    <button class="post-action-btn"
-                                        onclick="quotePost('<?= htmlspecialchars($post['username']) ?>', '<?= htmlspecialchars(strip_tags($post['content'])) ?>', this)">
-                                        <i class="fas fa-quote-left"></i> Alıntıla
-                                    </button>
-                                <?php endif; ?>
-
                                 <?php if ($post['can_delete']): ?>
                                     <button class="post-action-btn delete" onclick="confirmPostDelete(<?= $post['id'] ?>)">
                                         <i class="fas fa-trash"></i> Sil
@@ -476,151 +437,31 @@ include BASE_PATH . '/src/includes/navbar.php';
         <div class="reply-form-section" id="reply-form">
             <h3><i class="fas fa-reply"></i> Yanıt Yaz</h3>
 
-            <form id="replyForm" action="actions/submit_reply.php" method="POST">
+            <form id="replyForm" action="actions/submit_reply.php" method="POST" data-total-posts="<?= $total_posts ?? 0 ?>">
                 <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                 <input type="hidden" name="topic_id" value="<?= $topic_id ?>">
 
                 <div class="form-group">
                     <label for="reply_content">Yanıt İçeriği:</label>
-                    <div class="editor-toolbar">
-    <div class="toolbar-group">
-        <button type="button" class="editor-btn" onclick="insertBBCode('b')" title="Kalın">
-            <i class="fas fa-bold"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('i')" title="İtalik">
-            <i class="fas fa-italic"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('u')" title="Altı Çizili">
-            <i class="fas fa-underline"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('s')" title="Üstü Çizili">
-            <i class="fas fa-strikethrough"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('sub')" title="Alt Simge">
-            <i class="fas fa-subscript"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('sup')" title="Üst Simge">
-            <i class="fas fa-superscript"></i>
-        </button>
-    </div>
-    
-    <div class="toolbar-group">
-        <button type="button" class="editor-btn" onclick="insertBBCode('left')" title="Sola Hizala">
-            <i class="fas fa-align-left"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('center')" title="Ortala">
-            <i class="fas fa-align-center"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('right')" title="Sağa Hizala">
-            <i class="fas fa-align-right"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('justify')" title="İki Yana Yasla">
-            <i class="fas fa-align-justify"></i>
-        </button>
-    </div>
-    
-    <div class="toolbar-group">
-        <button type="button" class="editor-btn" onclick="insertBBCode('url')" title="Link Ekle">
-            <i class="fas fa-link"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('email')" title="E-posta">
-            <i class="fas fa-envelope"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('img')" title="Resim Ekle">
-            <i class="fas fa-image"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('youtube')" title="YouTube Video">
-            <i class="fab fa-youtube"></i>
-        </button>
-    </div>
-    
-    <div class="toolbar-group">
-        <button type="button" class="editor-btn" onclick="insertBBCode('quote')" title="Alıntı">
-            <i class="fas fa-quote-left"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('code')" title="Kod Bloğu">
-            <i class="fas fa-code"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('spoiler')" title="Spoiler">
-            <i class="fas fa-eye-slash"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('highlight')" title="Vurgula">
-            <i class="fas fa-highlighter"></i>
-        </button>
-    </div>
-    
-    <div class="toolbar-group">
-        <button type="button" class="editor-btn" onclick="insertBBCode('list')" title="Liste">
-            <i class="fas fa-list-ul"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('table')" title="Tablo">
-            <i class="fas fa-table"></i>
-        </button>
-        <button type="button" class="editor-btn" onclick="insertBBCode('hr')" title="Yatay Çizgi">
-            <i class="fas fa-minus"></i>
-        </button>
-    </div>
-    
-    <div class="toolbar-group">
-        <select id="colorSelect" onchange="insertColorCode()" title="Renk">
-            <option value="">Renk</option>
-            <option value="red" style="color: red;">Kırmızı</option>
-            <option value="blue" style="color: blue;">Mavi</option>
-            <option value="green" style="color: green;">Yeşil</option>
-            <option value="orange" style="color: orange;">Turuncu</option>
-            <option value="purple" style="color: purple;">Mor</option>
-            <option value="yellow" style="color: yellow;">Sarı</option>
-            <option value="cyan" style="color: cyan;">Camgöbeği</option>
-            <option value="pink" style="color: pink;">Pembe</option>
-            <option value="brown" style="color: brown;">Kahverengi</option>
-            <option value="gray" style="color: gray;">Gri</option>
-        </select>
-        
-        <select id="sizeSelect" onchange="insertSizeCode()" title="Boyut">
-            <option value="">Boyut</option>
-            <option value="8px">Çok Küçük</option>
-            <option value="10px">Küçük</option>
-            <option value="12px">Normal</option>
-            <option value="14px">Büyük</option>
-            <option value="18px">Çok Büyük</option>
-            <option value="24px">Başlık</option>
-        </select>
-        
-        <select id="fontSelect" onchange="insertFontCode()" title="Yazı Tipi">
-            <option value="">Yazı Tipi</option>
-            <option value="Arial">Arial</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Times">Times</option>
-            <option value="Courier">Courier</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Tahoma">Tahoma</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Comic Sans MS">Comic Sans</option>
-        </select>
-    </div>
-</div>
-                    <textarea name="content" id="reply_content" rows="8" required
-                        placeholder="Yanıtınızı buraya yazın... BBCode kullanabilirsiniz." minlength="5"
-                        maxlength="50000"></textarea>
-                    <div class="char-counter">
-                        <span id="char-count">0</span> / 50000 karakter
-                    </div>
+                    <?php
+                    // Set variables for the editor
+                    $textarea_name = 'content';
+                    $initial_content = ''; // Start with an empty editor for replies
+                    
+                    // Include the WYSIWYG editor
+                    // Note: The editor is in the root 'editor' directory.
+                    // topic.php is in '/forum', so we use BASE_PATH for a reliable include.
+                    require BASE_PATH . '/editor/wysiwyg_editor.php';
+                    ?>
                 </div>
 
                 <div class="form-actions">
                     <button type="submit" class="btn-submit">
                         <i class="fas fa-paper-plane"></i> Yanıtı Gönder
                     </button>
-                    <button type="button" class="btn-preview" onclick="previewReply()">
-                        <i class="fas fa-eye"></i> Önizle
-                    </button>
                 </div>
             </form>
 
-            <div id="reply-preview" class="reply-preview" style="display: none;">
-                <h4><i class="fas fa-eye"></i> Önizleme</h4>
-                <div class="preview-content"></div>
-            </div>
         </div>
     <?php elseif (!$is_logged_in): ?>
         <div class="reply-form-section">
@@ -655,6 +496,15 @@ include BASE_PATH . '/src/includes/navbar.php';
             </div>
         </div>
     <?php endif; ?>
+</div>
+
+<!-- Hidden Editor Template for Inline Editing -->
+<div id="editor-template" style="display: none;">
+    <?php require BASE_PATH . '/editor/wysiwyg_editor.php'; ?>
+    <div class="inline-editor-actions" style="display: flex; justify-content: flex-end; gap: 0.75rem; padding: 0.75rem; background-color: var(--card-bg, #1D1A18); border-top: 1px solid var(--border-1, #59524c46); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+        <button type="button" class="btn btn-secondary btn-cancel-edit">İptal</button>
+        <button type="button" class="btn btn-primary btn-save-edit">Kaydet</button>
+    </div>
 </div>
 
 <!-- User Popover Include -->

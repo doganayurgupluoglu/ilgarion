@@ -10,6 +10,13 @@ require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/forum_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+require_once BASE_PATH . '/htmlpurifier-4.15.0/library/HTMLPurifier.auto.php';
+
+// Setup HTML Purifier
+$config = HTMLPurifier_Config::createDefault();
+$config->set('HTML.SafeIframe', true);
+$config->set('URI.SafeIframeRegexp', '%^(https?://)?(www\.youtube(?:-nocookie)?\.com/embed/)%');
+$purifier = new HTMLPurifier($config);
 
 // Session kontrolü
 check_user_session_validity();
@@ -104,7 +111,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Form verilerini al
     $title = trim($_POST['title'] ?? '');
-    $content = trim($_POST['content'] ?? '');
+    $dirty_content = $_POST['content'] ?? '';
+    $content = $purifier->purify($dirty_content); // Sanitize content
     $form_category_id = (int) ($_POST['category_id'] ?? 0);
 
     $errors = [];
@@ -408,149 +416,17 @@ include BASE_PATH . '/src/includes/navbar.php';
             <div class="form-group">
                 <label for="content">Konu İçeriği <span class="required">*</span></label>
 
-                <!-- Editor Toolbar -->
-                <div class="editor-toolbar">
-                    <div class="toolbar-group">
-                        <button type="button" class="editor-btn" onclick="insertBBCode('b')" title="Kalın">
-                            <i class="fas fa-bold"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('i')" title="İtalik">
-                            <i class="fas fa-italic"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('u')" title="Altı Çizili">
-                            <i class="fas fa-underline"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('s')" title="Üstü Çizili">
-                            <i class="fas fa-strikethrough"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('sub')" title="Alt Simge">
-                            <i class="fas fa-subscript"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('sup')" title="Üst Simge">
-                            <i class="fas fa-superscript"></i>
-                        </button>
-                    </div>
-
-                    <div class="toolbar-group">
-                        <button type="button" class="editor-btn" onclick="insertBBCode('left')" title="Sola Hizala">
-                            <i class="fas fa-align-left"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('center')" title="Ortala">
-                            <i class="fas fa-align-center"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('right')" title="Sağa Hizala">
-                            <i class="fas fa-align-right"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('justify')"
-                            title="İki Yana Yasla">
-                            <i class="fas fa-align-justify"></i>
-                        </button>
-                    </div>
-
-                    <div class="toolbar-group">
-                        <button type="button" class="editor-btn" onclick="insertBBCode('url')" title="Link Ekle">
-                            <i class="fas fa-link"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('email')" title="E-posta">
-                            <i class="fas fa-envelope"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('img')" title="Resim Ekle">
-                            <i class="fas fa-image"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('youtube')"
-                            title="YouTube Video">
-                            <i class="fab fa-youtube"></i>
-                        </button>
-                    </div>
-
-                    <div class="toolbar-group">
-                        <button type="button" class="editor-btn" onclick="insertBBCode('quote')" title="Alıntı">
-                            <i class="fas fa-quote-left"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('code')" title="Kod Bloğu">
-                            <i class="fas fa-code"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('spoiler')" title="Spoiler">
-                            <i class="fas fa-eye-slash"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('highlight')" title="Vurgula">
-                            <i class="fas fa-highlighter"></i>
-                        </button>
-                    </div>
-
-                    <div class="toolbar-group">
-                        <button type="button" class="editor-btn" onclick="insertBBCode('list')" title="Liste">
-                            <i class="fas fa-list-ul"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('table')" title="Tablo">
-                            <i class="fas fa-table"></i>
-                        </button>
-                        <button type="button" class="editor-btn" onclick="insertBBCode('hr')" title="Yatay Çizgi">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                    </div>
-
-                    <div class="toolbar-group">
-                        <select id="colorSelect" onchange="insertColorCode()" title="Renk">
-                            <option value="">Renk</option>
-                            <option value="red" style="color: red;">Kırmızı</option>
-                            <option value="blue" style="color: blue;">Mavi</option>
-                            <option value="green" style="color: green;">Yeşil</option>
-                            <option value="orange" style="color: orange;">Turuncu</option>
-                            <option value="purple" style="color: purple;">Mor</option>
-                            <option value="yellow" style="color: yellow;">Sarı</option>
-                            <option value="cyan" style="color: cyan;">Camgöbeği</option>
-                            <option value="pink" style="color: pink;">Pembe</option>
-                            <option value="brown" style="color: brown;">Kahverengi</option>
-                            <option value="gray" style="color: gray;">Gri</option>
-                        </select>
-
-                        <select id="sizeSelect" onchange="insertSizeCode()" title="Boyut">
-                            <option value="">Boyut</option>
-                            <option value="8px">Çok Küçük</option>
-                            <option value="10px">Küçük</option>
-                            <option value="12px">Normal</option>
-                            <option value="14px">Büyük</option>
-                            <option value="18px">Çok Büyük</option>
-                            <option value="24px">Başlık</option>
-                        </select>
-
-                        <select id="fontSelect" onchange="insertFontCode()" title="Yazı Tipi">
-                            <option value="">Yazı Tipi</option>
-                            <option value="Arial">Arial</option>
-                            <option value="Helvetica">Helvetica</option>
-                            <option value="Times">Times</option>
-                            <option value="Courier">Courier</option>
-                            <option value="Verdana">Verdana</option>
-                            <option value="Tahoma">Tahoma</option>
-                            <option value="Georgia">Georgia</option>
-                            <option value="Comic Sans MS">Comic Sans</option>
-                        </select>
-                    </div>
-                </div>
-
-                <textarea name="content" id="content" rows="15" required
-                    placeholder="Konu içeriğinizi buraya yazın... BBCode kullanabilirsiniz." minlength="10"
-                    maxlength="50000"><?= htmlspecialchars($form_data['content'] ?? '') ?></textarea>
-
-                <div class="content-info">
-                    <div class="char-counter">
-                        <span id="content-count">0</span> / 50000 karakter
-                    </div>
-                    <button type="button" class="btn-preview" onclick="previewContent()">
-                        <i class="fas fa-eye"></i> Önizle
-                    </button>
-                </div>
-
+                <?php
+                // Setup variables for the editor
+                $textarea_name = 'content';
+                $initial_content = $form_data['content'] ?? '';
+                // Include the WYSIWYG editor
+                require BASE_PATH . '/editor/wysiwyg_editor.php';
+                ?>
+                
                 <small class="form-help">
-                    BBCode kullanabilirsiniz: [b]kalın[/b], [i]italik[/i], [url=link]bağlantı[/url], vb.
+                    İçeriğinizi yazarken paragraflar arasında boşluk bırakabilirsiniz.
                 </small>
-            </div>
-
-            <!-- Preview Area -->
-            <div id="content-preview" class="content-preview" style="display: none;">
-                <h4><i class="fas fa-eye"></i> İçerik Önizlemesi</h4>
-                <div class="preview-content"></div>
             </div>
 
             <!-- Form Actions -->

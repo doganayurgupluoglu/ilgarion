@@ -41,14 +41,12 @@ $can_manage_skill_tags = has_permission($pdo, 'skill_tag.verify_others');
                     <span>Etkinlikler</span>
                 </a>
             </li>
-            <?php if ($can_view_roles): ?>
-                <li class="menu-item <?= $main_section === 'roles' ? 'active' : '' ?>">
-                    <a href="/events/roles/">
-                        <i class="fas fa-user-tag"></i>
-                        <span>Roller</span>
-                    </a>
-                </li>
-            <?php endif; ?>
+            <li class="menu-item <?= $main_section === 'roles' ? 'active' : '' ?>">
+                <a href="/events/roles/">
+                    <i class="fas fa-user-tag"></i>
+                    <span>Roller</span>
+                </a>
+            </li>
             <li class="menu-item <?= $main_section === 'loadouts' ? 'active' : '' ?>">
                 <a href="/events/loadouts/">
                     <i class="fas fa-user-astronaut"></i>

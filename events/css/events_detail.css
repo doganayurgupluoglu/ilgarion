@@ -129,69 +129,78 @@
 }
 
 /* Participation Buttons */
-.participation-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.participation-options {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
+.participation-buttons,
 .participation-change-buttons {
     display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 1rem;
+    gap: 10px;
 }
 
-/* Participation Status */
-.participation-status {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 1rem;
-    background: var(--card-bg-2);
-    border-radius: 8px;
-    border: 1px solid var(--border-1);
-    margin-bottom: 1rem;
+.participation-buttons button,
+.participation-change-buttons button {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0.75rem 1rem;
 }
 
-.participation-status .status-confirmed {
+.participation-change-buttons button.active-status {
+    /* Genel aktif stili: daha kalın border ve hafif gölge */
+    border-width: 2px;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+}
+
+/* Aktif 'Belki' butonu rengi */
+.participation-change-buttons .btn-secondary.active-status {
+    border-color: var(--turquase);
+    background-color: rgba(61, 166, 162, 0.1); /* turkuaz %10 opaklık */
     color: var(--turquase);
-    font-weight: 500;
 }
 
-.participation-status .status-maybe {
-    color: var(--gold);
-    font-weight: 500;
-}
-
-.participation-status .status-declined {
+/* Aktif 'Katılmıyorum' butonu rengi */
+.participation-change-buttons .btn-outline.active-status {
+    border-color: var(--red);
+    background-color: rgba(235, 0, 0, 0.1); /* kırmızı %10 opaklık */
     color: var(--red);
-    font-weight: 500;
+}
+
+.participation-status {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.participation-status span {
+    font-size: 1rem;
 }
 
 .participation-status small {
-    color: var(--light-grey);
+    display: block;
+    margin-top: 0.25rem;
     font-size: 0.85rem;
+    color: var(--light-grey);
 }
 
-/* Participation Disabled */
+.participation-status .status-confirmed { color: var(--turquase); font-weight: bold; }
+.participation-status .status-maybe { color: var(--gold); font-weight: bold; }
+.participation-status .status-declined { color: var(--red); font-weight: bold; }
+
 .participation-disabled {
-    padding: 1rem;
-    background: var(--card-bg-2);
-    border-radius: 8px;
-    border: 1px solid var(--border-1);
     text-align: center;
-    color: var(--light-grey);
+    padding: 1rem;
+    background: var(--card-bg-3);
+    border-radius: 8px;
 }
 
 .participation-disabled p {
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.75rem 0;
+    color: var(--light-grey);
 }
 
 /* Event Ended Warning */
@@ -345,35 +354,52 @@
 }
 
 /* Event Description */
-.event-description {
+.events-main-content .event-description {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 1rem;
     color: var(--lighter-grey);
     line-height: 1.7;
     font-size: 1rem;
+    min-height: 250px; /* Match editor height */
 }
 
-.event-description p {
+.events-main-content .event-description p {
     margin-bottom: 1rem;
 }
 
-.event-description h1,
-.event-description h2,
-.event-description h3 {
+.events-main-content .event-description h1,
+.events-main-content .event-description h2,
+.events-main-content .event-description h3,
+.events-main-content .event-description h4,
+.events-main-content .event-description h5,
+.events-main-content .event-description h6 {
     color: var(--gold);
+    font-weight: 600;
+    line-height: 1.3;
     margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
 }
 
-.event-description ul,
-.event-description ol {
+.events-main-content .event-description h1 { font-size: 2rem; border-bottom: 2px solid var(--border-1); padding-bottom: 0.5rem; }
+.events-main-content .event-description h2 { font-size: 1.7rem; border-bottom: 1px solid var(--border-1); padding-bottom: 0.4rem;}
+.events-main-content .event-description h3 { font-size: 1.4rem; }
+.events-main-content .event-description h4 { font-size: 1.2rem; }
+.events-main-content .event-description h5 { font-size: 1.1rem; }
+.events-main-content .event-description h6 { font-size: 1rem; }
+
+.events-main-content .event-description ul,
+.events-main-content .event-description ol {
     margin-left: 1.5rem;
     margin-bottom: 1rem;
 }
 
-.event-description li {
+.events-main-content .event-description li {
     margin-bottom: 0.5rem;
 }
 
-.event-description code {
+.events-main-content .event-description code {
     background: var(--card-bg-2);
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
@@ -381,11 +407,29 @@
     font-size: 0.9rem;
 }
 
-.event-description pre {
+.events-main-content .event-description pre {
     background: var(--card-bg-2);
     padding: 1rem;
     border-radius: 6px;
     overflow-x: auto;
+    border: 1px solid var(--border-1);
+}
+
+/* Ensure images and videos are responsive and styled like in the editor */
+.events-main-content .event-description img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid var(--border-1);
+    margin: 0.5rem 0;
+}
+
+.events-main-content .event-description iframe {
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+    border-radius: 8px;
     border: 1px solid var(--border-1);
 }
 
@@ -400,16 +444,16 @@
 .role-card {
     background: var(--card-bg-2);
     border: 1px solid var(--border-1);
-    border-radius: 8px;
-    padding: 1.5rem;
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
     transition: all 0.3s ease;
 }
 
 .role-card:hover {
-    background: var(--card-bg-3);
+    transform: translateY(-4px);
     border-color: var(--border-1-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .role-header {
@@ -486,6 +530,7 @@
     gap: 0.75rem;
     flex-wrap: wrap;
     margin-top: 1rem;
+    padding-top: 1rem;
 }
 
 .btn-role-join {
@@ -1087,4 +1132,44 @@
     background: var(--card-bg);
     border-color: var(--border-1);
     color: var(--lighter-grey);
+}
+
+.suggested-loadout-link-container {
+    margin-top: auto; /* Konteyneri kartın altına iter */
+    padding-top: 1rem; /* Üstündeki içerikle arasına boşluk koyar */
+    border-top: 1px solid var(--border-1);
+    margin-top: 1rem;
+}
+
+.btn-suggested-loadout {
+    display: block;
+    width: 100%;
+    padding: 0.65rem;
+    text-align: center;
+    background: linear-gradient(45deg, rgba(61, 166, 162, 0.1), rgba(184, 132, 92, 0.1));
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    color: var(--lighter-grey);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: .8rem;
+    transition: all 0.3s ease;
+}
+
+.btn-suggested-loadout i {
+    margin-right: 0.5rem;
+    color: var(--turquase);
+    transition: color 0.3s ease;
+}
+
+.btn-suggested-loadout:hover {
+    background: linear-gradient(45deg, rgba(61, 166, 162, 0.2), rgba(184, 132, 92, 0.2));
+    border-color: var(--gold);
+    color: var(--gold);
+    box-shadow: 0 0 15px rgba(184, 132, 92, 0.3);
+    transform: translateY(-2px);
+}
+
+.btn-suggested-loadout:hover i {
+    color: var(--light-gold);
 }

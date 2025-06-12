@@ -98,7 +98,6 @@ $twitter_link = "#"; // Twitter/X hesabı
     justify-content: space-between;
     width: 100%;
     max-width: 1600px;
-    padding: 0 2rem;
     gap: 2rem;
 }
 
@@ -248,8 +247,6 @@ $twitter_link = "#"; // Twitter/X hesabı
 
 .footer-subtitle i {
     color: var(--red);
-    font-size: 0.7rem;
-    margin: 0 0.2rem;
 }
 
 /* Responsive Design */
@@ -429,3 +426,6 @@ document.querySelectorAll('.footer-link').forEach(link => {
     });
 });
 </script>
+
+</body>
+</html>

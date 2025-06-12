@@ -953,164 +953,15 @@ function increment_topic_view_count(PDO $pdo, int $topic_id, ?int $user_id = nul
 }
 
 /**
- * BBCode'u HTML'e çevirir (genişletilmiş versiyon)
- * @param string $text BBCode içeren metin
- * @return string HTML'e çevrilmiş metin
- */
-function parse_bbcode(string $text): string {
-    // Güvenlik için önce HTML'i temizle
-    $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-    
-    // BBCode dönüşümleri - Sıralama önemli!
-    $bbcode_patterns = [
-        // Basit formatlar
-        '/\[b\](.*?)\[\/b\]/is' => '<strong>$1</strong>',
-        '/\[i\](.*?)\[\/i\]/is' => '<em>$1</em>',
-        '/\[u\](.*?)\[\/u\]/is' => '<u>$1</u>',
-        '/\[s\](.*?)\[\/s\]/is' => '<del>$1</del>',
-        
-        // Linkler - güvenlik kontrolü ile
-        '/\[url=(https?:\/\/[^\]]+)\](.*?)\[\/url\]/is' => '<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>',
-        '/\[url\](https?:\/\/[^\[]+)\[\/url\]/is' => '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
-        
-        // Email
-        '/\[email\]([\w\.\-]+@[\w\.\-]+)\[\/email\]/is' => '<a href="mailto:$1">$1</a>',
-        '/\[email=([\w\.\-]+@[\w\.\-]+)\](.*?)\[\/email\]/is' => '<a href="mailto:$1">$2</a>',
-        
-        // Resimler - güvenlik kontrolü ile
-        '/\[img\](https?:\/\/[^\[]+\.(jpg|jpeg|png|gif|webp|bmp|svg))\[\/img\]/is' => '<img src="$1" alt="User Image" style="max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0;" loading="lazy">',
-        '/\[img=([\d]+)x([\d]+)\](https?:\/\/[^\[]+)\[\/img\]/is' => '<img src="$3" width="$1" height="$2" alt="User Image" style="max-width: 100%; height: auto; border-radius: 4px; margin: 0.5rem 0;" loading="lazy">',
-        
-        // Renkler - hex ve CSS isim kontrolü ile
-        '/\[color=(#[a-fA-F0-9]{3,6}|red|blue|green|yellow|orange|purple|pink|black|white|gray|grey|brown|cyan|magenta|lime|navy|olive|maroon|teal|silver|gold|indigo|violet|crimson)\](.*?)\[\/color\]/is' => '<span style="color: $1;">$2</span>',
-        
-        // Boyutlar - güvenli boyut kontrolü ile
-        '/\[size=([1-7]|[0-9]{1,2}px|[0-9]{1,2}pt|[0-9]{1,2}em|small|medium|large|x-large|xx-large)\](.*?)\[\/size\]/is' => '<span style="font-size: $1;">$2</span>',
-        
-        // Hizalama
-        '/\[center\](.*?)\[\/center\]/is' => '<div style="text-align: center;">$1</div>',
-        '/\[left\](.*?)\[\/left\]/is' => '<div style="text-align: left;">$1</div>',
-        '/\[right\](.*?)\[\/right\]/is' => '<div style="text-align: right;">$1</div>',
-        '/\[justify\](.*?)\[\/justify\]/is' => '<div style="text-align: justify;">$1</div>',
-        
-        // Listeler - Önce list item'ları işle
-        '/\[\*\](.*)$/m' => '<li>$1</li>',
-        
-        // Font
-        '/\[font=(Arial|Helvetica|Times|Courier|Verdana|Tahoma|Georgia|Palatino|Comic Sans MS|Impact)\](.*?)\[\/font\]/is' => '<span style="font-family: $1;">$2</span>',
-        
-        // Spoiler
-        '/\[spoiler\](.*?)\[\/spoiler\]/is' => '<details class="forum-spoiler"><summary>Spoiler (görmek için tıklayın)</summary>$1</details>',
-        '/\[spoiler=(.*?)\](.*?)\[\/spoiler\]/is' => '<details class="forum-spoiler"><summary>$1</summary>$2</details>',
-        
-        // YouTube videolar
-        '/\[youtube\](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)\[\/youtube\]/i' => '<div class="forum-video"><iframe width="560" height="315" src="https://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe></div>',
-        
-        // Horizontal line
-        '/\[hr\]/i' => '<hr class="forum-hr">',
-        
-        // Subscript ve Superscript
-        '/\[sub\](.*?)\[\/sub\]/is' => '<sub>$1</sub>',
-        '/\[sup\](.*?)\[\/sup\]/is' => '<sup>$1</sup>',
-        
-        // Highlight
-        '/\[highlight\](.*?)\[\/highlight\]/is' => '<mark style="background-color: yellow; color: black;">$1</mark>',
-        '/\[highlight=(#[a-fA-F0-9]{3,6}|yellow|lime|cyan|pink|orange)\](.*?)\[\/highlight\]/is' => '<mark style="background-color: $1; color: black;">$2</mark>',
-        
-        // Kod blokları - quote'dan önce işle
-        '/\[code\](.*?)\[\/code\]/is' => '<pre class="forum-code"><code>$1</code></pre>',
-        '/\[code=(php|javascript|python|html|css|sql|cpp|java|csharp)\](.*?)\[\/code\]/is' => '<pre class="forum-code" data-language="$1"><code>$2</code></pre>',
-        
-        // Table - basit versiyon
-        '/\[table\](.*?)\[\/table\]/is' => '<table class="forum-table">$1</table>',
-        '/\[tr\](.*?)\[\/tr\]/is' => '<tr>$1</tr>',
-        '/\[td\](.*?)\[\/td\]/is' => '<td>$1</td>',
-        '/\[th\](.*?)\[\/th\]/is' => '<th>$1</th>',
-    ];
-    
-    // İlk geçiş - basit BBCode'ları işle
-    foreach ($bbcode_patterns as $pattern => $replacement) {
-        $text = preg_replace($pattern, $replacement, $text);
-    }
-    
-    // Listeleri işle - list tag'lerini dönüştür
-    $text = preg_replace('/\[list\](.*?)\[\/list\]/is', '<ul class="forum-list">$1</ul>', $text);
-    $text = preg_replace('/\[list=1\](.*?)\[\/list\]/is', '<ol class="forum-list">$1</ol>', $text);
-    $text = preg_replace('/\[list=a\](.*?)\[\/list\]/is', '<ol class="forum-list" type="a">$1</ol>', $text);
-    $text = preg_replace('/\[list=A\](.*?)\[\/list\]/is', '<ol class="forum-list" type="A">$1</ol>', $text);
-    
-    // Quote'ları özel olarak işle (iç içe destekle)
-    $text = parse_quotes($text);
-    
-    // Satır sonlarını <br> ile değiştir
-    $text = nl2br($text);
-    
-    return $text;
-}
-/**
- * Quote'ları özel olarak işler (iç içe desteği ile)
- * @param string $text İşlenecek metin
- * @return string İşlenmiş metin
- */
-function parse_quotes(string $text): string {
-    $depth = 0;
-    $max_depth = 5; // Maksimum iç içe quote derinliği
-    
-    // İç içe quote'ları işlemek için recursive function
-    do {
-        $prev_text = $text;
-        
-        // Named quotes
-        $text = preg_replace_callback(
-            '/\[quote=([^\]]+)\](.*?)\[\/quote\]/is',
-            function($matches) use ($depth, $max_depth) {
-                $author = htmlspecialchars($matches[1]);
-                $content = $matches[2];
-                
-                $class = 'forum-quote';
-                if ($depth > 0) {
-                    $class .= ' forum-quote-nested';
-                }
-                if ($depth > $max_depth) {
-                    return $matches[0]; // Max derinlik aşıldı, işleme
-                }
-                
-                return '<blockquote class="' . $class . '"><cite>' . $author . ' yazdı:</cite>' . $content . '</blockquote>';
-            },
-            $text
-        );
-        
-        // Anonymous quotes
-        $text = preg_replace_callback(
-            '/\[quote\](.*?)\[\/quote\]/is',
-            function($matches) use ($depth, $max_depth) {
-                $content = $matches[1];
-                
-                $class = 'forum-quote';
-                if ($depth > 0) {
-                    $class .= ' forum-quote-nested';
-                }
-                if ($depth > $max_depth) {
-                    return $matches[0]; // Max derinlik aşıldı, işleme
-                }
-                
-                return '<blockquote class="' . $class . '">' . $content . '</blockquote>';
-            },
-            $text
-        );
-        
-        $depth++;
-    } while ($prev_text !== $text && $depth < $max_depth);
-    
-    return $text;
-}
-
-/**
  * Forum breadcrumb'ını oluşturur
  * @param array $items Breadcrumb öğeleri
  * @return string HTML breadcrumb
  */
 function generate_forum_breadcrumb(array $items): string {
+    if (empty($items)) {
+        return '';
+    }
+    
     $breadcrumb = '<nav class="forum-breadcrumb"><ol class="breadcrumb">';
     
     foreach ($items as $index => $item) {
@@ -1138,6 +989,7 @@ function generate_forum_breadcrumb(array $items): string {
     $breadcrumb .= '</ol></nav>';
     return $breadcrumb;
 }
+
 /**
  * Forum tag'larını normalize şekilde yönetir
  * @param PDO $pdo Veritabanı bağlantısı
@@ -1422,6 +1274,43 @@ function check_forum_topic_likes_table(PDO $pdo): bool {
         error_log("Error checking forum_topic_likes table: " . $e->getMessage());
         return false;
     }
+}
+
+/**
+ * Verilen avatar yolunu düzeltir ve her zaman doğru, tam bir URL yolu döndürür.
+ * Bu, hem veritabanında '/' ile başlayan hem de başlamayan yollarla başa çıkabilir.
+ * @param string|null $avatar_path Veritabanından gelen avatar yolu.
+ * @return string Kullanıma hazır, tam URL yolu.
+ */
+function fix_avatar_path($avatar_path)
+{
+    // Varsayılan avatar yolu
+    $default_avatar = '/assets/logo.png';
+
+    if (empty($avatar_path)) {
+        return $default_avatar;
+    }
+
+    // Eğer yol zaten http ile başlıyorsa (örn: dış bir URL), dokunma
+    if (preg_match('/^https?:\/\//', $avatar_path)) {
+        return $avatar_path;
+    }
+    
+    // Yolun başındaki ve sonundaki boşlukları ve eğik çizgileri temizle
+    $trimmed_path = trim($avatar_path, '/ ');
+
+    // 'uploads/avatars' ile başlıyorsa, başına '/' ekleyerek döndür
+    if (strpos($trimmed_path, 'uploads/avatars') === 0) {
+        return '/' . $trimmed_path;
+    }
+    
+    // 'assets' ile başlıyorsa, başına '/' ekleyerek döndür
+    if (strpos($trimmed_path, 'assets') === 0) {
+        return '/' . $trimmed_path;
+    }
+
+    // Yukarıdakilerin hiçbiri eşleşmezse, varsayılan avatarı döndür
+    return $default_avatar;
 }
 
 ?>

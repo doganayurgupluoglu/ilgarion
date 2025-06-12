@@ -11,7 +11,7 @@ require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_events_role_functions.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
-require_once BASE_PATH . '/src/functions/Parsedown.php'; // Markdown parser
+require_once BASE_PATH . '/htmlpurifier-4.15.0/library/HTMLPurifier.auto.php';
 
 // Events layout system include
 require_once 'includes/events_layout.php';
@@ -119,15 +119,17 @@ try {
     // Rol slotlarını getir
     $roles_stmt = $pdo->prepare("
         SELECT ers.id as slot_id, ers.slot_count, ers.role_id,
-               er.role_name, er.role_description, er.role_icon,
-               COUNT(ep.id) as current_participants,
-               SUM(CASE WHEN ep.participation_status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_participants,
-               SUM(CASE WHEN ep.participation_status = 'maybe' THEN 1 ELSE 0 END) as pending_participants
+               er.role_name, er.role_description, er.role_icon, er.suggested_loadout_id,
+               ls.set_name as loadout_set_name,
+               COALESCE(SUM(CASE WHEN ep.participation_status IN ('confirmed', 'maybe') THEN 1 ELSE 0 END), 0) as current_participants,
+               COALESCE(SUM(CASE WHEN ep.participation_status = 'confirmed' THEN 1 ELSE 0 END), 0) as confirmed_participants,
+               COALESCE(SUM(CASE WHEN ep.participation_status = 'maybe' THEN 1 ELSE 0 END), 0) as pending_participants
         FROM event_role_slots ers
         JOIN event_roles er ON ers.role_id = er.id
         LEFT JOIN event_participations ep ON ers.id = ep.role_slot_id
+        LEFT JOIN loadout_sets ls ON er.suggested_loadout_id = ls.id
         WHERE ers.event_id = :event_id
-        GROUP BY ers.id, ers.slot_count, ers.role_id, er.role_name, er.role_description, er.role_icon
+        GROUP BY ers.id, ers.slot_count, ers.role_id, er.role_name, er.role_description, er.role_icon, er.suggested_loadout_id, ls.set_name
         ORDER BY er.role_name ASC
     ");
     
@@ -140,8 +142,8 @@ try {
         $participation_stmt = $pdo->prepare("
             SELECT ep.*, ers.role_id, er.role_name
             FROM event_participations ep
-            JOIN event_role_slots ers ON ep.role_slot_id = ers.id
-            JOIN event_roles er ON ers.role_id = er.id
+            LEFT JOIN event_role_slots ers ON ep.role_slot_id = ers.id
+            LEFT JOIN event_roles er ON ers.role_id = er.id
             WHERE ep.event_id = :event_id AND ep.user_id = :user_id
         ");
         
@@ -183,10 +185,19 @@ try {
         $participants = $participants_stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
-    // Markdown parser başlat
-    $parsedown = new Parsedown();
-    $parsedown->setBreaksEnabled(true);
-    $parsedown->setMarkupEscaped(true);
+    // HTML Purifier'ı başlat
+    $config = HTMLPurifier_Config::createDefault();
+    $cache_path = BASE_PATH . '/htmlpurifier-4.15.0/cache';
+    if (!is_dir($cache_path)) {
+        mkdir($cache_path, 0755, true);
+    }
+    $config->set('Cache.SerializerPath', $cache_path);
+    $config->set('HTML.SafeIframe', true);
+    $config->set('URI.SafeIframeRegexp', '%^(https?://)?(www\.)?(youtube\.com/embed/|youtube-nocookie\.com/embed/)%');
+    $config->set('HTML.Allowed', 'h1,h2,h3,h4,h5,h6,b,strong,i,em,u,a[href|title],ul,ol,li,p[style],br,span[style],img[style|width|height|alt|src],iframe[src|width|height|frameborder|allow|allowfullscreen|title]');
+    $config->set('CSS.AllowedProperties', 'text-align,color,max-width,height,display,border-radius');
+    $purifier = new HTMLPurifier($config);
+    $clean_event_description = $purifier->purify($event['event_description']);
     
 } catch (PDOException $e) {
     error_log("Detail.php PDO ERROR: " . $e->getMessage());
@@ -217,7 +228,24 @@ events_layout_start($breadcrumb_items, $page_title);
 <!-- CSS Dahil Etme -->
 <link rel="stylesheet" href="css/events_detail.css">
 <link rel="stylesheet" href="css/events_sidebar.css">
-<link rel="stylesheet" href="css/participation-styles.css">
+
+<style>
+.suggested-loadout-container {
+    text-align: center;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+}
+.suggested-loadout-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color:rgb(70, 166, 61);
+    font-weight: 500;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+</style>
 
 <!-- Event Detail Container -->
 <div class="event-detail-container">
@@ -266,8 +294,9 @@ events_layout_start($breadcrumb_items, $page_title);
                     <div class="meta-item">
                         <i class="fas fa-user"></i>
                         <span>Oluşturan: </span>
-                        <span class="creator-name" 
-                              style="color: <?= htmlspecialchars($event['creator_role_color'] ?? '#bd912a') ?>">
+                        <span class="creator-name user-link" 
+                              data-user-id="<?= $event['created_by_user_id'] ?>"
+                              style="color: <?= htmlspecialchars($event['creator_role_color'] ?? '#bd912a') ?>; cursor: pointer;">
                             <?= htmlspecialchars($event['creator_username'] ?? 'Bilinmeyen') ?>
                         </span>
                     </div>
@@ -297,20 +326,16 @@ events_layout_start($breadcrumb_items, $page_title);
                                 <i class="fas fa-hand-paper"></i>
                                 Etkinliğe Katıl
                             </button>
-                            
-                            <div class="participation-options">
-                                <button type="button" class="btn-secondary participation-status-btn" 
-                                        data-event-id="<?= $event_id ?>" data-status="maybe">
-                                    <i class="fas fa-question-circle"></i>
-                                    Belki Katılırım
-                                </button>
-                                
-                                <button type="button" class="btn-outline participation-status-btn" 
-                                        data-event-id="<?= $event_id ?>" data-status="declined">
-                                    <i class="fas fa-times-circle"></i>
-                                    Katılmıyorum
-                                </button>
-                            </div>
+                            <button type="button" class="btn-secondary participation-status-btn" 
+                                    data-event-id="<?= $event_id ?>" data-status="maybe">
+                                <i class="fas fa-question-circle"></i>
+                                Belki Katılırım
+                            </button>
+                            <button type="button" class="btn-outline participation-status-btn" 
+                                    data-event-id="<?= $event_id ?>" data-status="declined">
+                                <i class="fas fa-times-circle"></i>
+                                Katılmıyorum
+                            </button>
                         </div>
                     <?php else: ?>
                         <!-- Mevcut Katılım Durumu -->
@@ -339,33 +364,33 @@ events_layout_start($breadcrumb_items, $page_title);
                         
                         <!-- Durum Değiştirme Butonları -->
                         <div class="participation-change-buttons">
-                            <?php if ($user_participation['participation_status'] !== 'confirmed'): ?>
+                            <?php
+                            $status = $user_participation['participation_status'];
+                            ?>
+                            
+                            <?php if ($status === 'confirmed'): ?>
+                                <button type="button" class="btn-primary participate-btn" data-event-id="<?= $event_id ?>">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    Rolü Değiştir
+                                </button>
+                                <button type="button" class="btn-danger leave-event-btn" data-event-id="<?= $event_id ?>">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    Katılımdan Ayrıl
+                                </button>
+                            <?php else: ?>
                                 <button type="button" class="btn-primary participate-btn" data-event-id="<?= $event_id ?>">
                                     <i class="fas fa-hand-paper"></i>
                                     Role Katıl
                                 </button>
-                            <?php endif; ?>
-                            
-                            <?php if ($user_participation['participation_status'] !== 'maybe'): ?>
-                                <button type="button" class="btn-secondary participation-status-btn" 
+                                <button type="button" class="btn-secondary participation-status-btn <?= $status === 'maybe' ? 'active-status' : '' ?>" 
                                         data-event-id="<?= $event_id ?>" data-status="maybe">
                                     <i class="fas fa-question-circle"></i>
                                     Belki Katılırım
                                 </button>
-                            <?php endif; ?>
-                            
-                            <?php if ($user_participation['participation_status'] !== 'declined'): ?>
-                                <button type="button" class="btn-outline participation-status-btn" 
+                                <button type="button" class="btn-outline participation-status-btn <?= $status === 'declined' ? 'active-status' : '' ?>" 
                                         data-event-id="<?= $event_id ?>" data-status="declined">
                                     <i class="fas fa-times-circle"></i>
                                     Katılmıyorum
-                                </button>
-                            <?php endif; ?>
-                            
-                            <?php if ($user_participation['participation_status'] === 'confirmed'): ?>
-                                <button type="button" class="btn-danger leave-event-btn" data-event-id="<?= $event_id ?>">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    Katılımdan Çık
                                 </button>
                             <?php endif; ?>
                         </div>
@@ -422,7 +447,7 @@ events_layout_start($breadcrumb_items, $page_title);
             <div class="content-section">
                 <h2><i class="fas fa-align-left"></i> Etkinlik Açıklaması</h2>
                 <div class="event-description">
-                    <?= $parsedown->text($event['event_description']) ?>
+                    <?= $clean_event_description ?>
                 </div>
             </div>
             
@@ -468,20 +493,29 @@ events_layout_start($breadcrumb_items, $page_title);
                                     </div>
                                 <?php endif; ?>
                                 
+                                <?php if (!empty($role['suggested_loadout_id']) && !empty($role['loadout_set_name'])): ?>
+                                    <div class="suggested-loadout-container">
+                                        <div class="suggested-loadout-label">
+                                            <i class="fas fa-star"></i>
+                                            <span>Önerilen Teçhizat Seti</span>
+                                        </div>
+                                        <a href="/events/loadouts/view.php?id=<?= $role['suggested_loadout_id'] ?>" class="btn-suggested-loadout">
+                                            <i class="fas fa-user-shield"></i>
+                                            <?= htmlspecialchars($role['loadout_set_name']) ?>
+                                        </a>
+                                    </div>
+                                <?php endif; ?>
+
                                 <div class="role-actions">
-                                    <?php 
-                                    $available_slots = $role['slot_count'] - $role['confirmed_participants'];
-                                    $user_in_this_role = $user_participation && $user_participation['role_id'] == $role['role_id'];
+                                    <?php
+                                    // FIX: 'current_participants' hem 'confirmed' hem de 'maybe' durumlarını içerir, bu da doğru kontenjanı verir.
+                                    $available_slots = $role['slot_count'] - $role['current_participants'];
+
+                                    // FIX: Kullanıcının bu spesifik rol slotunda olup olmadığını kontrol et.
+                                    $user_in_this_role = $user_participation && isset($user_participation['role_slot_id']) && $user_participation['role_slot_id'] == $role['slot_id'];
                                     ?>
-                                    
-                                    <?php if ($can_participate && !$user_participation && $available_slots > 0): ?>
-                                        <button type="button" class="btn-role-join" 
-                                                data-slot-id="<?= $role['slot_id'] ?>"
-                                                data-role-name="<?= htmlspecialchars($role['role_name']) ?>">
-                                            <i class="fas fa-plus"></i>
-                                            Bu Role Katıl
-                                        </button>
-                                    <?php elseif ($user_in_this_role): ?>
+
+                                    <?php if ($user_in_this_role): ?>
                                         <span class="current-role-badge">
                                             <i class="fas fa-check"></i>
                                             Mevcut Rolünüz
@@ -491,8 +525,22 @@ events_layout_start($breadcrumb_items, $page_title);
                                             <i class="fas fa-users"></i>
                                             Dolu
                                         </span>
+                                    <?php elseif ($can_participate): ?>
+                                        <?php
+                                        // Kullanıcı zaten başka bir role katılmışsa veya "Belki" durumundaysa, buton metnini ve ikonunu ayarla
+                                        $is_switching = $user_participation && $user_participation['participation_status'] === 'confirmed';
+                                        $button_text = $is_switching ? 'Bu Role Geç' : 'Bu Role Katıl';
+                                        $button_icon = $is_switching ? 'fas fa-exchange-alt' : 'fas fa-plus';
+                                        ?>
+                                        <button type="button" class="btn-primary btn-role-join"
+                                                data-event-id="<?= $event_id ?>"
+                                                data-slot-id="<?= $role['slot_id'] ?>"
+                                                data-role-name="<?= htmlspecialchars($role['role_name']) ?>">
+                                            <i class="<?= $button_icon ?>"></i>
+                                            <?= $button_text ?>
+                                        </button>
                                     <?php endif; ?>
-                                    
+
                                     <a href="roles/view.php?id=<?= $role['role_id'] ?>" class="btn-role-details">
                                         <i class="fas fa-info"></i>
                                         Detaylar
@@ -550,8 +598,9 @@ events_layout_start($breadcrumb_items, $page_title);
                                         <?php foreach ($grouped_participants[$status] as $participant): ?>
                                             <div class="participant-card">
                                                 <div class="participant-info">
-                                                    <span class="participant-name" 
-                                                          style="color: <?= htmlspecialchars($participant['user_role_color'] ?? '#bd912a') ?>">
+                                                    <span class="participant-name user-link"
+                                                          data-user-id="<?= $participant['user_id'] ?>" 
+                                                          style="color: <?= htmlspecialchars($participant['user_role_color'] ?? '#bd912a') ?>; cursor: pointer;">
                                                         <?= htmlspecialchars($participant['username']) ?>
                                                     </span>
                                                     
@@ -592,6 +641,7 @@ events_layout_start($breadcrumb_items, $page_title);
                                                         <button type="button" 
                                                                 class="btn-remove" 
                                                                 data-participation-id="<?= $participant['id'] ?>"
+                                                                data-event-id="<?= $event_id ?>"
                                                                 title="Katılımcıyı Kaldır">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
@@ -663,7 +713,9 @@ events_layout_start($breadcrumb_items, $page_title);
                         Organize Eden
                     </div>
                     <div class="info-value">
-                        <span style="color: <?= htmlspecialchars($event['creator_role_color'] ?? '#bd912a') ?>">
+                        <span class="user-link" 
+                              data-user-id="<?= $event['created_by_user_id'] ?>"
+                              style="color: <?= htmlspecialchars($event['creator_role_color'] ?? '#bd912a') ?>; cursor: pointer;">
                             <?= htmlspecialchars($event['creator_username'] ?? 'Bilinmeyen') ?>
                         </span>
                     </div>
@@ -791,6 +843,7 @@ events_layout_start($breadcrumb_items, $page_title);
 <script src="js/events_detail.js"></script>
 
 <?php
+include_once BASE_PATH . '/src/includes/user_popover.php';
 events_layout_end();
 include BASE_PATH . '/src/includes/footer.php';
 ?>

@@ -5,7 +5,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once dirname(dirname(__DIR__)) . '/src/config/database.php';
+require_once '../src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/forum_functions.php';
@@ -75,8 +75,8 @@ $page_title = "Forum Arama" . (!empty($search_query) ? " - " . htmlspecialchars(
 
 // Breadcrumb
 $breadcrumb_items = [
-    ['text' => 'Ana Sayfa', 'url' => '/public/index.php', 'icon' => 'fas fa-home'],
-    ['text' => 'Forum', 'url' => '/public/forum/', 'icon' => 'fas fa-comments'],
+    ['text' => 'Ana Sayfa', 'url' => '/index.php', 'icon' => 'fas fa-home'],
+    ['text' => 'Forum', 'url' => '/forum/', 'icon' => 'fas fa-comments'],
     ['text' => 'Arama', 'url' => '', 'icon' => 'fas fa-search']
 ];
 
@@ -151,7 +151,7 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                 SELECT 'topic' as result_type, 'Konu' as type_label,
                        ft.id, ft.title, LEFT(ft.content, 300) as content,
                        ft.tags, ft.view_count, ft.reply_count,
-                       CONCAT('/public/forum/topic.php?id=', ft.id) as url,
+                       CONCAT('/forum/topic.php?id=', ft.id) as url,
                        u.username, COALESCE(ur.color, '#bd912a') as user_role_color, 
                        ft.user_id, ft.created_at,
                        fc.name as category_name, COALESCE(fc.color, '#bd912a') as category_color,
@@ -204,7 +204,7 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                 SELECT 'post' as result_type, 'Gönderi' as type_label,
                        fp.id, ft.title, LEFT(fp.content, 300) as content,
                        '' as tags, 0 as view_count, 0 as reply_count,
-                       CONCAT('/public/forum/topic.php?id=', ft.id, '#post-', fp.id) as url,
+                       CONCAT('/forum/topic.php?id=', ft.id, '#post-', fp.id) as url,
                        u.username, COALESCE(ur.color, '#bd912a') as user_role_color, 
                        fp.user_id, fp.created_at,
                        fc.name as category_name, COALESCE(fc.color, '#bd912a') as category_color,
@@ -256,7 +256,7 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                 SELECT 'tag' as result_type, 'Etiket' as type_label,
                        ft.id, ft.name as title, CONCAT(ft.usage_count, ' konuda kullanılmış') as content,
                        '' as tags, ft.usage_count as view_count, 0 as reply_count,
-                       CONCAT('/public/forum/search.php?q=', REPLACE(ft.name, ' ', '%20'), '&type=tags') as url,
+                       CONCAT('/forum/search.php?q=', REPLACE(ft.name, ' ', '%20'), '&type=tags') as url,
                        '' as username, '#bd912a' as user_role_color, 0 as user_id, ft.created_at,
                        'Etiket' as category_name, '#bd912a' as category_color,
                        (CASE 
@@ -293,7 +293,7 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                        u.id, u.username as title, 
                        CONCAT('Oyun adı: ', COALESCE(u.ingame_name, 'Belirtilmemiş')) as content,
                        '' as tags, 0 as view_count, 0 as reply_count,
-                       CONCAT('/public/view_profile.php?user_id=', u.id) as url,
+                       CONCAT('/view_profile.php?user_id=', u.id) as url,
                        u.username, COALESCE(ur.color, '#bd912a') as user_role_color, 
                        u.id as user_id, u.created_at,
                        'Kullanıcı' as category_name, COALESCE(ur.color, '#bd912a') as category_color,
@@ -405,8 +405,8 @@ function format_search_time_ago($datetime) {
 }
 ?>
 
-<link rel="stylesheet" href="/public/forum/css/forum.css">
-<link rel="stylesheet" href="/public/forum/css/search.css">
+<link rel="stylesheet" href="/forum/css/forum.css">
+<link rel="stylesheet" href="/forum/css/search.css">
 
 <div class="forum-page-container">
     <!-- Breadcrumb -->
@@ -420,7 +420,7 @@ function format_search_time_ago($datetime) {
 
     <!-- Kompakt Search Form -->
     <div class="search-form-container">
-        <form method="GET" action="/public/forum/search.php" class="search-form">
+        <form method="GET" action="/forum/search.php" class="search-form">
             <div class="search-input-group">
                 <div class="search-input-container">
                     <input type="text" name="q" value="<?= htmlspecialchars($search_query) ?>" 
@@ -505,7 +505,7 @@ function format_search_time_ago($datetime) {
                         <h4>Popüler Etiketler:</h4>
                         <div class="tags-list">
                             <?php foreach ($popular_tags as $tag): ?>
-                                <a href="/public/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tags" 
+                                <a href="/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tags" 
                                    class="suggestion-tag">
                                     <?= htmlspecialchars($tag['name']) ?> 
                                     <span><?= $tag['usage_count'] ?></span>
@@ -537,7 +537,7 @@ function format_search_time_ago($datetime) {
                                 <div class="topic-item">
                                     <div class="topic-header">
                                         <h3 class="topic-title">
-                                            <a href="/public/forum/topic.php?id=<?= $topic['id'] ?>">
+                                            <a href="/forum/topic.php?id=<?= $topic['id'] ?>">
                                                 <?php if ($topic['is_pinned']): ?>
                                                     <i class="fas fa-thumbtack text-warning"></i>
                                                 <?php endif; ?>
@@ -551,7 +551,7 @@ function format_search_time_ago($datetime) {
                                             <span class="topic-category">
                                                 <i class="<?= $topic['category_icon'] ?? 'fas fa-folder' ?>" 
                                                    style="color: <?= $topic['category_color'] ?? '#bd912a' ?>"></i>
-                                                <a href="/public/forum/category.php?slug=<?= urlencode($topic['category_slug']) ?>"
+                                                <a href="/forum/category.php?slug=<?= urlencode($topic['category_slug']) ?>"
                                                    style="color: <?= $topic['category_color'] ?? '#bd912a' ?>">
                                                     <?= htmlspecialchars($topic['category_name']) ?>
                                                 </a>
@@ -588,7 +588,7 @@ function format_search_time_ago($datetime) {
                                                 $tags = array_filter(array_map('trim', explode(',', $topic['tags'])));
                                                 foreach (array_slice($tags, 0, 3) as $tag):
                                                 ?>
-                                                    <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tags" 
+                                                    <a href="/forum/search.php?q=<?= urlencode($tag) ?>&type=tags" 
                                                        class="topic-tag <?= $tag === $search_query ? 'active' : '' ?>">
                                                         <?= htmlspecialchars($tag) ?>
                                                     </a>
@@ -726,7 +726,7 @@ function format_search_time_ago($datetime) {
                                             $tags = array_filter(array_map('trim', explode(',', $result['tags'])));
                                             foreach (array_slice($tags, 0, 3) as $tag):
                                             ?>
-                                                <a href="/public/forum/search.php?q=<?= urlencode($tag) ?>&type=tags" 
+                                                <a href="/forum/search.php?q=<?= urlencode($tag) ?>&type=tags" 
                                                    class="result-tag">
                                                     <?= htmlspecialchars($tag) ?>
                                                 </a>
@@ -749,7 +749,7 @@ function format_search_time_ago($datetime) {
 
                         <nav class="pagination-nav">
                             <?php
-                            $base_url = "/public/forum/search.php?q=" . urlencode($search_query) . 
+                            $base_url = "/forum/search.php?q=" . urlencode($search_query) . 
                                        "&type=" . urlencode($search_type) . 
                                        "&category=" . $category_filter . 
                                        "&sort=" . urlencode($sort_by);
@@ -823,7 +823,7 @@ function format_search_time_ago($datetime) {
                     <h3><i class="fas fa-fire"></i> Popüler Etiketler</h3>
                     <div class="popular-tags-grid">
                         <?php foreach ($popular_tags as $tag): ?>
-                            <a href="/public/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tags" 
+                            <a href="/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tags" 
                                class="popular-tag">
                                 <span class="tag-name"><?= htmlspecialchars($tag['name']) ?></span>
                                 <span class="tag-count"><?= number_format($tag['usage_count']) ?></span>
@@ -836,6 +836,6 @@ function format_search_time_ago($datetime) {
     <?php endif; ?>
 </div>
 
-<script src="/public/forum/js/forum.js"></script>
+<script src="/forum/js/forum.js"></script>
 
 <?php include BASE_PATH . '/src/includes/footer.php'; ?>

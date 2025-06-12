@@ -42,13 +42,6 @@ $sidebar_items = [
         'icon' => 'fas fa-shield-alt',
         'url' => '/profile/security.php',
         'active' => $current_page === 'security'
-    ],
-    [
-        'id' => 'privacy',
-        'title' => 'Gizlilik Ayarları',
-        'icon' => 'fas fa-eye-slash',
-        'url' => '/profile/privacy.php',
-        'active' => $current_page === 'privacy'
     ]
 ];
 
