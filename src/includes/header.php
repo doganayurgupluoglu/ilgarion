@@ -25,25 +25,35 @@ if (isset($pdo) && function_exists('is_user_logged_in') && is_user_logged_in()) 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($page_title) ? htmlspecialchars($page_title) . ' | ILGARION TURANIS' : 'ILGARION TURANIS'; ?></title>
-    <link rel="stylesheet" href="/css/style.css">
+    
+    <!-- Favicon -->
     <link rel="manifest" href="../../favicon_io/site.webmanifest">
-<link rel="icon" href="../../favicon_io/favicon.ico">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="favicon_io/android-chrome-192x192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="favicon_io/android-chrome-512x512.png">
-<meta name="theme-color" content="#ffffff">
+    <link rel="icon" href="../../favicon_io/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon_io/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="favicon_io/android-chrome-512x512.png">
+    <meta name="theme-color" content="#ffffff">
 
-      <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
-  />
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Core CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Phudu:wght@300..900&display=swap" rel="stylesheet">
-    <?php // Ek CSS dosyaları veya özel <style> blokları buraya eklenebilir ?>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Outfit:wght@100..900&family=Phudu:wght@300..900&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+    <?php 
+    // Ek CSS dosyaları
+    if (isset($additional_css) && is_array($additional_css)) {
+        foreach ($additional_css as $css_file) {
+            echo '<link rel="stylesheet" href="/css/' . htmlspecialchars($css_file) . '">';
+        }
+    }
+    ?>
         
 </head>
 <body>
