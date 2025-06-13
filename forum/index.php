@@ -76,6 +76,11 @@ include BASE_PATH . '/src/includes/navbar.php';
                     <i class="fas fa-plus"></i> Yeni Konu Aç
                 </a>
             <?php endif; ?>
+            <?php if (has_permission($pdo, 'forum.category.manage', $current_user_id)): ?>
+                <a href="create_category.php" class="btn-new-category">
+                    <i class="fas fa-folder-plus"></i> Kategori Oluştur
+                </a>
+            <?php endif; ?>
         </div>
     </div>
 
