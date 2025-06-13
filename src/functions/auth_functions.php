@@ -9,6 +9,19 @@ if (session_status() == PHP_SESSION_NONE) {
  * Base URL'yi döndürür
  * @return string Base URL
  */
+function get_auth_base_url(): string
+{
+    // Protokolü belirle (HTTP veya HTTPS)
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+
+    // Sunucu adını al
+    $host = $_SERVER['HTTP_HOST'];
+
+    // Projenin çalıştığı alt dizini hesaba kat
+
+    // Temel URL'i birleştir ve döndür
+    return rtrim($protocol . $host);
+}
 
 /**
  * Session güvenliği için session ID'yi güvenli bir şekilde yeniler
@@ -31,19 +44,6 @@ function regenerate_session_id_safely(bool $force = false): void {
             error_log("Session ID regenerated for user: " . ($_SESSION['user_id'] ?? 'anonymous') . " from IP: " . get_client_ip());
         }
     }
-}
-function get_auth_base_url(): string
-{
-    // Protokolü belirle (HTTP veya HTTPS)
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-
-    // Sunucu adını al
-    $host = $_SERVER['HTTP_HOST'];
-
-    // Projenin çalıştığı alt dizini hesaba kat
-
-    // Temel URL'i birleştir ve döndür
-    return rtrim($protocol . $host);
 }
 
 /**
@@ -77,52 +77,48 @@ function generate_session_fingerprint(): string {
 }
 
 /**
- * İstemci IP adresini güvenli şekilde alır
+ * Kısmi IP adresi döndürür (NAT/proxy uyumluluğu için)
+ * @return string IP adresinin ilk 3 okteti
+ */
+function get_client_ip_partial(): string {
+    $ip = get_client_ip();
+    $ip_parts = explode('.', $ip);
+    return implode('.', array_slice($ip_parts, 0, 3));
+}
+
+/**
+ * Gerçek client IP adresini döndürür
  * @return string IP adresi
  */
 function get_client_ip(): string {
     $ip_headers = [
         'HTTP_CF_CONNECTING_IP',     // Cloudflare
-        'HTTP_X_FORWARDED_FOR',      // Proxy/Load Balancer
+        'HTTP_CLIENT_IP',            // Proxy
+        'HTTP_X_FORWARDED_FOR',      // Load balancer/proxy
         'HTTP_X_FORWARDED',          // Proxy
         'HTTP_X_CLUSTER_CLIENT_IP',  // Cluster
         'HTTP_FORWARDED_FOR',        // Proxy
         'HTTP_FORWARDED',            // Proxy
         'REMOTE_ADDR'                // Standard
     ];
-    
+
     foreach ($ip_headers as $header) {
         if (!empty($_SERVER[$header])) {
-            $ip = trim(explode(',', $_SERVER[$header])[0]);
+            $ip = $_SERVER[$header];
+            
+            // Multiple IP'ler varsa ilkini al
+            if (strpos($ip, ',') !== false) {
+                $ip = trim(explode(',', $ip)[0]);
+            }
+            
+            // IP geçerliliğini kontrol et
             if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
                 return $ip;
             }
         }
     }
-    
-    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-}
 
-/**
- * IP adresinin kısmi halini alır (fingerprint için)
- * @return string Kısmi IP
- */
-function get_client_ip_partial(): string {
-    $ip = get_client_ip();
-    $ip_parts = explode('.', $ip);
-    
-    // IPv4 için ilk 3 okteti kullan
-    if (count($ip_parts) === 4) {
-        return implode('.', array_slice($ip_parts, 0, 3));
-    }
-    
-    // IPv6 için farklı bir yaklaşım
-    if (strpos($ip, ':') !== false) {
-        $ipv6_parts = explode(':', $ip);
-        return implode(':', array_slice($ipv6_parts, 0, 4));
-    }
-    
-    return $ip;
+    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
 /**
@@ -130,10 +126,8 @@ function get_client_ip_partial(): string {
  * @return string CSRF token
  */
 function generate_csrf_token(): string {
-    if (!isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time']) || 
-        (time() - $_SESSION['csrf_token_time']) > 3600) { // 1 saat
+    if (!isset($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        $_SESSION['csrf_token_time'] = time();
     }
     return $_SESSION['csrf_token'];
 }
@@ -141,62 +135,442 @@ function generate_csrf_token(): string {
 /**
  * CSRF token'ı doğrular
  * @param string $token Kontrol edilecek token
- * @return bool Geçerliyse true
+ * @return bool Token geçerliyse true
  */
-function verify_csrf_token(string $token): bool {
-    if (!isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time'])) {
-        return false;
-    }
-    
-    // Token süresi dolmuş mu kontrol et (1 saat)
-    if ((time() - $_SESSION['csrf_token_time']) > 3600) {
-        unset($_SESSION['csrf_token'], $_SESSION['csrf_token_time']);
-        return false;
-    }
-    
-    return hash_equals($_SESSION['csrf_token'], $token);
+function validate_csrf_token(string $token): bool {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
 /**
- * Rate limiting kontrolü
- * @param string $action İşlem türü
- * @param int $max_attempts Maksimum deneme sayısı
- * @param int $time_window Zaman penceresi (saniye)
- * @return bool İzin veriliyorsa true
+ * Kullanıcının giriş yapıp yapmadığını kontrol eder
+ * @return bool Giriş yapmışsa true
  */
-function check_rate_limit(string $action, int $max_attempts = 5, int $time_window = 300): bool {
+function is_user_logged_in(): bool {
+    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+}
+
+/**
+ * Kullanıcının onaylanmış olup olmadığını kontrol eder
+ * @return bool Onaylanmışsa true
+ */
+function is_user_approved(): bool {
+    if (!is_user_logged_in()) {
+        return false;
+    }
+    return ($_SESSION['user_status'] ?? '') === 'approved';
+}
+
+/**
+ * Kullanıcının admin olup olmadığını kontrol eder
+ * @return bool Admin ise true
+ */
+function is_user_admin(): bool {
+    if (!is_user_approved()) {
+        return false;
+    }
+    $user_roles = $_SESSION['user_roles'] ?? [];
+    return in_array('Admin', $user_roles) || in_array('Super Admin', $user_roles);
+}
+
+/**
+ * Kullanıcının belirli bir role sahip olup olmadığını kontrol eder
+ * @param string $role Kontrol edilecek rol
+ * @return bool Role sahipse true
+ */
+function user_has_role(string $role): bool {
+    if (!is_user_approved()) {
+        return false;
+    }
+    $user_roles = $_SESSION['user_roles'] ?? [];
+    return in_array($role, $user_roles);
+}
+
+/**
+ * Kullanıcının belirtilen rollerden herhangi birine sahip olup olmadığını kontrol eder
+ * @param array $roles Kontrol edilecek roller
+ * @return bool Herhangi bir role sahipse true
+ */
+function user_has_any_role(array $roles): bool {
+    if (!is_user_approved()) {
+        return false;
+    }
+    $user_roles = $_SESSION['user_roles'] ?? [];
+    return !empty(array_intersect($roles, $user_roles));
+}
+
+/**
+ * Kullanıcı kimlik doğrulaması yapar
+ * @param string $username Kullanıcı adı veya email
+ * @param string $password Şifre
+ * @return array Sonuç dizisi [success, message, user_data]
+ */
+function authenticate_user(string $username, string $password): array {
+    global $pdo;
+
+    if (!isset($pdo)) {
+        return [
+            'success' => false,
+            'message' => 'Veritabanı bağlantısı mevcut değil.',
+            'user_data' => null
+        ];
+    }
+
+    try {
+        // Rate limiting kontrolü
+        $ip = get_client_ip();
+        $failed_attempts = $_SESSION["failed_logins_$ip"] ?? [];
+        
+        // Son 15 dakikada 5'ten fazla başarısız deneme varsa engelle
+        $recent_failures = array_filter($failed_attempts, function($attempt) {
+            return (time() - $attempt['time']) < 900; // 15 dakika
+        });
+        
+        if (count($recent_failures) >= 5) {
+            log_login_attempt($username, false, 'Rate limit exceeded');
+            return [
+                'success' => false,
+                'message' => 'Çok fazla başarısız deneme. 15 dakika sonra tekrar deneyin.',
+                'user_data' => null
+            ];
+        }
+
+        // Kullanıcıyı bul (username veya email ile)
+        $stmt = $pdo->prepare("
+        SELECT u.id, u.username, u.email, u.password, u.status, u.ingame_name,
+               u.discord_username, u.avatar_path,
+               GROUP_CONCAT(r.name) as roles_list
+        FROM users u
+        LEFT JOIN user_roles ur ON u.id = ur.user_id
+        LEFT JOIN roles r ON ur.role_id = r.id
+        WHERE (u.username = ? OR u.email = ?)
+        GROUP BY u.id
+    ");
+        
+        $stmt->execute([$username, $username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            log_login_attempt($username, false, 'User not found');
+            return [
+                'success' => false,
+                'message' => 'Kullanıcı adı veya şifre hatalı.',
+                'user_data' => null
+            ];
+        }
+
+        // Şifre kontrolü
+        if (!password_verify($password, $user['password'])) {
+            log_login_attempt($username, false, 'Invalid password');
+            return [
+                'success' => false,
+                'message' => 'Kullanıcı adı veya şifre hatalı.',
+                'user_data' => null
+            ];
+        }
+
+        // Hesap durumu kontrolü
+        if ($user['status'] !== 'approved') {
+            log_login_attempt($username, false, 'Account status: ' . $user['status']);
+            $status_messages = [
+                'pending' => 'Hesabınız henüz onaylanmamış. Lütfen bekleyin.',
+                'rejected' => 'Hesabınız reddedilmiş. Lütfen yönetici ile iletişime geçin.',
+                'suspended' => 'Hesabınız askıya alınmış. Lütfen yönetici ile iletişime geçin.'
+            ];
+            return [
+                'success' => false,
+                'message' => $status_messages[$user['status']] ?? 'Hesap durumu geçersiz.',
+                'user_data' => null
+            ];
+        }
+
+        // Başarılı login
+        log_login_attempt($username, true);
+        
+        return [
+            'success' => true,
+            'message' => 'Giriş başarılı.',
+            'user_data' => $user
+        ];
+
+    } catch (PDOException $e) {
+        error_log("Login database error: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Sistem hatası. Lütfen tekrar deneyin.',
+            'user_data' => null
+        ];
+    }
+}
+
+/**
+ * Güvenli session başlatır
+ * @param array $user_data Kullanıcı verileri
+ */
+function create_secure_session(array $user_data): void {
+    // Eski session'ı temizle
+    session_regenerate_id(true);
+    
+    // Güvenlik verileri
+    $_SESSION['user_id'] = $user_data['id'];
+    $_SESSION['username'] = $user_data['username'];
+    $_SESSION['user_status'] = $user_data['status'];
+    $_SESSION['user_roles'] = $user_data['roles_list'] ? explode(',', $user_data['roles_list']) : [];
+    $_SESSION['last_activity'] = time();
+    $_SESSION['last_regeneration'] = time();
+    $_SESSION['session_fingerprint'] = generate_session_fingerprint();
+    $_SESSION['session_token'] = bin2hex(random_bytes(32));
+    $_SESSION['login_time'] = time();
+    $_SESSION['login_ip'] = get_client_ip();
+    
+    // Opsiyonel kullanıcı bilgileri
+    $_SESSION['user_email'] = $user_data['email'] ?? '';
+    $_SESSION['user_ingame_name'] = $user_data['ingame_name'] ?? '';
+    $_SESSION['user_discord'] = $user_data['discord_username'] ?? '';
+    $_SESSION['user_avatar'] = $user_data['avatar_path'] ?? '';
+}
+
+/**
+ * REMEMBER ME ÖZELLİĞİ - YENİ FONKSİYONLAR
+ */
+
+/**
+ * Remember me cookie'si oluşturur
+ * @param int $user_id Kullanıcı ID'si
+ */
+function set_remember_me_cookie(int $user_id): void {
+    global $pdo;
+    
+    try {
+        // Rastgele token oluştur
+        $token = bin2hex(random_bytes(32));
+        $selector = bin2hex(random_bytes(16));
+        $token_hash = hash('sha256', $token);
+        
+        // Token'ı veritabanına kaydet (30 gün geçerli)
+        $expires = time() + (30 * 24 * 60 * 60); // 30 gün
+        
+        // Eski remember me token'larını sil
+        $stmt = $pdo->prepare("DELETE FROM user_remember_tokens WHERE user_id = ? OR expires_at < NOW()");
+        $stmt->execute([$user_id]);
+        
+        // Yeni token'ı ekle
+        $stmt = $pdo->prepare("
+            INSERT INTO user_remember_tokens (user_id, selector, token_hash, expires_at) 
+            VALUES (?, ?, ?, FROM_UNIXTIME(?))
+        ");
+        $stmt->execute([$user_id, $selector, $token_hash, $expires]);
+        
+        // Cookie'yi set et
+        $cookie_value = $selector . ':' . $token;
+        setcookie(
+            'remember_me',
+            $cookie_value,
+            [
+                'expires' => $expires,
+                'path' => '/',
+                'domain' => '',
+                'secure' => isset($_SERVER['HTTPS']),
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]
+        );
+        
+        error_log("Remember me cookie set for user ID: $user_id");
+        
+    } catch (PDOException $e) {
+        error_log("Remember me cookie creation error: " . $e->getMessage());
+    }
+}
+
+/**
+ * Remember me cookie'sini kontrol eder ve kullanıcıyı otomatik giriş yapar
+ * @return array|null Kullanıcı verileri veya null
+ */
+function check_remember_me_cookie(): ?array {
+    global $pdo;
+    
+    if (!isset($_COOKIE['remember_me'])) {
+        return null;
+    }
+    
+    try {
+        $cookie_parts = explode(':', $_COOKIE['remember_me'], 2);
+        if (count($cookie_parts) !== 2) {
+            clear_remember_me_cookie();
+            return null;
+        }
+        
+        [$selector, $token] = $cookie_parts;
+        $token_hash = hash('sha256', $token);
+        
+        // Token'ı veritabanından kontrol et
+        $stmt = $pdo->prepare("
+            SELECT rt.user_id, rt.token_hash, u.username, u.email, u.status, u.ingame_name,
+                   u.discord_username, u.avatar_path,
+                   GROUP_CONCAT(r.name) as roles_list
+            FROM user_remember_tokens rt
+            JOIN users u ON rt.user_id = u.id
+            LEFT JOIN user_roles ur ON u.id = ur.user_id
+            LEFT JOIN roles r ON ur.role_id = r.id
+            WHERE rt.selector = ? AND rt.expires_at > NOW() AND u.status = 'approved'
+            GROUP BY rt.user_id
+        ");
+        $stmt->execute([$selector]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user || !hash_equals($user['token_hash'], $token_hash)) {
+            clear_remember_me_cookie();
+            return null;
+        }
+        
+        // Token'ı yenile (güvenlik için)
+        $new_token = bin2hex(random_bytes(32));
+        $new_token_hash = hash('sha256', $new_token);
+        $new_expires = time() + (30 * 24 * 60 * 60);
+        
+        $stmt = $pdo->prepare("
+            UPDATE user_remember_tokens 
+            SET token_hash = ?, expires_at = FROM_UNIXTIME(?) 
+            WHERE selector = ?
+        ");
+        $stmt->execute([$new_token_hash, $new_expires, $selector]);
+        
+        // Cookie'yi yenile
+        $new_cookie_value = $selector . ':' . $new_token;
+        setcookie(
+            'remember_me',
+            $new_cookie_value,
+            [
+                'expires' => $new_expires,
+                'path' => '/',
+                'domain' => '',
+                'secure' => isset($_SERVER['HTTPS']),
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]
+        );
+        
+        error_log("Auto-login via remember me for user: " . $user['username']);
+        
+        return [
+            'id' => $user['user_id'],
+            'username' => $user['username'],
+            'email' => $user['email'],
+            'status' => $user['status'],
+            'ingame_name' => $user['ingame_name'],
+            'discord_username' => $user['discord_username'],
+            'avatar_path' => $user['avatar_path'],
+            'roles_list' => $user['roles_list']
+        ];
+        
+    } catch (PDOException $e) {
+        error_log("Remember me check error: " . $e->getMessage());
+        clear_remember_me_cookie();
+        return null;
+    }
+}
+
+/**
+ * Remember me cookie'sini temizler
+ */
+function clear_remember_me_cookie(): void {
+    global $pdo;
+    
+    if (isset($_COOKIE['remember_me'])) {
+        $cookie_parts = explode(':', $_COOKIE['remember_me'], 2);
+        if (count($cookie_parts) === 2) {
+            $selector = $cookie_parts[0];
+            
+            try {
+                // Veritabanından token'ı sil
+                $stmt = $pdo->prepare("DELETE FROM user_remember_tokens WHERE selector = ?");
+                $stmt->execute([$selector]);
+            } catch (PDOException $e) {
+                error_log("Remember me token deletion error: " . $e->getMessage());
+            }
+        }
+        
+        // Cookie'yi sil
+        setcookie(
+            'remember_me',
+            '',
+            [
+                'expires' => time() - 3600,
+                'path' => '/',
+                'domain' => '',
+                'secure' => isset($_SERVER['HTTPS']),
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]
+        );
+    }
+}
+
+/**
+ * Sayfa yüklendiğinde remember me kontrolü yapar
+ * Giriş sayfası değilse ve kullanıcı giriş yapmamışsa cookie'yi kontrol eder
+ */
+function auto_login_check(): void {
+    // Zaten giriş yapmışsa veya giriş sayfasındaysa kontrol etme
+    if (is_user_logged_in() || strpos($_SERVER['REQUEST_URI'], 'auth.php') !== false || 
+        strpos($_SERVER['REQUEST_URI'], 'register.php') !== false) {
+        return;
+    }
+    
+    // Remember me cookie'sini kontrol et
+    $user_data = check_remember_me_cookie();
+    
+    if ($user_data) {
+        // Otomatik giriş yap
+        create_secure_session($user_data);
+        
+        // Log the auto-login
+        error_log("Auto-login successful for user: " . $user_data['username'] . " from IP: " . get_client_ip());
+        
+        // Sayfayı yenile (opsiyonel)
+        header("Refresh: 0");
+        exit;
+    }
+}
+
+/**
+ * Suspicious activity detection
+ * @param string $activity Aktivite türü
+ * @param array $details Ek detaylar
+ */
+function detect_suspicious_activity(string $activity, array $details = []): void {
     $ip = get_client_ip();
-    $key = "rate_limit_{$action}_{$ip}";
+    $user_id = $_SESSION['user_id'] ?? 'anonymous';
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
     
-    if (!isset($_SESSION[$key])) {
-        $_SESSION[$key] = ['count' => 0, 'first_attempt' => time()];
+    $suspicious_indicators = [
+        'multiple_failed_logins' => count($_SESSION["failed_logins_$ip"] ?? []),
+        'session_fingerprint_mismatch' => !validate_session_fingerprint(),
+        'unusual_user_agent' => strlen($user_agent) < 10 || strlen($user_agent) > 500,
+        'rapid_requests' => isset($_SESSION['last_request_time']) && 
+                           (time() - $_SESSION['last_request_time']) < 1
+    ];
+    
+    $suspicion_level = array_sum($suspicious_indicators);
+    
+    if ($suspicion_level >= 2) {
+        $log_details = json_encode(array_merge($details, $suspicious_indicators));
+        error_log("SUSPICIOUS ACTIVITY: $activity, User: $user_id, IP: $ip, Details: $log_details");
+        
+        // Yüksek risk durumunda session'ı sonlandır
+        if ($suspicion_level >= 3 && is_user_logged_in()) {
+            logout_user("Şüpheli aktivite tespit edildi. Güvenlik nedeniyle oturum sonlandırıldı.");
+        }
     }
     
-    $rate_data = $_SESSION[$key];
-    $current_time = time();
-    
-    // Zaman penceresi geçtiyse sıfırla
-    if (($current_time - $rate_data['first_attempt']) > $time_window) {
-        $_SESSION[$key] = ['count' => 1, 'first_attempt' => $current_time];
-        return true;
-    }
-    
-    // Limit aşıldı mı kontrol et
-    if ($rate_data['count'] >= $max_attempts) {
-        error_log("Rate limit exceeded for action '$action' from IP: $ip");
-        return false;
-    }
-    
-    // Sayacı artır
-    $_SESSION[$key]['count']++;
-    return true;
+    $_SESSION['last_request_time'] = time();
 }
 
 /**
- * Login attempt kaydet (güvenlik için)
+ * Login denemelerini loglar
  * @param string $username Kullanıcı adı
- * @param bool $success Başarılı mı
- * @param string $reason Başarısızlık nedeni
+ * @param bool $success Başarılı mı?
+ * @param string $reason Sebep
  */
 function log_login_attempt(string $username, bool $success, string $reason = ''): void {
     $ip = get_client_ip();
@@ -285,36 +659,26 @@ function check_user_session_validity(): void {
             $session_roles_array = $_SESSION['user_roles'] ?? [];
             sort($session_roles_array);
 
-            // Durum kontrolü
-            if ($current_db_status !== 'approved') {
-                logout_user("Hesap durumunuz '" . htmlspecialchars($current_db_status) . "' olarak değişti.");
-                return;
-            } elseif ($session_status !== $current_db_status) {
-                $_SESSION['user_status'] = $current_db_status;
-            }
-
-            // Rol kontrolü ve güncellemesi
-            if ($current_db_roles_array !== $session_roles_array) {
-                $_SESSION['user_roles'] = $current_db_roles_array;
-                
-                // Rol değişikliği logla
-                error_log("User roles updated for user {$_SESSION['user_id']}: " . 
-                         "Old roles: " . implode(',', $session_roles_array) . 
-                         " New roles: " . implode(',', $current_db_roles_array));
-                
-                // Permission cache'ini temizle
-                if (function_exists('clear_user_permissions_cache')) {
-                    clear_user_permissions_cache($_SESSION['user_id']);
+            // Status değişikliği kontrolü
+            if ($session_status !== $current_db_status) {
+                if ($current_db_status !== 'approved') {
+                    logout_user("Hesap durumunuz değişti. Lütfen tekrar giriş yapın.");
+                    return;
+                } else {
+                    // Approved duruma geçtiyse session'ı güncelle
+                    $_SESSION['user_status'] = $current_db_status;
                 }
             }
 
-            // Kullanıcı adı güncellemesi (görüntüleme için)
-            if (!isset($_SESSION['username']) || $_SESSION['username'] !== $userDataFromDb['username']) {
-                $_SESSION['username'] = $userDataFromDb['username'];
+            // Roller değişmişse güncelle
+            if ($session_roles_array !== $current_db_roles_array) {
+                $_SESSION['user_roles'] = $current_db_roles_array;
+                error_log("User roles updated for user ID: " . $_SESSION['user_id'] . 
+                         " New roles: " . implode(',', $current_db_roles_array));
             }
 
         } catch (PDOException $e) {
-            error_log("Kullanıcı oturum geçerliliği kontrol hatası: " . $e->getMessage());
+            error_log("Session validation error: " . $e->getMessage());
             logout_user("Oturumunuz doğrulanırken bir veritabanı hatası oluştu.");
         }
     } elseif (is_user_logged_in()) { 
@@ -323,7 +687,7 @@ function check_user_session_validity(): void {
 }
 
 /**
- * Kullanıcıyı güvenli şekilde çıkış yapar
+ * Kullanıcıyı güvenli şekilde çıkış yapar (Remember Me ile güncellenmiş)
  * @param string $message Çıkış mesajı
  */
 function logout_user(string $message = "Güvenlik nedeniyle oturumunuz sonlandırıldı."): void {
@@ -333,6 +697,9 @@ function logout_user(string $message = "Güvenlik nedeniyle oturumunuz sonlandı
         $ip = get_client_ip();
         error_log("User logout: ID=$user_id, IP=$ip, Reason: $message");
     }
+
+    // Remember me cookie'sini temizle
+    clear_remember_me_cookie();
 
     // Session verilerini temizle
     $_SESSION = array();
@@ -353,87 +720,8 @@ function logout_user(string $message = "Güvenlik nedeniyle oturumunuz sonlandı
     session_start();
     $_SESSION['info_message'] = $message; 
     
-    header('Location: ' . get_auth_base_url() . '/index.php?status=logged_out');
+    header('Location: ' . get_auth_base_url() . '/register.php?status=logged_out');
     exit;
-}
-
-/**
- * Kullanıcının giriş yapıp yapmadığını kontrol eder
- * @return bool Giriş yaptıysa true
- */
-function is_user_logged_in(): bool {
-    return isset($_SESSION['user_id']) && isset($_SESSION['user_status']);
-}
-
-/**
- * Kullanıcının onaylı olup olmadığını kontrol eder
- * @return bool Onaylıysa true
- */
-function is_user_approved(): bool {
-    return is_user_logged_in() && 
-           isset($_SESSION['user_status']) && 
-           $_SESSION['user_status'] === 'approved';
-}
-
-/**
- * Kullanıcının belirli bir role sahip olup olmadığını kontrol eder
- * @param string $role_name Rol adı
- * @return bool Role sahipse true
- */
-function user_has_role(string $role_name): bool {
-    if (!is_user_logged_in() || !isset($_SESSION['user_roles']) || !is_array($_SESSION['user_roles'])) {
-        return false;
-    }
-    return in_array(trim($role_name), $_SESSION['user_roles']);
-}
-
-/**
- * Kullanıcının belirtilen rollerden herhangi birine sahip olup olmadığını kontrol eder
- * @param array $role_names Rol adları dizisi
- * @return bool Herhangi birine sahipse true
- */
-function user_has_any_role(array $role_names): bool {
-    if (!is_user_logged_in() || !isset($_SESSION['user_roles']) || !is_array($_SESSION['user_roles'])) {
-        return false;
-    }
-    foreach ($role_names as $role_name) {
-        if (in_array(trim($role_name), $_SESSION['user_roles'])) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * Kullanıcının admin olup olmadığını kontrol eder
- * @return bool Admin ise true
- */
-function is_user_admin(): bool {
-    return user_has_role('admin');
-}
-
-/**
- * Kullanıcının SCG üyesi olup olmadığını kontrol eder
- * @return bool SCG üyesi ise true
- */
-function is_scg_uye(): bool {
-    return user_has_role('scg_uye');
-}
-
-/**
- * Kullanıcının Ilgarion Turanis üyesi olup olmadığını kontrol eder
- * @return bool Ilgarion Turanis üyesi ise true
- */
-function is_ilgarion_turanis(): bool {
-    return user_has_role('ilgarion_turanis');
-}
-
-/**
- * Kullanıcının dış üye olup olmadığını kontrol eder
- * @return bool Dış üye ise true
- */
-function is_dis_uye(): bool {
-    return user_has_role('dis_uye');
 }
 
 /**
@@ -441,9 +729,9 @@ function is_dis_uye(): bool {
  */
 function require_login(): void {
     if (!is_user_logged_in()) {
-        $_SESSION['error_message'] = "Bu sayfayı görüntülemek için giriş yapmalısınız.";
+        $_SESSION['info_message'] = "Bu sayfayı görüntülemek için giriş yapmanız gerekmektedir.";
         $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '';
-        header('Location: ' . get_auth_base_url() . '/login.php?status=login_required');
+        header('Location: ' . get_auth_base_url() . '/register.php?status=login_required');
         exit;
     }
     
@@ -457,7 +745,7 @@ function require_approved_user(): void {
     require_login(); 
     if (!is_user_approved()) {
         $_SESSION['info_message'] = "Bu sayfayı görüntülemek için hesabınızın onaylanmış olması gerekmektedir.";
-        header('Location: ' . get_auth_base_url() . '/login.php?status=approval_required');
+        header('Location: ' . get_auth_base_url() . '/register.php?status=approval_required');
         exit;
     }
 }
@@ -512,198 +800,275 @@ function require_role($required_role, ?string $redirect_url_on_fail = null): voi
 }
 
 /**
- * Güvenli login işlemi (rate limiting ile)
- * @param PDO $pdo Veritabanı bağlantısı
- * @param string $username Kullanıcı adı
- * @param string $password Şifre
- * @return array Login sonucu ['success' => bool, 'message' => string, 'user_data' => array|null]
+ * Kullanıcı profil bilgilerini döndürür
+ * @return array|null Kullanıcı bilgileri veya null
  */
-function secure_login(PDO $pdo, string $username, string $password): array {
-    // Rate limiting kontrolü
-    if (!check_rate_limit('login', 5, 900)) { // 15 dakikada 5 deneme
-        log_login_attempt($username, false, 'Rate limit exceeded');
-        return [
-            'success' => false,
-            'message' => 'Çok fazla başarısız deneme. 15 dakika sonra tekrar deneyin.',
-            'user_data' => null
-        ];
+function get_user_profile(): ?array {
+    if (!is_user_logged_in()) {
+        return null;
     }
-
-    try {
-        $stmt = $pdo->prepare("
-            SELECT id, username, password, email, status, ingame_name, discord_username, avatar_path,
-                   GROUP_CONCAT(DISTINCT r.name ORDER BY r.priority ASC SEPARATOR ',') AS roles_list
-            FROM users u
-            LEFT JOIN user_roles ur ON u.id = ur.user_id
-            LEFT JOIN roles r ON ur.role_id = r.id
-            WHERE u.username = :username OR u.email = :username
-            GROUP BY u.id
-        ");
-        $stmt->execute([':username' => $username]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$user) {
-            log_login_attempt($username, false, 'User not found');
-            return [
-                'success' => false,
-                'message' => 'Kullanıcı adı veya şifre hatalı.',
-                'user_data' => null
-            ];
-        }
-
-        if (!password_verify($password, $user['password'])) {
-            log_login_attempt($username, false, 'Invalid password');
-            return [
-                'success' => false,
-                'message' => 'Kullanıcı adı veya şifre hatalı.',
-                'user_data' => null
-            ];
-        }
-
-        if ($user['status'] !== 'approved') {
-            log_login_attempt($username, false, 'Account not approved: ' . $user['status']);
-            $status_messages = [
-                'pending' => 'Hesabınız henüz onaylanmamış. Lütfen bekleyin.',
-                'rejected' => 'Hesabınız reddedilmiş. Lütfen yönetici ile iletişime geçin.',
-                'suspended' => 'Hesabınız askıya alınmış. Lütfen yönetici ile iletişime geçin.'
-            ];
-            return [
-                'success' => false,
-                'message' => $status_messages[$user['status']] ?? 'Hesap durumu geçersiz.',
-                'user_data' => null
-            ];
-        }
-
-        // Başarılı login
-        log_login_attempt($username, true);
-        
-        return [
-            'success' => true,
-            'message' => 'Giriş başarılı.',
-            'user_data' => $user
-        ];
-
-    } catch (PDOException $e) {
-        error_log("Login database error: " . $e->getMessage());
-        return [
-            'success' => false,
-            'message' => 'Sistem hatası. Lütfen tekrar deneyin.',
-            'user_data' => null
-        ];
-    }
-}
-
-/**
- * Güvenli session başlatır
- * @param array $user_data Kullanıcı verileri
- */
-function create_secure_session(array $user_data): void {
-    // Eski session'ı temizle
-    session_regenerate_id(true);
     
-    // Güvenlik verileri
-    $_SESSION['user_id'] = $user_data['id'];
-    $_SESSION['username'] = $user_data['username'];
-    $_SESSION['user_status'] = $user_data['status'];
-    $_SESSION['user_roles'] = $user_data['roles_list'] ? explode(',', $user_data['roles_list']) : [];
-    $_SESSION['last_activity'] = time();
-    $_SESSION['last_regeneration'] = time();
-    $_SESSION['session_fingerprint'] = generate_session_fingerprint();
-    $_SESSION['session_token'] = bin2hex(random_bytes(32));
-    $_SESSION['login_time'] = time();
-    $_SESSION['login_ip'] = get_client_ip();
-    
-    // Opsiyonel kullanıcı bilgileri
-    $_SESSION['user_email'] = $user_data['email'] ?? '';
-    $_SESSION['user_ingame_name'] = $user_data['ingame_name'] ?? '';
-    $_SESSION['user_discord'] = $user_data['discord_username'] ?? '';
-    $_SESSION['user_avatar'] = $user_data['avatar_path'] ?? '';
-}
-
-/**
- * Suspicious activity detection
- * @param string $activity Aktivite türü
- * @param array $details Ek detaylar
- */
-function detect_suspicious_activity(string $activity, array $details = []): void {
-    $ip = get_client_ip();
-    $user_id = $_SESSION['user_id'] ?? 'anonymous';
-    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-    
-    $suspicious_indicators = [
-        'multiple_failed_logins' => count($_SESSION["failed_logins_$ip"] ?? []) > 3,
-        'unusual_user_agent' => strlen($user_agent) < 10 || strlen($user_agent) > 500,
-        'no_javascript' => !isset($_SESSION['js_enabled']), // Frontend'den set edilmeli
+    return [
+        'id' => $_SESSION['user_id'],
+        'username' => $_SESSION['username'],
+        'email' => $_SESSION['user_email'] ?? '',
+        'ingame_name' => $_SESSION['user_ingame_name'] ?? '',
+        'discord' => $_SESSION['user_discord'] ?? '',
+        'avatar' => $_SESSION['user_avatar'] ?? '',
+        'status' => $_SESSION['user_status'] ?? '',
+        'roles' => $_SESSION['user_roles'] ?? [],
+        'login_time' => $_SESSION['login_time'] ?? 0,
+        'last_activity' => $_SESSION['last_activity'] ?? 0
     ];
+}
+
+/**
+ * Güvenli şifre hash'i oluşturur
+ * @param string $password Şifre
+ * @return string Hash'lenmiş şifre
+ */
+function hash_password(string $password): string {
+    return password_hash($password, PASSWORD_ARGON2ID, [
+        'memory_cost' => 65536, // 64 MB
+        'time_cost' => 4,       // 4 iterasyon
+        'threads' => 3,         // 3 thread
+    ]);
+}
+
+/**
+ * Şifre güvenlik kontrolü yapar
+ * @param string $password Kontrol edilecek şifre
+ * @return array Sonuç dizisi [valid, message, strength]
+ */
+function validate_password_strength(string $password): array {
+    $errors = [];
+    $strength = 0;
     
-    $is_suspicious = false;
-    $triggered_indicators = [];
-    
-    foreach ($suspicious_indicators as $indicator => $condition) {
-        if ($condition) {
-            $is_suspicious = true;
-            $triggered_indicators[] = $indicator;
-        }
+    // Minimum uzunluk kontrolü
+    if (strlen($password) < 8) {
+        $errors[] = 'Şifre en az 8 karakter olmalıdır';
+    } else {
+        $strength += 20;
     }
     
-    if ($is_suspicious) {
-        $log_data = [
-            'activity' => $activity,
-            'user_id' => $user_id,
-            'ip' => $ip,
-            'indicators' => $triggered_indicators,
-            'details' => $details,
-            'user_agent' => $user_agent,
-            'timestamp' => date('Y-m-d H:i:s')
+    // Büyük harf kontrolü
+    if (!preg_match('/[A-Z]/', $password)) {
+        $errors[] = 'En az bir büyük harf içermelidir';
+    } else {
+        $strength += 20;
+    }
+    
+    // Küçük harf kontrolü
+    if (!preg_match('/[a-z]/', $password)) {
+        $errors[] = 'En az bir küçük harf içermelidir';
+    } else {
+        $strength += 20;
+    }
+    
+    // Rakam kontrolü
+    if (!preg_match('/[0-9]/', $password)) {
+        $errors[] = 'En az bir rakam içermelidir';
+    } else {
+        $strength += 20;
+    }
+    
+    // Özel karakter kontrolü
+    if (!preg_match('/[^a-zA-Z0-9]/', $password)) {
+        $errors[] = 'En az bir özel karakter içermelidir';
+    } else {
+        $strength += 20;
+    }
+    
+    // Uzunluk bonusu
+    if (strlen($password) >= 12) {
+        $strength += 10;
+    }
+    
+    // Yaygın şifre kontrolü
+    $common_passwords = ['password', '123456', 'qwerty', 'abc123', 'password123'];
+    if (in_array(strtolower($password), $common_passwords)) {
+        $errors[] = 'Çok yaygın bir şifre kullanıyorsunuz';
+        $strength -= 30;
+    }
+    
+    $strength = max(0, min(100, $strength));
+    
+    return [
+        'valid' => empty($errors),
+        'message' => empty($errors) ? 'Şifre güçlü' : implode(', ', $errors),
+        'strength' => $strength
+    ];
+}
+
+/**
+ * Email adresinin geçerliliğini kontrol eder
+ * @param string $email Email adresi
+ * @return bool Geçerliyse true
+ */
+function validate_email(string $email): bool {
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+}
+
+/**
+ * Kullanıcı adının geçerliliğini kontrol eder
+ * @param string $username Kullanıcı adı
+ * @return array Sonuç dizisi [valid, message]
+ */
+function validate_username(string $username): array {
+    // Uzunluk kontrolü
+    if (strlen($username) < 3 || strlen($username) > 50) {
+        return ['valid' => false, 'message' => 'Kullanıcı adı 3-50 karakter arasında olmalıdır'];
+    }
+    
+    // Karakter kontrolü (sadece harf, rakam, alt çizgi)
+    if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+        return ['valid' => false, 'message' => 'Kullanıcı adı sadece harf, rakam ve alt çizgi içerebilir'];
+    }
+    
+    // Başlangıç ve bitiş kontrolü (alt çizgi ile başlayamaz/bitemez)
+    if (preg_match('/^_|_$/', $username)) {
+        return ['valid' => false, 'message' => 'Kullanıcı adı alt çizgi ile başlayamaz veya bitemez'];
+    }
+    
+    // Yasaklı kelimeler
+    $forbidden_words = ['admin', 'administrator', 'root', 'system', 'user', 'test', 'guest', 'null', 'undefined'];
+    if (in_array(strtolower($username), $forbidden_words)) {
+        return ['valid' => false, 'message' => 'Bu kullanıcı adı kullanılamaz'];
+    }
+    
+    return ['valid' => true, 'message' => 'Kullanıcı adı geçerli'];
+}
+
+/**
+ * Kullanıcının son aktivite zamanını günceller
+ */
+function update_user_activity(): void {
+    if (is_user_logged_in()) {
+        $_SESSION['last_activity'] = time();
+        
+        // Şüpheli aktivite tespiti
+        detect_suspicious_activity('page_access');
+    }
+}
+
+/**
+ * Rate limiting kontrolü yapar
+ * @param string $action Eylem türü
+ * @param int $limit Limit
+ * @param int $window Zaman penceresi (saniye)
+ * @return bool Limit aşılmadıysa true
+ */
+function check_rate_limit(string $action, int $limit = 5, int $window = 300): bool {
+    $ip = get_client_ip();
+    $key = "rate_limit_{$action}_{$ip}";
+    
+    if (!isset($_SESSION[$key])) {
+        $_SESSION[$key] = [];
+    }
+    
+    // Eski kayıtları temizle
+    $current_time = time();
+    $_SESSION[$key] = array_filter($_SESSION[$key], function($timestamp) use ($current_time, $window) {
+        return ($current_time - $timestamp) < $window;
+    });
+    
+    // Limit kontrolü
+    if (count($_SESSION[$key]) >= $limit) {
+        return false;
+    }
+    
+    // Yeni kayıt ekle
+    $_SESSION[$key][] = $current_time;
+    
+    return true;
+}
+
+/**
+ * XSS koruması için string'i temizler
+ * @param string $input Temizlenecek string
+ * @return string Temizlenmiş string
+ */
+function sanitize_output(string $input): string {
+    return htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+}
+
+/**
+ * SQL injection koruması için string'i temizler
+ * @param string $input Temizlenecek string
+ * @return string Temizlenmiş string
+ */
+function sanitize_input(string $input): string {
+    return trim(strip_tags($input));
+}
+
+/**
+ * Dosya upload güvenliği kontrolü
+ * @param array $file $_FILES array elemanı
+ * @param array $allowed_types İzin verilen MIME tipleri
+ * @param int $max_size Maksimum dosya boyutu (byte)
+ * @return array Sonuç dizisi [valid, message]
+ */
+function validate_file_upload(array $file, array $allowed_types = [], int $max_size = 5242880): array {
+    // Dosya yüklendi mi kontrolü
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $error_messages = [
+            UPLOAD_ERR_INI_SIZE => 'Dosya boyutu çok büyük (php.ini limiti)',
+            UPLOAD_ERR_FORM_SIZE => 'Dosya boyutu çok büyük (form limiti)',
+            UPLOAD_ERR_PARTIAL => 'Dosya kısmi olarak yüklendi',
+            UPLOAD_ERR_NO_FILE => 'Dosya yüklenmedi',
+            UPLOAD_ERR_NO_TMP_DIR => 'Geçici klasör bulunamadı',
+            UPLOAD_ERR_CANT_WRITE => 'Dosya yazılamadı',
+            UPLOAD_ERR_EXTENSION => 'Dosya uzantısı engellendi'
         ];
         
-        error_log("SUSPICIOUS ACTIVITY DETECTED: " . json_encode($log_data));
+        return [
+            'valid' => false, 
+            'message' => $error_messages[$file['error']] ?? 'Bilinmeyen dosya hatası'
+        ];
+    }
+    
+    // Boyut kontrolü
+    if ($file['size'] > $max_size) {
+        return [
+            'valid' => false, 
+            'message' => 'Dosya boyutu çok büyük (Max: ' . number_format($max_size / 1024 / 1024, 1) . ' MB)'
+        ];
+    }
+    
+    // MIME type kontrolü
+    if (!empty($allowed_types)) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
         
-        // Çok şüpheli durumda session'ı sonlandır
-        if (count($triggered_indicators) >= 2) {
-            logout_user("Şüpheli aktivite tespit edildi. Güvenlik nedeniyle çıkış yapıldı.");
+        if (!in_array($mime_type, $allowed_types)) {
+            return [
+                'valid' => false, 
+                'message' => 'Dosya tipi desteklenmiyor. İzin verilen tipler: ' . implode(', ', $allowed_types)
+            ];
         }
     }
+    
+    return ['valid' => true, 'message' => 'Dosya geçerli'];
 }
 
-/**
- * Security headers ayarlar
- */
-function set_security_headers(): void {
-    // XSS Protection
-    header('X-XSS-Protection: 1; mode=block');
+// REMEMBER ME ÖZELLİĞİ İÇİN OTOMATİK KONTROL
+// Bu kodu dosyanın sonuna ekleyin veya index.php'de çağırın
+// Sadece giriş sayfası değilse ve giriş yapmamışsa kontrol et
+if (!is_user_logged_in() && 
+    !isset($_GET['mode']) && 
+    strpos($_SERVER['REQUEST_URI'], 'auth.php') === false && 
+    strpos($_SERVER['REQUEST_URI'], 'register.php') === false &&
+    strpos($_SERVER['REQUEST_URI'], 'api/') === false) {
     
-    // Content Type sniffing prevention
-    header('X-Content-Type-Options: nosniff');
-    
-    // Clickjacking protection
-    header('X-Frame-Options: SAMEORIGIN');
-    
-    // HSTS (HTTPS kullanıyorsanız)
-    if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
-        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    // Remember me cookie kontrolü
+    $user_data = check_remember_me_cookie();
+    if ($user_data) {
+        create_secure_session($user_data);
+        error_log("Auto-login via remember me for user: " . $user_data['username']);
+        header("Refresh: 0");
+        exit;
     }
-    
-    // Referrer Policy
-    header('Referrer-Policy: strict-origin-when-cross-origin');
-    
-    // Content Security Policy (sitenize göre ayarlayın)
-    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com fonts.googleapis.com https://cdn.jsdelivr.net; img-src * data:; font-src 'self' cdnjs.cloudflare.com fonts.gstatic.com; connect-src 'self'; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.erkul.games;");
 }
-
-/**
- * İki faktörlü kimlik doğrulama için QR kod oluşturur (gelecek özellik)
- * @param string $username Kullanıcı adı
- * @param string $secret Secret key
- * @return string QR kod URL'i
- */
-function generate_2fa_qr_url(string $username, string $secret): string {
-    $app_name = urlencode('Ilgarion Turanis');
-    $qr_url = "otpauth://totp/{$app_name}:{$username}?secret={$secret}&issuer={$app_name}";
-    return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($qr_url);
-}
-
-// Güvenlik başlıklarını otomatik olarak ayarla
-set_security_headers();
 
 ?>

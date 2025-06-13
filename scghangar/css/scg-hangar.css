@@ -1,0 +1,1285 @@
+/* scghangar/css/scg-hangar.css - SCG Hangar Sayfası CSS */
+
+/* Ana Container */
+.scg-hangar-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: var(--card-bg);
+    border-radius: 15px;
+    border: 1px solid var(--border-1);
+    min-height: calc(100vh - 200px);
+}
+
+/* Header Bölümü */
+.scg-hangar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--transparent-gold), var(--card-bg-2));
+    border-radius: 15px;
+    border: 1px solid var(--border-1);
+    position: relative;
+    overflow: hidden;
+}
+
+.scg-hangar-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), var(--light-gold), var(--gold));
+}
+
+.scg-header-content h1.scg-hangar-title {
+    font-size: 2.2rem;
+    color: var(--gold);
+    margin: 0 0 0.5rem 0;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.scg-hangar-title i {
+    color: var(--light-gold);
+    margin-right: 0.75rem;
+}
+
+.scg-hangar-description {
+    color: var(--light-grey);
+    font-size: 1.1rem;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.scg-role-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, #9a3c3c, #7a2e2e);
+    color: var(--white);
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(154, 60, 60, 0.3);
+}
+
+.scg-role-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(154, 60, 60, 0.4);
+}
+
+/* İstatistik Kartları */
+.scg-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.scg-stat-card {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.scg-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--gold), var(--light-gold));
+}
+
+.scg-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(184, 132, 92, 0.2);
+    border-color: var(--gold);
+}
+
+.stat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--transparent-gold), var(--gold));
+    border-radius: 50%;
+    color: var(--charcoal);
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--light-grey);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Filtreleme Bölümü */
+.scg-filter-section {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.scg-filter-section h3 {
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.scg-filter-section h3 i {
+    color: var(--light-gold);
+}
+
+.scg-filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    align-items: end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    color: var(--light-grey);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.filter-group input,
+.filter-group select {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 0.75rem;
+    color: var(--lighter-grey);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(184, 132, 92, 0.1);
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    color: var(--light-grey);
+    font-weight: 500;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--gold);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-start;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--gold), var(--light-gold));
+    color: var(--charcoal);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(184, 132, 92, 0.4);
+    text-decoration: none;
+    color: var(--charcoal);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--light-grey);
+    border: 1px solid var(--border-1);
+}
+
+.btn-secondary:hover {
+    background: var(--card-bg-3);
+    color: var(--lighter-grey);
+    border-color: var(--border-1-hover);
+    text-decoration: none;
+}
+
+/* Görünüm Geçiş Butonları */
+.view-toggle-section {
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    z-index: 100;
+    background: var(--card-bg);
+    padding: 1rem 0;
+}
+
+.view-toggle-buttons {
+    display: flex;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.view-toggle-buttons::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.3;
+}
+
+.toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    color: var(--light-grey);
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    min-width: 140px;
+    user-select: none;
+}
+
+.toggle-btn:hover {
+    background: var(--card-bg-3);
+    color: var(--lighter-grey);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.toggle-btn:hover i {
+    transform: scale(1.1);
+}
+
+.toggle-btn.active {
+    background: linear-gradient(135deg, var(--gold), var(--light-gold));
+    color: var(--charcoal);
+    box-shadow: 0 3px 12px rgba(184, 132, 92, 0.4);
+    font-weight: 600;
+}
+
+.toggle-btn.active:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 16px rgba(184, 132, 92, 0.5);
+}
+
+.toggle-btn i {
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.toggle-btn.active i {
+    transform: scale(1.05);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-btn span {
+    font-weight: inherit;
+    white-space: nowrap;
+    letter-spacing: 0.025em;
+}
+
+.toggle-btn.active span {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-btn:active {
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.1s;
+}
+
+.toggle-btn.active:active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+.toggle-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(184, 132, 92, 0.3);
+}
+
+.toggle-btn.active:focus {
+    box-shadow: 0 3px 12px rgba(184, 132, 92, 0.4), 0 0 0 3px rgba(184, 132, 92, 0.3);
+}
+
+/* Section'ların Positioning'i */
+.scg-ship-summary-section,
+.scg-ships-section {
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+/* Gemi Özet Listesi */
+.scg-ship-summary-section {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.scg-ship-summary-section h3 {
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.scg-ship-summary-section h3 i {
+    color: var(--light-gold);
+}
+
+.ship-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 1rem;
+}
+
+.ship-summary-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    min-height: 80px;
+    overflow: hidden;
+    contain: layout style;
+}
+
+.ship-summary-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    border-color: var(--gold);
+}
+
+.ship-summary-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid var(--border-1);
+    position: relative;
+    background: var(--card-bg-3);
+}
+
+.ship-summary-image img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.ship-summary-image .ship-image-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--card-bg-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--light-grey);
+    font-size: 1.5rem;
+}
+
+.ship-summary-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.ship-summary-name {
+    color: var(--gold);
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ship-summary-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.ship-summary-manufacturer,
+.ship-summary-size {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--light-grey);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.ship-summary-manufacturer i,
+.ship-summary-size i {
+    color: var(--gold);
+    font-size: 0.7rem;
+}
+
+.ship-summary-stats {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.summary-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    min-width: 50px;
+    text-align: center;
+}
+
+.summary-stat .stat-number {
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin: 0;
+}
+
+.summary-stat .stat-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.summary-stat.total .stat-number {
+    color: var(--gold);
+}
+
+.summary-stat.total .stat-label {
+    color: var(--light-gold);
+}
+
+.summary-stat.lti .stat-number {
+    color: #ffd700;
+}
+
+.summary-stat.lti .stat-label {
+    color: #ffed4e;
+}
+
+.summary-stat.non-lti .stat-number {
+    color: var(--light-grey);
+}
+
+.summary-stat.non-lti .stat-label {
+    color: var(--light-grey);
+}
+
+.no-ships-summary {
+    text-align: center;
+    padding: 2rem;
+    color: var(--light-grey);
+}
+
+.no-ships-summary i {
+    font-size: 2rem;
+    color: var(--gold);
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+/* Gemi Listesi */
+.scg-ships-section {
+    margin-bottom: 3rem;
+}
+
+.scg-ships-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+}
+
+.scg-ships-header h3 {
+    color: var(--gold);
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ships-count {
+    color: var(--light-grey);
+    font-weight: 400;
+    font-size: 0.9rem;
+}
+
+.pagination-info {
+    color: var(--light-grey);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.scg-ships-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    will-change: scroll-position;
+}
+
+.scg-ship-card {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 15px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+    contain: layout style paint;
+}
+
+.scg-ship-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border-color: var(--gold);
+}
+
+.ship-card-header {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+}
+
+.ship-image-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.ship-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.scg-ship-card:hover .ship-image {
+    transform: scale(1.05);
+}
+
+.ship-image-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--card-bg-3), var(--card-bg));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--light-grey);
+    font-size: 3rem;
+    transition: all 0.3s ease;
+}
+
+.ship-summary-image .ship-image-placeholder {
+    font-size: 1.5rem;
+}
+
+.lti-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: var(--charcoal);
+    padding: 0.3rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+.quantity-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: var(--white);
+    padding: 0.3rem 0.7rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+.ship-card-body {
+    padding: 1.5rem;
+}
+
+.ship-name {
+    color: var(--gold);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.2;
+}
+
+.ship-manufacturer {
+    color: var(--light-grey);
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+    font-weight: 500;
+}
+
+.ship-specs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.ship-spec {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--card-bg-3);
+    color: var(--light-grey);
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-1);
+}
+
+.ship-spec i {
+    color: var(--gold);
+    font-size: 0.7rem;
+}
+
+.ship-owner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--card-bg);
+    border-radius: 10px;
+    border: 1px solid var(--border-1);
+}
+
+.owner-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 2px solid var(--gold);
+}
+
+.owner-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.owner-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.owner-name {
+    color: var(--lighter-grey);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.owner-username {
+    color: var(--light-grey);
+    font-size: 0.8rem;
+}
+
+.ship-notes {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    color: var(--light-grey);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    font-style: italic;
+}
+
+.ship-notes i {
+    color: var(--gold);
+    margin-right: 0.5rem;
+}
+
+.ship-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--light-grey);
+    border-top: 1px solid var(--border-1);
+    padding-top: 1rem;
+}
+
+.added-date,
+.source-type {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.source-type.api {
+    color: var(--turquase);
+}
+
+.source-type.manual {
+    color: var(--gold);
+}
+
+.source-type.legacy {
+    color: var(--light-grey);
+}
+
+/* Lazy Loading Styles */
+.ship-image.lazy,
+.ship-summary-img.lazy {
+    filter: blur(2px);
+    opacity: 0.6;
+    transition: all 0.3s ease;
+}
+
+.ship-image.loaded,
+.ship-summary-img.loaded {
+    filter: blur(0);
+    opacity: 1;
+}
+
+.ship-image.error {
+    display: none;
+}
+
+/* Performance optimizations */
+.ship-summary-grid {
+    will-change: scroll-position;
+}
+
+/* Boş durum */
+.no-ships {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--light-grey);
+}
+
+.no-ships-icon {
+    font-size: 4rem;
+    color: var(--gold);
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.no-ships h4 {
+    color: var(--lighter-grey);
+    margin-bottom: 0.5rem;
+    font-size: 1.3rem;
+}
+
+/* Sayfalama */
+.scg-pagination {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination-nav {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.page-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0.5rem;
+    background: var(--card-bg-2);
+    color: var(--light-grey);
+    text-decoration: none;
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.page-btn:hover {
+    background: var(--gold);
+    color: var(--charcoal);
+    border-color: var(--gold);
+    transform: translateY(-2px);
+    text-decoration: none;
+}
+
+.page-btn.active {
+    background: var(--gold);
+    color: var(--charcoal);
+    border-color: var(--gold);
+}
+
+/* SCG Üyeleri Bölümü */
+.scg-members-section {
+    border-top: 2px solid var(--border-1);
+    padding-top: 2rem;
+}
+
+.scg-members-section h3 {
+    color: var(--gold);
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.scg-members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.scg-member-card {
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.scg-member-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    border-color: var(--gold);
+}
+
+.member-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin: 0 auto 1rem auto;
+    overflow: hidden;
+    border: 3px solid var(--gold);
+}
+
+.member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.member-name {
+    color: var(--lighter-grey);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 0.3rem 0;
+}
+
+.member-username {
+    color: var(--light-grey);
+    font-size: 0.85rem;
+    margin: 0 0 1rem 0;
+}
+
+.member-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.member-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--light-grey);
+    font-size: 0.8rem;
+}
+
+.member-stat i {
+    color: var(--gold);
+}
+
+.member-actions {
+    margin-top: 1rem;
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+.no-members {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--light-grey);
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+}
+
+.no-members-icon {
+    font-size: 3rem;
+    color: var(--gold);
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.no-members h4 {
+    color: var(--lighter-grey);
+    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
+}
+
+.no-members p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .scg-hangar-container {
+        padding: 1rem;
+    }
+    
+    .scg-hangar-header {
+        flex-direction: column;
+        gap: 1.5rem;
+        text-align: center;
+        padding: 1.5rem;
+    }
+    
+    .scg-header-content h1.scg-hangar-title {
+        font-size: 1.8rem;
+    }
+    
+    .scg-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .filter-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .filter-actions {
+        flex-direction: column;
+    }
+    
+    .view-toggle-buttons {
+        flex-direction: column;
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .toggle-btn {
+        justify-content: center;
+        padding: 1rem;
+    }
+    
+    .ship-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .ship-summary-item {
+        flex-direction: row;
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+    
+    .ship-summary-stats {
+        gap: 0.75rem;
+    }
+    
+    .summary-stat {
+        min-width: 40px;
+    }
+    
+    .scg-ships-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .scg-ships-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .scg-members-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .ship-card-header {
+        height: 150px;
+    }
+    
+    .ship-card-body {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .scg-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .scg-members-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ship-summary-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+        padding: 1rem;
+    }
+    
+    .ship-summary-info {
+        align-items: center;
+        text-align: center;
+    }
+    
+    .ship-summary-details {
+        justify-content: center;
+    }
+    
+    .ship-summary-stats {
+        justify-content: center;
+        gap: 1.5rem;
+    }
+    
+    .scg-filter-section {
+        padding: 1rem;
+    }
+    
+    .member-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .ship-owner {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .ship-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+}
+
+/* Animasyonlar */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.scg-ship-card {
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.scg-ship-card:nth-child(odd) {
+    animation-delay: 0.1s;
+}
+
+.scg-ship-card:nth-child(even) {
+    animation-delay: 0.2s;
+}
+
+/* Hover Efektleri */
+.scg-stat-card:hover .stat-icon {
+    transform: scale(1.1);
+}
+
+.ship-summary-item:hover .ship-summary-image {
+    transform: scale(1.05);
+}
+
+.scg-member-card:hover .member-avatar {
+    transform: scale(1.1);
+}
+
+/* Dark Theme Enhancements */
+@media (prefers-color-scheme: dark) {
+    .view-toggle-buttons {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .toggle-btn:hover {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+    
+    .toggle-btn.active {
+        box-shadow: 0 3px 12px rgba(184, 132, 92, 0.6);
+    }
+    
+    .toggle-btn.active:hover {
+        box-shadow: 0 5px 16px rgba(184, 132, 92, 0.7);
+    }
+}
+
+/* Scroll optimizations */
+.scg-hangar-container {
+    scroll-behavior: smooth;
+}
+
+/* Image loading states */
+.ship-image[data-src] {
+    background: linear-gradient(90deg, var(--card-bg-3) 25%, var(--card-bg) 50%, var(--card-bg-3) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Print styles */
+@media print {
+    .view-toggle-buttons,
+    .filter-actions,
+    .scg-pagination {
+        display: none;
+    }
+    
+    .scg-ship-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}

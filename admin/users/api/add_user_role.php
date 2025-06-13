@@ -100,7 +100,7 @@ try {
     }
     
     // Rolü ekle
-    $insert_query = "INSERT INTO user_roles (user_id, role_id, assigned_at) VALUES (:user_id, :role_id, NOW())";
+    $insert_query = "INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)";
     $insert_stmt = $pdo->prepare($insert_query);
     $result = $insert_stmt->execute([
         ':user_id' => $user_id,

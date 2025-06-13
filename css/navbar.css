@@ -160,6 +160,29 @@
     position: relative;
     overflow: hidden;
 }
+.btn-primary {
+    background-color: var(--gold);
+    color: var(--charcoal);
+    border-color: var(--gold);
+}
+
+.btn-primary:hover {
+    background-color: var(--light-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(184, 132, 92, 0.3);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--gold);
+    border-color: var(--border-1-hover);
+}
+
+.btn-secondary:hover {
+    background-color: var(--card-bg-2);
+    border-color: var(--gold);
+    transform: translateY(-1px);
+}
 
 .btn-nav-primary {
     background-color: var(--gold);

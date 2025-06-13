@@ -271,42 +271,7 @@ include BASE_PATH . '/src/includes/navbar.php';
         </form>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Renk önizleme
-    const colorInput = document.getElementById('color');
-    const colorPreview = document.getElementById('color-preview');
-    
-    function updateColorPreview() {
-        colorPreview.style.backgroundColor = colorInput.value;
-    }
-    
-    colorInput.addEventListener('input', updateColorPreview);
-    updateColorPreview();
-    
-    // İkon önizleme
-    const iconInput = document.getElementById('icon');
-    const iconPreview = document.getElementById('icon-preview');
-    
-    function updateIconPreview() {
-        iconPreview.className = iconInput.value;
-    }
-    
-    iconInput.addEventListener('input', updateIconPreview);
-    
-    // Görünürlük değiştiğinde rol seçimini göster/gizle
-    const visibilitySelect = document.getElementById('visibility');
-    const rolesContainer = document.getElementById('roles-container');
-    
-    function toggleRolesVisibility() {
-        rolesContainer.style.display = visibilitySelect.value === 'faction_only' ? 'block' : 'none';
-    }
-    
-    visibilitySelect.addEventListener('change', toggleRolesVisibility);
-    toggleRolesVisibility();
-});
-</script>
+<script src="js/create_category.js"></script>
 
 
 
@@ -339,6 +304,7 @@ function add_audit_log($pdo, $user_id, $action, $target_type, $target_id, $old_v
         $_SERVER['HTTP_USER_AGENT'] ?? null
     ]);
 }
+
 
 include BASE_PATH . '/src/includes/footer.php';
 ?> 

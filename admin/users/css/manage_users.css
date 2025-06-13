@@ -317,6 +317,31 @@
     margin: 0 0 0.25rem 0;
 }
 
+.user-profile-link {
+    color: var(--lighter-grey);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    margin: -0.25rem -0.5rem;
+    display: inline-block;
+}
+
+.user-profile-link:hover {
+    color: var(--gold);
+    background: var(--transparent-gold);
+    text-decoration: none;
+    transform: translateX(2px);
+}
+
+.user-profile-link:visited {
+    color: var(--lighter-grey);
+}
+
+.user-profile-link:visited:hover {
+    color: var(--gold);
+}
+
 .user-ingame {
     color: var(--light-grey);
     font-size: 0.85rem;

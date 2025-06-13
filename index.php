@@ -4,7 +4,7 @@
 require_once 'src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
-
+auto_login_check();
 // Hata raporlamayı etkinleştir (geliştirme aşamasında)
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);

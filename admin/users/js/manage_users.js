@@ -165,7 +165,8 @@ const ManageUsers = {
      */
     async loadUsersData() {
         try {
-            this.showLoading();
+            // Loading'i göster
+            this.showUsersLoading();
             
             const params = new URLSearchParams({
                 page: this.state.currentPage,
@@ -189,7 +190,8 @@ const ManageUsers = {
             console.error('Error loading users:', error);
             this.showError('Ağ hatası oluştu');
         } finally {
-            this.hideLoading();
+            // Her durumda loading'i gizle
+            this.hideUsersLoading();
         }
     },
     
@@ -198,6 +200,11 @@ const ManageUsers = {
      */
     populateUsersTable(users) {
         if (!this.elements.usersTableBody) return;
+        
+        // Loading'i gizle
+        if (this.elements.usersLoading) {
+            this.elements.usersLoading.style.display = 'none';
+        }
         
         this.elements.usersTableBody.innerHTML = '';
         
@@ -264,7 +271,11 @@ const ManageUsers = {
                 <div class="user-info">
                     ${avatarHtml}
                     <div class="user-details">
-                        <h4 class="user-name">${this.escapeHtml(user.username)}</h4>
+                        <h4 class="user-name">
+                            <a href="/view_profile.php?user_id=${user.id}" class="user-profile-link" target="_blank">
+                                ${this.escapeHtml(user.username)}
+                            </a>
+                        </h4>
                         <p class="user-ingame">${this.escapeHtml(user.ingame_name)}</p>
                     </div>
                 </div>
@@ -1156,6 +1167,7 @@ const ManageUsers = {
         this.state.selectedUsers.clear();
         this.updateSelectAllState();
         this.updateBulkActionsState();
+        this.state.currentPage = 1; // Sayfa 1'e dön
         this.loadUsersData();
     },
     
@@ -1185,6 +1197,24 @@ const ManageUsers = {
             modal.style.display = 'none';
             document.body.style.overflow = '';
         }, this.config.animationDuration);
+    },
+    
+    /**
+     * Users Loading göster
+     */
+    showUsersLoading() {
+        if (this.elements.usersLoading) {
+            this.elements.usersLoading.style.display = 'flex';
+        }
+    },
+    
+    /**
+     * Users Loading gizle
+     */
+    hideUsersLoading() {
+        if (this.elements.usersLoading) {
+            this.elements.usersLoading.style.display = 'none';
+        }
     },
     
     /**
