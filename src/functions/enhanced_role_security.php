@@ -148,7 +148,7 @@ function filter_super_admin_permissions(PDO $pdo, array $permission_keys, ?int $
 }
 
 /**
- * Rol hiyerarşisini görselleştirmek için veri hazırlar
+ * Rol hiyerarşisini görselleştirmek için veri hazırlar - DÜZELTME
  * @param PDO $pdo Veritabanı bağlantısı
  * @param int|null $user_id Kullanıcı ID'si (yetki kontrolü için)
  * @return array Hiyerarşi verisi
@@ -160,7 +160,7 @@ function get_role_hierarchy_data(PDO $pdo, ?int $user_id = null): array {
                    COUNT(DISTINCT ur.user_id) as user_count,
                    COUNT(DISTINCT rp.permission_id) as permission_count
             FROM roles r
-            LEFT JOIN user_roles ur ON r.id = ur.user_id
+            LEFT JOIN user_roles ur ON r.id = ur.role_id
             LEFT JOIN role_permissions rp ON r.id = rp.role_id
             GROUP BY r.id, r.name, r.description, r.color, r.priority
             ORDER BY r.priority ASC
@@ -194,6 +194,7 @@ function get_role_hierarchy_data(PDO $pdo, ?int $user_id = null): array {
                 'user_count' => (int)$role['user_count'],
                 'permission_count' => (int)$role['permission_count'],
                 'is_protected' => !is_role_deletable($role['name']),
+                'is_deletable' => is_role_deletable($role['name']), // EKLENEN SATIR
                 'is_name_editable' => is_role_name_editable($role['name']),
                 'can_manage' => $user_id ? can_user_manage_role($pdo, $role['id'], $user_id) : false,
                 'hierarchy_level' => $role['priority']
@@ -217,7 +218,14 @@ function get_role_hierarchy_data(PDO $pdo, ?int $user_id = null): array {
         
     } catch (Exception $e) {
         error_log("Role hierarchy data error: " . $e->getMessage());
-        return ['roles' => [], 'user_info' => []];
+        return [
+            'roles' => [], 
+            'user_info' => [
+                'highest_priority' => 999,
+                'is_super_admin' => false,
+                'manageable_count' => 0
+            ]
+        ];
     }
 }
 
