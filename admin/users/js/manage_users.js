@@ -19,7 +19,16 @@ const ManageUsers = {
         filterTimeout: null,
         selectedUsers: new Set(),
         hasChanges: false,
-        originalUserData: null
+        originalUserData: null,
+        // Rol ve skill değişikliklerini takip etmek için
+        pendingRoleChanges: {
+            added: new Set(),
+            removed: new Set()
+        },
+        pendingSkillChanges: {
+            added: new Set(),
+            removed: new Set()
+        }
     },
     
     // DOM elements cache
@@ -481,6 +490,10 @@ const ManageUsers = {
         this.state.currentUserId = userId;
         this.state.hasChanges = false;
         
+        // Bekleyen değişiklikleri temizle
+        this.state.pendingRoleChanges = { added: new Set(), removed: new Set() };
+        this.state.pendingSkillChanges = { added: new Set(), removed: new Set() };
+        
         // Modal başlığını güncelle
         this.elements.editModalTitle.textContent = 'Kullanıcı Düzenle';
         
@@ -584,91 +597,88 @@ const ManageUsers = {
      * Rol elementi oluştur
      */
     createRoleElement(role, type) {
-        const div = document.createElement('div');
-        div.className = 'role-item';
-        div.dataset.roleId = role.id;
-        
-        const actionButton = type === 'current' ? 
-            `<button class="role-action-btn remove" onclick="ManageUsers.removeUserRole(${role.id})" title="Rolü Kaldır">
-                <i class="fas fa-times"></i>
-            </button>` :
-            `<button class="role-action-btn" onclick="ManageUsers.addUserRole(${role.id})" title="Rol Ekle">
-                <i class="fas fa-plus"></i>
-            </button>`;
-        
-        div.innerHTML = `
-            <div class="role-info">
-                <h6 class="role-name" style="color: ${role.color};">${this.escapeHtml(role.name)}</h6>
-                <p class="role-description">${this.escapeHtml(role.description)}</p>
-            </div>
-            <div class="role-actions">
-                ${actionButton}
-            </div>
+        const roleElement = document.createElement('div');
+        roleElement.className = 'role-item';
+        roleElement.dataset.roleId = role.id;
+        roleElement.innerHTML = `
+            <span class="role-name" style="color: ${role.color};">${this.escapeHtml(role.name)}</span>
+            <button type="button" class="btn-role-action">
+                <i class="fas ${type === 'current' ? 'fa-minus-circle' : 'fa-plus-circle'}"></i>
+            </button>
         `;
         
-        return div;
+        roleElement.querySelector('.btn-role-action').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (type === 'current') {
+                this.removeUserRole(role.id);
+            } else {
+                this.addUserRole(role.id);
+            }
+        });
+        
+        return roleElement;
     },
     
     /**
-     * Kullanıcıya rol ekle
+     * Kullanıcıya rol ata (sadece arayüzde)
      */
-    async addUserRole(roleId) {
-        try {
-            const response = await fetch(`${this.config.apiBaseUrl}add_user_role.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: this.state.currentUserId,
-                    role_id: roleId
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.loadUserRoles(this.state.currentUserId);
-                this.markAsChanged();
-                this.showSuccess('Rol başarıyla eklendi');
-            } else {
-                this.showError(data.message || 'Rol eklenirken hata oluştu');
-            }
-        } catch (error) {
-            console.error('Error adding user role:', error);
-            this.showError('Ağ hatası oluştu');
+    addUserRole(roleId) {
+        const { added, removed } = this.state.pendingRoleChanges;
+
+        // Eğer daha önce kaldırılmak üzere işaretlendiyse, bu işareti kaldır
+        if (removed.has(roleId)) {
+            removed.delete(roleId);
+        } else {
+            added.add(roleId);
         }
+        
+        // Arayüzü güncelle
+        const availableList = this.elements.availableRolesList;
+        const targetElement = availableList.querySelector(`[data-role-id='${roleId}']`);
+        if (targetElement) {
+            this.elements.userRolesList.appendChild(targetElement);
+            // Buton ikonunu ve olay dinleyicisini güncelle
+            const button = targetElement.querySelector('.btn-role-action i');
+            button.classList.remove('fa-plus-circle');
+            button.classList.add('fa-minus-circle');
+            targetElement.querySelector('.btn-role-action').onclick = (e) => {
+                e.stopPropagation();
+                this.removeUserRole(roleId);
+            };
+        }
+        
+        this.markAsChanged();
     },
-    
+
     /**
-     * Kullanıcıdan rol kaldır
+     * Kullanıcıdan rol kaldır (sadece arayüzde)
      */
-    async removeUserRole(roleId) {
-        try {
-            const response = await fetch(`${this.config.apiBaseUrl}remove_user_role.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: this.state.currentUserId,
-                    role_id: roleId
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.loadUserRoles(this.state.currentUserId);
-                this.markAsChanged();
-                this.showSuccess('Rol başarıyla kaldırıldı');
-            } else {
-                this.showError(data.message || 'Rol kaldırılırken hata oluştu');
-            }
-        } catch (error) {
-            console.error('Error removing user role:', error);
-            this.showError('Ağ hatası oluştu');
+    removeUserRole(roleId) {
+        const { added, removed } = this.state.pendingRoleChanges;
+
+        // Eğer rol yeni eklendiyse, eklenenler listesinden çıkar
+        if (added.has(roleId)) {
+            added.delete(roleId);
+        } else {
+            removed.add(roleId);
         }
+
+        // Arayüzü güncelle
+        const currentList = this.elements.userRolesList;
+        const targetElement = currentList.querySelector(`[data-role-id='${roleId}']`);
+        if (targetElement) {
+            this.elements.availableRolesList.appendChild(targetElement);
+            // Buton ikonunu ve olay dinleyicisini güncelle
+            const button = targetElement.querySelector('.btn-role-action i');
+            button.classList.remove('fa-minus-circle');
+            button.classList.add('fa-plus-circle');
+            targetElement.querySelector('.btn-role-action').onclick = (e) => {
+                e.stopPropagation();
+                this.addUserRole(roleId);
+            };
+        }
+
+        this.markAsChanged();
     },
     
     /**
@@ -713,112 +723,99 @@ const ManageUsers = {
      * Skill elementi oluştur
      */
     createSkillElement(skill, type) {
-        const div = document.createElement('div');
-        div.className = 'skill-item';
-        div.dataset.skillId = skill.id;
-        
-        const actionButton = type === 'current' ? 
-            `<button class="skill-action-btn remove" onclick="ManageUsers.removeUserSkill(${skill.id})" title="Skill Tag Kaldır">
-                <i class="fas fa-times"></i>
-            </button>` :
-            `<button class="skill-action-btn" onclick="ManageUsers.addUserSkill(${skill.id})" title="Skill Tag Ekle">
-                <i class="fas fa-plus"></i>
-            </button>`;
-        
-        div.innerHTML = `
-            <div class="skill-info">
-                <h6 class="skill-name">${this.escapeHtml(skill.tag_name)}</h6>
-            </div>
-            <div class="skill-actions">
-                ${actionButton}
-            </div>
+        const skillElement = document.createElement('div');
+        skillElement.className = 'skill-item';
+        skillElement.dataset.skillId = skill.id;
+        skillElement.innerHTML = `
+            <span class="skill-name">${this.escapeHtml(skill.tag_name)}</span>
+            <button type="button" class="btn-skill-action">
+                <i class="fas ${type === 'current' ? 'fa-minus-circle' : 'fa-plus-circle'}"></i>
+            </button>
         `;
         
-        return div;
+        skillElement.querySelector('.btn-skill-action').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (type === 'current') {
+                this.removeUserSkill(skill.id);
+            } else {
+                this.addUserSkill(skill.id);
+            }
+        });
+        
+        return skillElement;
     },
     
     /**
      * Skill'leri filtrele
      */
     filterSkills(searchTerm) {
-        if (!this.elements.availableSkillsList || !this.availableSkillsData) return;
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+        const availableSkills = this.elements.availableSkillsList.querySelectorAll('.skill-item');
         
-        const filteredSkills = this.availableSkillsData.filter(skill => 
-            skill.tag_name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        
-        this.elements.availableSkillsList.innerHTML = '';
-        
-        filteredSkills.forEach(skill => {
-            const skillElement = this.createSkillElement(skill, 'available');
-            this.elements.availableSkillsList.appendChild(skillElement);
+        availableSkills.forEach(skillElement => {
+            const skillName = skillElement.querySelector('.skill-name').textContent.toLowerCase();
+            if (skillName.includes(lowerCaseSearchTerm)) {
+                skillElement.style.display = '';
+            } else {
+                skillElement.style.display = 'none';
+            }
         });
+    },
+
+    /**
+     * Kullanıcıya skill ata (sadece arayüzde)
+     */
+    addUserSkill(skillId) {
+        const { added, removed } = this.state.pendingSkillChanges;
+
+        if (removed.has(skillId)) {
+            removed.delete(skillId);
+        } else {
+            added.add(skillId);
+        }
+
+        const availableList = this.elements.availableSkillsList;
+        const targetElement = availableList.querySelector(`[data-skill-id='${skillId}']`);
+        if (targetElement) {
+            this.elements.userSkillsList.appendChild(targetElement);
+            const button = targetElement.querySelector('.btn-skill-action i');
+            button.classList.remove('fa-plus-circle');
+            button.classList.add('fa-minus-circle');
+            targetElement.querySelector('.btn-skill-action').onclick = (e) => {
+                e.stopPropagation();
+                this.removeUserSkill(skillId);
+            };
+        }
         
-        if (filteredSkills.length === 0) {
-            this.elements.availableSkillsList.innerHTML = '<p style="color: var(--light-grey); font-style: italic;">Eklenebilir skill tag bulunamadı</p>';
-        }
+        this.markAsChanged();
     },
-    
+
     /**
-     * Kullanıcıya skill ekle
+     * Kullanıcıdan skill kaldır (sadece arayüzde)
      */
-    async addUserSkill(skillId) {
-        try {
-            const response = await fetch(`${this.config.apiBaseUrl}add_user_skill.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: this.state.currentUserId,
-                    skill_id: skillId
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.loadUserSkills(this.state.currentUserId);
-                this.markAsChanged();
-                this.showSuccess('Skill tag başarıyla eklendi');
-            } else {
-                this.showError(data.message || 'Skill tag eklenirken hata oluştu');
-            }
-        } catch (error) {
-            console.error('Error adding user skill:', error);
-            this.showError('Ağ hatası oluştu');
+    removeUserSkill(skillId) {
+        const { added, removed } = this.state.pendingSkillChanges;
+
+        if (added.has(skillId)) {
+            added.delete(skillId);
+        } else {
+            removed.add(skillId);
         }
-    },
-    
-    /**
-     * Kullanıcıdan skill kaldır
-     */
-    async removeUserSkill(skillId) {
-        try {
-            const response = await fetch(`${this.config.apiBaseUrl}remove_user_skill.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: this.state.currentUserId,
-                    skill_id: skillId
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.loadUserSkills(this.state.currentUserId);
-                this.markAsChanged();
-                this.showSuccess('Skill tag başarıyla kaldırıldı');
-            } else {
-                this.showError(data.message || 'Skill tag kaldırılırken hata oluştu');
-            }
-        } catch (error) {
-            console.error('Error removing user skill:', error);
-            this.showError('Ağ hatası oluştu');
+
+        const currentList = this.elements.userSkillsList;
+        const targetElement = currentList.querySelector(`[data-skill-id='${skillId}']`);
+        if (targetElement) {
+            this.elements.availableSkillsList.appendChild(targetElement);
+            const button = targetElement.querySelector('.btn-skill-action i');
+            button.classList.remove('fa-minus-circle');
+            button.classList.add('fa-plus-circle');
+            targetElement.querySelector('.btn-skill-action').onclick = (e) => {
+                e.stopPropagation();
+                this.addUserSkill(skillId);
+            };
         }
+
+        this.markAsChanged();
     },
     
     /**
@@ -958,6 +955,12 @@ const ManageUsers = {
             const userData = Object.fromEntries(formData);
             userData.user_id = this.state.currentUserId;
             
+            // Rol ve skill değişikliklerini ekle
+            userData.roles_to_add = Array.from(this.state.pendingRoleChanges.added);
+            userData.roles_to_remove = Array.from(this.state.pendingRoleChanges.removed);
+            userData.skills_to_add = Array.from(this.state.pendingSkillChanges.added);
+            userData.skills_to_remove = Array.from(this.state.pendingSkillChanges.removed);
+
             const response = await fetch(`${this.config.apiBaseUrl}update_user.php`, {
                 method: 'POST',
                 headers: {
@@ -973,6 +976,7 @@ const ManageUsers = {
                 this.state.hasChanges = false;
                 this.updateChangeIndicator();
                 this.loadUsersData(); // Tabloyu yenile
+                this.closeEditUserModal(true); // Değişiklikler kaydedildiği için zorla kapat
             } else {
                 this.showError(data.message || 'Kullanıcı güncellenirken hata oluştu');
             }
@@ -987,8 +991,8 @@ const ManageUsers = {
     /**
      * Kullanıcı düzenleme modalını kapat
      */
-    closeEditUserModal() {
-        if (this.state.hasChanges) {
+    closeEditUserModal(force = false) {
+        if (this.state.hasChanges && !force) {
             if (!confirm('Kaydedilmemiş değişiklikler var. Çıkmak istediğinizden emin misiniz?')) {
                 return;
             }
@@ -998,6 +1002,9 @@ const ManageUsers = {
         this.state.currentUserId = null;
         this.state.hasChanges = false;
         this.state.originalUserData = null;
+        // Bekleyen değişiklikleri temizle
+        this.state.pendingRoleChanges = { added: new Set(), removed: new Set() };
+        this.state.pendingSkillChanges = { added: new Set(), removed: new Set() };
     },
     
     /**

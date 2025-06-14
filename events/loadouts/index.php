@@ -78,23 +78,16 @@ try {
                 ls.*,
                 u.username,
                 u.avatar_path,
-                r.name as primary_role_name,
-                r.color as primary_role_color,
+                (SELECT r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = u.id ORDER BY r.priority ASC LIMIT 1) as primary_role_name,
+                (SELECT r.color FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = u.id ORDER BY r.priority ASC LIMIT 1) as primary_role_color,
                 COUNT(DISTINCT lsi.id) as item_count,
                 COUNT(DISTINCT lwa.id) as attachment_count
             FROM loadout_sets ls
             LEFT JOIN users u ON ls.user_id = u.id
-            LEFT JOIN user_roles ur ON u.id = ur.user_id
-            LEFT JOIN roles r ON ur.role_id = r.id AND r.priority = (
-                SELECT MIN(r2.priority) 
-                FROM user_roles ur2 
-                JOIN roles r2 ON ur2.role_id = r2.id 
-                WHERE ur2.user_id = u.id
-            )
             LEFT JOIN loadout_set_items lsi ON ls.id = lsi.loadout_set_id
             LEFT JOIN loadout_weapon_attachments lwa ON ls.id = lwa.loadout_set_id
             $where_clause
-            GROUP BY ls.id, ls.set_name, ls.set_description, ls.visibility, ls.status, ls.created_at, ls.updated_at, ls.user_id, ls.set_image_path, u.username, u.avatar_path, r.name, r.color
+            GROUP BY ls.id, u.username, u.avatar_path
             ORDER BY ls.created_at DESC
             LIMIT :offset, :per_page
         ";
@@ -104,22 +97,15 @@ try {
                 ls.*,
                 u.username,
                 u.avatar_path,
-                r.name as primary_role_name,
-                r.color as primary_role_color,
+                (SELECT r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = u.id ORDER BY r.priority ASC LIMIT 1) as primary_role_name,
+                (SELECT r.color FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = u.id ORDER BY r.priority ASC LIMIT 1) as primary_role_color,
                 COUNT(DISTINCT lsi.id) as item_count,
                 0 as attachment_count
             FROM loadout_sets ls
             LEFT JOIN users u ON ls.user_id = u.id
-            LEFT JOIN user_roles ur ON u.id = ur.user_id
-            LEFT JOIN roles r ON ur.role_id = r.id AND r.priority = (
-                SELECT MIN(r2.priority) 
-                FROM user_roles ur2 
-                JOIN roles r2 ON ur2.role_id = r2.id 
-                WHERE ur2.user_id = u.id
-            )
             LEFT JOIN loadout_set_items lsi ON ls.id = lsi.loadout_set_id
             $where_clause
-            GROUP BY ls.id, ls.set_name, ls.set_description, ls.visibility, ls.status, ls.created_at, ls.updated_at, ls.user_id, ls.set_image_path, u.username, u.avatar_path, r.name, r.color
+            GROUP BY ls.id, u.username, u.avatar_path
             ORDER BY ls.created_at DESC
             LIMIT :offset, :per_page
         ";

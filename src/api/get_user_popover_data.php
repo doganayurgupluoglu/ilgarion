@@ -278,17 +278,4 @@ if (!validateRequestSecurity()) {
     exit;
 }
 
-// İstatistik loglama (opsiyonel)
-if (function_exists('audit_log') && isset($current_user_id) && isset($user_id)) {
-    try {
-        audit_log($pdo, $current_user_id, 'user_popover_viewed', 'user', $user_id, null, [
-            'target_user' => $user_id,
-            'ip' => get_client_ip(),
-            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
-        ]);
-    } catch (Exception $e) {
-        // Audit log hatası kritik değil
-        error_log("Audit log error in popover API: " . $e->getMessage());
-    }
-}
 ?>

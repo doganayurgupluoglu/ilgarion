@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Anamakine: 127.0.0.1
--- Üretim Zamanı: 11 Haz 2025, 03:23:51
+-- Üretim Zamanı: 13 Haz 2025, 22:51:29
 -- Sunucu sürümü: 10.4.32-MariaDB
 -- PHP Sürümü: 8.2.12
 
@@ -45,6 +45,46 @@ CREATE TABLE `audit_log` (
 --
 
 INSERT INTO `audit_log` (`id`, `user_id`, `action`, `target_type`, `target_id`, `old_values`, `new_values`, `ip_address`, `user_agent`, `created_at`) VALUES
+(2261, 1, 'role_viewed', 'role', 2, NULL, '{\"role_name\":\"admin\",\"action_type\":\"get_role_data\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 18:45:37'),
+(2262, 1, 'role_viewed', 'role', 2, NULL, '{\"role_name\":\"admin\",\"action_type\":\"get_role_data\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 18:45:45'),
+(2263, 1, 'role_permissions_viewed', 'role', 2, NULL, '{\"permission_count\":89,\"can_manage\":true}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 18:45:47'),
+(2264, 1, 'role_permissions_updated', 'role', 2, '{\"permissions\":[\"admin.panel.access\",\"admin.settings.view\",\"admin.settings.edit\",\"admin.users.view\",\"admin.users.edit_status\",\"admin.users.assign_roles\",\"admin.users.delete\",\"admin.roles.view\",\"admin.roles.create\",\"admin.roles.edit\",\"event.view_public\",\"event.view_members_only\",\"event.view_faction_only\",\"event.view_all\",\"event.create\",\"event.edit_own\",\"event.edit_all\",\"event.delete_own\",\"event.delete_all\",\"event.participate\",\"event.manage_participants\",\"gallery.view_public\",\"gallery.view_approved\",\"gallery.upload\",\"gallery.like\",\"gallery.delete_own\",\"gallery.delete_any\",\"gallery.manage_all\",\"loadout.view_public\",\"loadout.view_members_only\",\"loadout.view_published\",\"loadout.manage_sets\",\"loadout.manage_items\",\"loadout.manage_slots\",\"admin.audit_log.view\",\"admin.audit_log.export\",\"admin.system.security\",\"gallery.comment.create\",\"gallery.comment.edit_own\",\"gallery.comment.edit_all\",\"gallery.comment.delete_own\",\"gallery.comment.delete_all\",\"gallery.comment.like\",\"forum.view_public\",\"forum.view_members_only\",\"forum.view_faction_only\",\"forum.topic.create\",\"forum.topic.reply\",\"forum.topic.edit_own\",\"forum.topic.edit_all\",\"forum.topic.delete_own\",\"forum.topic.delete_all\",\"forum.topic.pin\",\"forum.topic.lock\",\"forum.post.edit_own\",\"forum.post.edit_all\",\"forum.post.delete_own\",\"forum.post.delete_all\",\"forum.post.like\",\"forum.category.manage\",\"forum.tags.manage\",\"forum.view_all_categories\",\"loadout.manage_weapon_attachments\",\"event_role.view_public\",\"event_role.view_members_only\",\"event_role.view_all\",\"event_role.create\",\"event_role.edit_own\",\"event_role.edit_all\",\"event_role.delete_own\",\"event_role.delete_all\",\"event_role.assign_to_events\",\"event_role.join\",\"event_role.manage_participants\",\"event_role.manage_requirements\",\"event_role.verify_skills\",\"event_role.view_statistics\",\"event_role.manage_all\",\"skill_tag.view_own\",\"skill_tag.view_all\",\"skill_tag.add_own\",\"skill_tag.manage_all\",\"loadout.create_sets\",\"loadout.edit_own_sets\",\"loadout.edit_all_sets\",\"loadout.delete_own_sets\",\"loadout.delete_all_sets\",\"loadout.publish_sets\",\"loadout.approve_sets\"]}', '{\"permissions\":[\"admin.audit_log.export\",\"admin.audit_log.view\",\"admin.panel.access\",\"admin.roles.create\",\"admin.roles.delete\",\"admin.roles.edit\",\"admin.roles.view\",\"admin.settings.edit\",\"admin.settings.view\",\"admin.system.security\",\"admin.users.assign_roles\",\"admin.users.delete\",\"admin.users.edit_status\",\"admin.users.view\",\"event.create\",\"event.delete_all\",\"event.delete_own\",\"event.edit_all\",\"event.edit_own\",\"event.manage_participants\",\"event.participate\",\"event.view_all\",\"event.view_faction_only\",\"event.view_members_only\",\"event.view_public\",\"event_role.assign_to_events\",\"event_role.create\",\"event_role.delete_all\",\"event_role.delete_own\",\"event_role.edit_all\",\"event_role.edit_own\",\"event_role.join\",\"event_role.manage_all\",\"event_role.manage_participants\",\"event_role.manage_requirements\",\"event_role.verify_skills\",\"event_role.view_all\",\"event_role.view_members_only\",\"event_role.view_public\",\"event_role.view_statistics\",\"forum.category.manage\",\"forum.post.delete_all\",\"forum.post.delete_own\",\"forum.post.edit_all\",\"forum.post.edit_own\",\"forum.post.like\",\"forum.tags.manage\",\"forum.topic.create\",\"forum.topic.delete_all\",\"forum.topic.delete_own\",\"forum.topic.edit_all\",\"forum.topic.edit_own\",\"forum.topic.lock\",\"forum.topic.pin\",\"forum.topic.reply\",\"forum.view_all_categories\",\"forum.view_faction_only\",\"forum.view_members_only\",\"forum.view_public\",\"gallery.comment.create\",\"gallery.comment.delete_all\",\"gallery.comment.delete_own\",\"gallery.comment.edit_all\",\"gallery.comment.edit_own\",\"gallery.comment.like\",\"gallery.delete_any\",\"gallery.delete_own\",\"gallery.like\",\"gallery.manage_all\",\"gallery.upload\",\"gallery.view_approved\",\"gallery.view_public\",\"loadout.approve_sets\",\"loadout.create_sets\",\"loadout.delete_all_sets\",\"loadout.delete_own_sets\",\"loadout.edit_all_sets\",\"loadout.edit_own_sets\",\"loadout.manage_items\",\"loadout.manage_sets\",\"loadout.manage_slots\",\"loadout.manage_weapon_attachments\",\"loadout.publish_sets\",\"loadout.view_members_only\",\"loadout.view_public\",\"loadout.view_published\",\"scg.hangar.view\",\"skill_tag.add_own\",\"skill_tag.manage_all\",\"skill_tag.view_all\",\"skill_tag.view_own\"]}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 18:45:57'),
+(2265, 1, 'role_permissions_updated', 'role', 2, NULL, '{\"action\":\"role_permissions_updated\",\"role_id\":2,\"user_ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"timestamp\":1749840357,\"session_id\":\"d31qj03k626sv1ps8d5dljf9pl\",\"details\":{\"role_name\":\"admin\",\"old_permission_count\":89,\"new_permission_count\":91,\"security_impact\":\"high\",\"affected_users\":4,\"critical_changes\":{\"added\":{\"4\":\"admin.roles.delete\"},\"removed\":[]}}}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 18:45:57'),
+(2266, 1, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 20:46:07\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 18:46:07'),
+(2267, 1, 'role_viewed', 'role', 2, NULL, '{\"role_name\":\"admin\",\"action_type\":\"get_role_data\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:46:51'),
+(2268, 1, 'role_updated', 'role', 2, '{\"name\":\"admin\",\"description\":\"Site Y\\u00f6neticisi - T\\u00fcm yetkilere sahip\",\"color\":\"#04ff00\",\"priority\":1}', '{\"name\":\"admin\",\"description\":\"Site Y\\u00f6neticisi - T\\u00fcm yetkilere sahip\",\"color\":\"#0008ff\",\"priority\":1}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:46:58'),
+(2269, 1, 'role_updated', 'role', 2, NULL, '{\"action\":\"role_updated\",\"role_id\":2,\"user_ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"timestamp\":1749844018,\"session_id\":\"pnu0ocqb9g85lmgevsu68tug84\",\"details\":{\"old_values\":{\"name\":\"admin\",\"description\":\"Site Y\\u00f6neticisi - T\\u00fcm yetkilere sahip\",\"color\":\"#04ff00\",\"priority\":1},\"new_values\":{\"name\":\"admin\",\"description\":\"Site Y\\u00f6neticisi - T\\u00fcm yetkilere sahip\",\"color\":\"#0008ff\",\"priority\":1}}}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:46:58'),
+(2270, 1, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 21:49:43\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:49:43'),
+(2271, 1, 'role_viewed', 'role', 2, NULL, '{\"role_name\":\"admin\",\"action_type\":\"get_role_data\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:49:48'),
+(2272, 1, 'role_permissions_viewed', 'role', 2, NULL, '{\"permission_count\":91,\"can_manage\":true}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:49:50'),
+(2273, 10, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 21:51:56\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:51:56'),
+(2274, 10, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 21:51:59\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:51:59'),
+(2275, 10, 'user_popover_viewed', 'user', 1, NULL, '{\"target_user\":1,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:53:16'),
+(2276, 10, 'user_popover_viewed', 'user', 1, NULL, '{\"target_user\":1,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:53:18'),
+(2277, 10, 'user_popover_viewed', 'user', 1, NULL, '{\"target_user\":1,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:53:21'),
+(2278, 1, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 21:54:52\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:54:52'),
+(2279, 1, 'user_popover_viewed', 'user', 1, NULL, '{\"target_user\":1,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:55:08'),
+(2280, 1, 'user_popover_viewed', 'user', 1, NULL, '{\"target_user\":1,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:55:10'),
+(2281, 1, 'user_popover_viewed', 'user', 1, NULL, '{\"target_user\":1,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:55:14'),
+(2282, 1, 'user_popover_viewed', 'user', 1, NULL, '{\"target_user\":1,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:55:17'),
+(2283, 1, 'user_popover_viewed', 'user', 1, NULL, '{\"target_user\":1,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:55:22'),
+(2284, 10, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 21:56:25\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 19:56:25'),
+(2285, 10, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 22:01:23\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:01:23'),
+(2286, 1, 'role_viewed', 'role', 2, NULL, '{\"role_name\":\"admin\",\"action_type\":\"get_role_data\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:01:39'),
+(2287, 1, 'role_updated', 'role', 2, '{\"name\":\"admin\",\"description\":\"Site Y\\u00f6neticisi - T\\u00fcm yetkilere sahip\",\"color\":\"#0008ff\",\"priority\":1}', '{\"name\":\"admin\",\"description\":\"Site Y\\u00f6neticisi - T\\u00fcm yetkilere sahip\",\"color\":\"#ffa200\",\"priority\":1}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:01:44'),
+(2288, 1, 'role_updated', 'role', 2, NULL, '{\"action\":\"role_updated\",\"role_id\":2,\"user_ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"timestamp\":1749844904,\"session_id\":\"7qnl11eqttbnaib55pjgue0tg4\",\"details\":{\"old_values\":{\"name\":\"admin\",\"description\":\"Site Y\\u00f6neticisi - T\\u00fcm yetkilere sahip\",\"color\":\"#0008ff\",\"priority\":1},\"new_values\":{\"name\":\"admin\",\"description\":\"Site Y\\u00f6neticisi - T\\u00fcm yetkilere sahip\",\"color\":\"#ffa200\",\"priority\":1}}}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:01:44'),
+(2289, 1, 'role_viewed', 'role', 5, NULL, '{\"role_name\":\"uye\",\"action_type\":\"get_role_data\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:01:49'),
+(2290, 1, 'role_permissions_viewed', 'role', 5, NULL, '{\"permission_count\":41,\"can_manage\":true}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:01:51'),
+(2291, 1, 'role_permissions_updated', 'role', 5, '{\"permissions\":[\"event.view_public\",\"event.view_members_only\",\"event.create\",\"event.edit_own\",\"event.delete_own\",\"event.participate\",\"gallery.view_public\",\"gallery.view_approved\",\"gallery.upload\",\"gallery.like\",\"gallery.delete_own\",\"loadout.view_public\",\"loadout.view_members_only\",\"loadout.view_published\",\"gallery.comment.create\",\"gallery.comment.edit_own\",\"gallery.comment.delete_own\",\"gallery.comment.like\",\"forum.view_public\",\"forum.view_members_only\",\"forum.view_faction_only\",\"forum.topic.create\",\"forum.topic.reply\",\"forum.topic.edit_own\",\"forum.topic.edit_all\",\"forum.topic.delete_own\",\"forum.topic.delete_all\",\"forum.topic.pin\",\"forum.topic.lock\",\"forum.post.edit_own\",\"forum.post.edit_all\",\"forum.post.delete_own\",\"forum.post.delete_all\",\"forum.post.like\",\"forum.category.manage\",\"forum.tags.manage\",\"event_role.view_public\",\"event_role.view_members_only\",\"event_role.view_all\",\"event_role.view_statistics\",\"skill_tag.view_own\"]}', '{\"permissions\":[\"event.create\",\"event.delete_own\",\"event.edit_own\",\"event.participate\",\"event.view_members_only\",\"event.view_public\",\"event_role.view_all\",\"event_role.view_members_only\",\"event_role.view_public\",\"event_role.view_statistics\",\"forum.category.manage\",\"forum.post.delete_all\",\"forum.post.delete_own\",\"forum.post.edit_all\",\"forum.post.edit_own\",\"forum.post.like\",\"forum.tags.manage\",\"forum.topic.create\",\"forum.topic.delete_all\",\"forum.topic.delete_own\",\"forum.topic.edit_all\",\"forum.topic.edit_own\",\"forum.topic.lock\",\"forum.topic.pin\",\"forum.topic.reply\",\"forum.view_faction_only\",\"forum.view_members_only\",\"forum.view_public\",\"gallery.comment.create\",\"gallery.comment.delete_own\",\"gallery.comment.edit_own\",\"gallery.comment.like\",\"gallery.delete_own\",\"gallery.like\",\"gallery.upload\",\"gallery.view_approved\",\"gallery.view_public\",\"loadout.view_members_only\",\"loadout.view_public\",\"loadout.view_published\",\"scg.hangar.view\",\"skill_tag.view_own\"]}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:01:58'),
+(2292, 1, 'role_permissions_updated', 'role', 5, NULL, '{\"action\":\"role_permissions_updated\",\"role_id\":5,\"user_ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"timestamp\":1749844918,\"session_id\":\"7qnl11eqttbnaib55pjgue0tg4\",\"details\":{\"role_name\":\"uye\",\"old_permission_count\":41,\"new_permission_count\":42,\"security_impact\":\"low\",\"affected_users\":2,\"critical_changes\":{\"added\":[],\"removed\":[]}}}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:01:58'),
+(2293, 10, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 22:02:00\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:02:00'),
+(2294, 10, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 22:07:04\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:07:04'),
+(2295, 1, 'user_popover_viewed', 'user', 6, NULL, '{\"target_user\":6,\"ip\":\"::1\",\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:18:59'),
+(2296, 1, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 22:44:09\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:44:09'),
+(2297, 1, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 22:44:12\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:44:12'),
+(2298, 1, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 22:45:59\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:45:59'),
+(2299, 1, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 22:47:38\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:47:38'),
+(2300, 1, 'homepage_accessed', 'page', NULL, NULL, '{\"user_agent\":\"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/137.0.0.0 Safari\\/537.36\",\"ip_address\":\"::1\",\"access_time\":\"2025-06-13 22:47:45\"}', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', '2025-06-13 20:47:45');
 
 -- --------------------------------------------------------
 
@@ -110,7 +150,7 @@ INSERT INTO `events` (`id`, `created_by_user_id`, `event_title`, `event_descript
 (1, 1, 'ASD Radiaton mission', 'ASD Radiaton mission tamamlanacak ve yarraklar atmosfere sokulacak', 'uploads/events/event_1749508994_6847638240872.png', 'Pyro V Pyro 1', '2025-06-10 15:26:00', 'members_only', 'published', '2025-06-09 12:27:22', '2025-06-09 22:43:14', NULL, 0, '', NULL),
 (2, 1, 'Etkinlik 1', '# [SCG] ILGARION TURANIS SAHA OPERASYONLARI EL KİTABI (FPS)\r\n\r\n\r\n## ÖNSÖZ\r\n\r\nBu el kitabı, Ilgarion Turanis operatörlerinin Birleşik Dünya İmparatorluğu (UEE) sınırları dahilinde ve ötesindeki Birinci Şahıs Nişancı (FPS) odaklı operasyonlarında uyacakları standartları, prosedürleri ve taktikleri belirlemek amacıyla hazırlanmıştır. Her operatör, bu el kitabında belirtilen prensiplere ve SCG\'nin genel nizam ve yönetmeliklerine harfiyen uymakla mükelleftir.\r\n\r\n## İÇİNDEKİLER\r\n\r\n1.  BÖLÜM 1: TEMEL EMİRLER VE DİSİPLİN ESASLARI\r\n    * 1.1 Maksat\r\n    * 1.2 Disiplin Esasları ve Davranış Kuralları\r\n2.  BÖLÜM 2: OPERATÖR TEÇHİZATI - STANDART DONANIM (ILGARION TURANIS)\r\n    * 2.1 Zırh Teçhizatı\r\n    * 2.2 Silah ve Yardımcı Muharebe Teçhizatı\r\n    * 2.3 Mühimmat İkmali\r\n    * 2.4 Tıbbi Malzeme ve Teçhizat\r\n    * 2.5 Standart Donanım Şablonları ve Güncellemeler\r\n3.  BÖLÜM 3: FPS UZMANLIK ALANLARI VE TAKIM GÖREV DAĞILIMI\r\n    * 3.1 Genel Esaslar\r\n    * 3.2 Görev Tanımları\r\n4.  BÖLÜM 4: HAREKAT USULLERİ (SOP)\r\n    * 4.1 Görev Tevdii ve Harekata Hazırlık\r\n    * 4.2 İntikal ve Sızma Usulleri\r\n    * 4.3 Temas ve Alan Kontrolü Harekatı\r\n    * 4.4 Görev İcrası ve Geri İntikal\r\n5.  BÖLÜM 5: ANGAJMAN KURALLARI (ROE) - (SCG ONAYLI)\r\n    * 5.1 Angajman Durum Kodları\r\n    * 5.2 Hususi Durumlar ve Emirler\r\n6.  BÖLÜM 6: MUHAREBE DÜZENLERİ VE İNTİKAL TEKNİKLERİ (FPS)\r\n    * 6.1 Genel Prensipler\r\n    * 6.2 Meskun Mahal / Kapalı Alan (CQB) Muharebe Düzenleri ve Taktikleri\r\n    * 6.3 Açık Arazi / Genel İntikal Düzenleri\r\n7.  BÖLÜM 7: MUHABERE USULLERİ VE PROTOKOLLERİ\r\n    * 7.1 Temel Muhabere Disiplini\r\n    * 7.2 Standart Rapor Formatları ve Kodlamalar (Örnekler)', 'uploads/events/event_1749503194_68474cda585a5.png', 'Lorville', '2025-06-11 10:10:00', 'public', 'published', '2025-06-09 21:06:34', NULL, NULL, 0, '', NULL),
 (3, 1, 'Etkinlik 1', '## BÖLÜM 1: TEMEL EMİRLER VE DİSİPLİN ESASLARI\r\n\r\n### 1.1 Maksat\r\n\r\nBu el kitabı, Ilgarion Turanis operatörlerinin tüm FPS görevlerinde (standart kontratlar, yüksek riskli Çatışmalı Bölge operasyonları, stratejik maden sahası kontrol görevleri dahil) harekat etkinliğini, ekip koordinasyonunu ve beka kabiliyetini azami seviyeye çıkarmayı hedefler. Her operatör, bu el kitabında sıralanan prensiplere ve SCG\'nin genel nizam ve yönetmeliklerine mutlak surette riayet edecektir.\r\n\r\n### 1.2 Disiplin Esasları ve Davranış Kuralları\r\n\r\nHer operatör, aşağıda belirtilen disiplin esaslarına ve davranış kurallarına uymakla yükümlüdür:\r\n\r\n* **Askeri Disiplin ve Profesyonellik:** Vazife başında ve vazife haricinde her türlü hal ve hareketinde askeri disiplin ve SCG\'nin gerektirdiği profesyonellik seviyesini muhafaza et. Davranışlarınla birliğin ve SCG\'nin saygınlığını ve etkinliğini temsil et.\r\n* **Vazife Odaklılık:** Verilen vazifenin dışına çıkma. Ana hedefe ve vazife gereklerine mutlak surette odaklan. Lüzumsuz angajmanlardan, sivil kayıplarına yol açabilecek eylemlerden ve özellikle adli sicil (CrimeStat) oluşturacak faaliyetlerden kaçın (vazife açıkça bunu gerektirmedikçe).\r\n* **Gayri Muharip Unsurlara Karşı Muamele:** Tespit edilmiş muharip olmayan unsurlara (siviller, dost kuvvetler, tarafsız şahıslar) karşı kesinlikle ateş açma veya hasmane tutum sergileme. Şüpheli durumlarda, angaje olmadan evvel mutlak surette teyit al veya Tim Lideri\'nin (TL) talimatını bekle.\r\n* **Harp Ganimeti ve Malzeme Disiplini:** Öncelik daima vazife ile ilgili malzemeler (kritik veriler, görev hedefleri) ve acil tıbbi yardım malzemelerindedir. Şahsi harp ganimeti toplama faaliyeti, harekat sahasının emniyeti tam olarak sağlandıktan ve Tim Lideri\'nin müsaadesi alındıktan sonra icra edilir. Malzeme paylaşımı, Tim Lideri\'nin direktifleri doğrultusunda yapılır.\r\n* **Muhabere Disiplini:** Telsiz (muhabere) disiplinine harfiyen uy. Muhabere kısa, açık, net ve sadece vazife ile ilgili bilgileri içermelidir. Muhabere ağını lüzumsuz meşgul etme.\r\n* **Gizlilik ve Bilgi Güvenliği:** Vazife detayları, harekat planları, operatör kimlikleri ve SCG\'ye ait tüm bilgiler gizlidir. Yetkisiz üçüncü şahıslarla paylaşımı kesinlikle yasaktır.\r\n* **Etkinlik Katılım Sorumluluğu:** Kayıt olunan görev ve etkinliklere iştirak esastır. Zorunlu hallerde katılım sağlanamayacaksa, durum derhal ilgili Tim Lideri\'ne veya Etkinlik Lideri\'ne (görevlendirildiyse) gerekçesiyle birlikte rapor edilir.\r\n\r\n![Ekran Grnts 15](../../uploads/events/images/event_img_1_1749503975_68474fe775358.png)', 'uploads/events/event_1749503487_68474dff03f16.png', 'Lorville', '2026-02-10 10:10:00', 'public', 'published', '2025-06-09 21:11:27', '2025-06-09 23:07:48', NULL, 0, '', NULL),
-(4, 1, 'ASD Radiaton mission 123456', '# [SCG] ILGARION TURANIS SAHA OPERASYONLARI EL KİTABI (FPS)\r\n\r\n\r\n## ÖNSÖZ\r\n\r\nBu el kitabı, Ilgarion Turanis operatörlerinin Birleşik Dünya İmparatorluğu (UEE) sınırları dahilinde ve ötesindeki Birinci Şahıs Nişancı (FPS) odaklı operasyonlarında uyacakları standartları, prosedürleri ve taktikleri belirlemek amacıyla hazırlanmıştır. Her operatör, bu el kitabında belirtilen prensiplere ve SCG\'nin genel nizam ve yönetmeliklerine harfiyen uymakla mükelleftir.\r\n\r\n## İÇİNDEKİLER\r\n\r\n1.  BÖLÜM 1: TEMEL EMİRLER VE DİSİPLİN ESASLARI\r\n    * 1.1 Maksat\r\n    * 1.2 Disiplin Esasları ve Davranış Kuralları\r\n2.  BÖLÜM 2: OPERATÖR TEÇHİZATI - STANDART DONANIM (ILGARION TURANIS)\r\n    * 2.1 Zırh Teçhizatı\r\n    * 2.2 Silah ve Yardımcı Muharebe Teçhizatı\r\n    * 2.3 Mühimmat İkmali\r\n    * 2.4 Tıbbi Malzeme ve Teçhizat\r\n    * 2.5 Standart Donanım Şablonları ve Güncellemeler\r\n3.  BÖLÜM 3: FPS UZMANLIK ALANLARI VE TAKIM GÖREV DAĞILIMI\r\n    * 3.1 Genel Esaslar\r\n    * 3.2 Görev Tanımları\r\n4.  BÖLÜM 4: HAREKAT USULLERİ (SOP)\r\n    * 4.1 Görev Tevdii ve Harekata Hazırlık\r\n    * 4.2 İntikal ve Sızma Usulleri\r\n    * 4.3 Temas ve Alan Kontrolü Harekatı\r\n    * 4.4 Görev İcrası ve Geri İntikal\r\n5.  BÖLÜM 5: ANGAJMAN KURALLARI (ROE) - (SCG ONAYLI)\r\n    * 5.1 Angajman Durum Kodları\r\n    * 5.2 Hususi Durumlar ve Emirler\r\n6.  BÖLÜM 6: MUHAREBE DÜZENLERİ VE İNTİKAL TEKNİKLERİ (FPS)\r\n    * 6.1 Genel Prensipler\r\n    * 6.2 Meskun Mahal / Kapalı Alan (CQB) Muharebe Düzenleri ve Taktikleri\r\n    * 6.3 Açık Arazi / Genel İntikal Düzenleri\r\n7.  BÖLÜM 7: MUHABERE USULLERİ VE PROTOKOLLERİ\r\n    * 7.1 Temel Muhabere Disiplini\r\n    * 7.2 Standart Rapor Formatları ve Kodlamalar (Örnekler)\r\n\r\n![Igarion Merkezi  Google Chrome 28052025 061749](../../uploads/events/images/event_img_1_1749585535_68488e7f93f7b.png)', 'uploads/events/event_1749586045_6848907d9bf87.png', 'Lorville', '2026-10-10 10:10:00', 'public', 'published', '2025-06-10 20:07:25', '2025-06-10 20:12:45', NULL, 0, '', NULL);
+(5, 13, 'OPERASYON ŞARKIISISIIIASD', '<h2><b>İlgarion turanis sikiş etkinliğiii</b></h2><b><br /></b><img src=\"https://ilgarionturanis.com/uploads/gallery/gallery_user7_1748875886_23570e38.png\" alt=\"gallery_user7_1748875886_23570e38.png\" style=\"text-align:center;\" />', 'uploads/events/event_1749676553_6849f209a40cb.png', 'SUNO', '2025-06-12 12:42:00', 'public', 'published', '2025-06-10 09:43:01', '2025-06-12 01:32:22', NULL, 0, '', NULL);
 
 -- --------------------------------------------------------
 
@@ -127,7 +167,7 @@ CREATE TABLE `event_participations` (
   `registered_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp(),
   `created_at` timestamp NOT NULL DEFAULT current_timestamp() COMMENT 'Oluşturulma tarihi'
-) ;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Tablo döküm verisi `event_participations`
@@ -135,7 +175,9 @@ CREATE TABLE `event_participations` (
 
 INSERT INTO `event_participations` (`id`, `event_id`, `user_id`, `role_slot_id`, `participation_status`, `registered_at`, `updated_at`, `created_at`) VALUES
 (2, 3, 1, 6, 'confirmed', '2025-06-09 23:59:40', '2025-06-10 01:15:15', '2025-06-09 23:59:40'),
-(3, 3, 11, NULL, 'declined', '2025-06-10 00:07:14', NULL, '2025-06-10 00:07:14');
+(4, 2, 13, 1, 'confirmed', '2025-06-10 09:35:48', NULL, '2025-06-10 09:35:48'),
+(5, 3, 13, 6, 'confirmed', '2025-06-10 09:36:06', NULL, '2025-06-10 09:36:06'),
+(11, 5, 1, NULL, 'confirmed', '2025-06-12 01:27:40', '2025-06-12 01:27:44', '2025-06-12 01:27:40');
 
 --
 -- Tetikleyiciler `event_participations`
@@ -180,7 +222,9 @@ CREATE TABLE `event_roles` (
 --
 
 INSERT INTO `event_roles` (`id`, `role_name`, `role_description`, `role_icon`, `suggested_loadout_id`, `created_at`) VALUES
-(6, 'Vehicle Gunner', 'Araç silah operatörüüü', 'fas fa-user', 9, '2025-06-09 12:07:45');
+(6, 'Vehicle Gunner', 'Araç silah operatörüüü', 'fas fa-user', 9, '2025-06-09 12:07:45'),
+(8, 'Turretçi', 'Turretçidir kendisi', 'fas fa-crosshairs', 10, '2025-06-10 10:14:53'),
+(9, 'King', 'Doğanay olabilir. Bence o olur gibi.', 'fas fa-star', 10, '2025-06-10 10:19:07');
 
 -- --------------------------------------------------------
 
@@ -199,7 +243,9 @@ CREATE TABLE `event_role_requirements` (
 
 INSERT INTO `event_role_requirements` (`role_id`, `skill_tag_id`) VALUES
 (6, 8),
-(6, 12);
+(6, 12),
+(9, 8),
+(9, 12);
 
 -- --------------------------------------------------------
 
@@ -221,7 +267,9 @@ CREATE TABLE `event_role_slots` (
 INSERT INTO `event_role_slots` (`id`, `event_id`, `role_id`, `slot_count`) VALUES
 (1, 2, 6, 5),
 (6, 3, 6, 4),
-(9, 4, 6, 5);
+(35, 5, 9, 10),
+(36, 5, 8, 10),
+(37, 5, 6, 50);
 
 -- --------------------------------------------------------
 
@@ -260,12 +308,13 @@ CREATE TABLE `forum_categories` (
 
 INSERT INTO `forum_categories` (`id`, `name`, `description`, `slug`, `icon`, `color`, `display_order`, `is_active`, `visibility`, `created_at`, `updated_at`) VALUES
 (1, 'Ilgarion Turanis', 'Ilgarion Turanis üyelerine özel kategori.', 'ilgarion-turanis', 'fas fa-comments', '#73E4E0', 2, 1, 'public', '2025-06-03 17:07:32', '2025-06-06 00:01:32'),
-(2, 'Star Citizen Global', 'Star Citizen Global üyelerine özel kategori.', 'star-citizen-global', 'fas fa-chess-knight', '#EB0000', 1, 1, 'public', '2025-06-03 17:07:32', '2025-06-06 00:00:43'),
 (3, 'Forum Kuralları, Öneriler ve Duyurular', 'Forumun işleyişiyle ilgili kuralların, resmi duyuruların ve kullanıcı önerilerinin dikkate alındığı bölümdür. Katılmadan önce kuralları okumanız tavsiye edilir.', 'forum-kural-öner-duyurular', 'fas fa-rocket', '#b8845c', 3, 1, 'public', '2025-06-03 17:07:32', '2025-06-04 15:06:35'),
 (4, ' Oynanış Rehberleri ve Taktikler', 'Yeni başlayanlar için rehberler, deneyimli oyunculardan ipuçları ve görev stratejileri.', 'oynanıs-rehberleri-ve-taktikler', 'fas fa-user-plus', '#b8845c', 4, 1, 'public', '2025-06-03 17:07:32', '2025-06-04 15:07:21'),
 (5, 'Ekonomi, Ticaret ve Madencilik', 'UEC kazanma yolları, ticaret rotaları, mining teknikleri ve yatırım tavsiyeleri burada.', 'ekonomi-ticaret-madencilik', 'fas fa-space-shuttle', '#b8845c', 5, 1, 'public', '2025-06-04 03:56:13', '2025-06-04 15:05:55'),
-(6, 'PVP, FPS ve Güvenlik Operasyonları', 'Dogfight'lar, FPS çarpışmaları ve güvenlik görevleri üzerine taktiksel sohbetler.', 'pvp-fps-ve-guvenlik-operasyonları', 'fas fa-tasks', '#b8845c', 6, 1, 'public', '2025-06-04 03:56:13', '2025-06-04 15:05:38'),
-(7, 'Genel Star Citizen Tartışmaları', 'Oyunla ilgili genel konular, güncellemeler, haberler ve topluluk sohbetleri burada.', 'genel-star-citizen-tartışmaları', 'fas fa-tasks', '#b8845c', 3, 1, 'public', '2025-06-04 03:56:13', '2025-06-04 15:13:08');
+(6, 'PVP, FPS ve Güvenlik Operasyonları', 'Dogfight’lar, FPS çarpışmaları ve güvenlik görevleri üzerine taktiksel sohbetler.', 'pvp-fps-ve-guvenlik-operasyonları', 'fas fa-tasks', '#b8845c', 6, 1, 'public', '2025-06-04 03:56:13', '2025-06-04 15:05:38'),
+(7, 'Genel Star Citizen Tartışmaları', 'Oyunla ilgili genel konular, güncellemeler, haberler ve topluluk sohbetleri burada.', 'genel-star-citizen-tartışmaları', 'fas fa-tasks', '#b8845c', 3, 1, 'public', '2025-06-04 03:56:13', '2025-06-04 15:13:08'),
+(8, 'Deneme', 'Zort zurt', 'deneme', 'fas fa-comments', '#bd912a', 0, 1, 'faction_only', '2025-06-13 11:31:13', '2025-06-13 11:31:13'),
+(9, 'Star Citizen Global', 'SCG Üyelerine özel kategori.', 'star-citizen-global', 'fas fa-space-shuttle', '#bd912a', 2, 1, 'public', '2025-06-13 19:58:09', '2025-06-13 19:58:25');
 
 -- --------------------------------------------------------
 
@@ -283,7 +332,7 @@ CREATE TABLE `forum_category_visibility_roles` (
 --
 
 INSERT INTO `forum_category_visibility_roles` (`category_id`, `role_id`) VALUES
-(1, 67);
+(8, 68);
 
 -- --------------------------------------------------------
 
@@ -303,14 +352,6 @@ CREATE TABLE `forum_posts` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Tablo döküm verisi `forum_posts`
---
-
-INSERT INTO `forum_posts` (`id`, `topic_id`, `user_id`, `content`, `is_edited`, `edited_at`, `edited_by_user_id`, `like_count`, `created_at`, `updated_at`) VALUES
-(96, 33, 1, '[youtube]https://www.youtube.com/watch?v=pTMKcGDnnUk[/youtube]', 0, NULL, NULL, 0, '2025-06-06 20:53:02', '2025-06-06 20:53:02'),
-(97, 33, 1, '[img]https://media1.tenor.com/m/B5_d8kamVzcAAAAC/aaron-rodgers-smile.gif[/img]', 0, NULL, NULL, 0, '2025-06-06 21:11:12', '2025-06-06 21:11:12');
 
 -- --------------------------------------------------------
 
@@ -345,19 +386,19 @@ CREATE TABLE `forum_tags` (
 --
 
 INSERT INTO `forum_tags` (`id`, `name`, `slug`, `color`, `usage_count`, `created_at`) VALUES
-(1, 'başlangıç', 'baslangic', '#bd912a', 3, '2025-06-05 11:32:13'),
-(2, 'soru', 'soru', '#bd912a', 1, '2025-06-05 11:32:13'),
-(3, 'haber', 'haber', '#bd912a', 1, '2025-06-05 11:32:13'),
-(4, 'mining', 'mining', '#bd912a', 2, '2025-06-05 11:32:13'),
-(5, 'combat', 'combat', '#bd912a', 1, '2025-06-05 11:32:13'),
-(6, 'star citizen', 'star-citizen', '#bd912a', 1, '2025-06-05 11:33:45'),
-(7, 'pyro', 'pyro', '#bd912a', 1, '2025-06-05 11:33:45'),
-(8, 'hull-c', 'hull-c', '#bd912a', 1, '2025-06-05 11:33:45'),
-(9, 'rehber', 'rehber', '#bd912a', 1, '2025-06-05 11:33:45'),
-(10, 'tartışma', 'tartisma', '#bd912a', 1, '2025-06-05 15:02:12'),
-(11, 'exploration', 'exploration', '#bd912a', 1, '2025-06-05 15:02:12'),
-(12, 'öneri', 'oneri', '#bd912a', 1, '2025-06-05 15:02:12'),
-(13, 'deneme', 'deneme', '#bd912a', 1, '2025-06-06 20:47:19');
+(1, 'başlangıç', 'baslangic', '#bd912a', 0, '2025-06-05 11:32:13'),
+(2, 'soru', 'soru', '#bd912a', 0, '2025-06-05 11:32:13'),
+(3, 'haber', 'haber', '#bd912a', 0, '2025-06-05 11:32:13'),
+(4, 'mining', 'mining', '#bd912a', 0, '2025-06-05 11:32:13'),
+(5, 'combat', 'combat', '#bd912a', 0, '2025-06-05 11:32:13'),
+(6, 'star citizen', 'star-citizen', '#bd912a', 0, '2025-06-05 11:33:45'),
+(7, 'pyro', 'pyro', '#bd912a', 0, '2025-06-05 11:33:45'),
+(8, 'hull-c', 'hull-c', '#bd912a', 0, '2025-06-05 11:33:45'),
+(9, 'rehber', 'rehber', '#bd912a', 0, '2025-06-05 11:33:45'),
+(10, 'tartışma', 'tartisma', '#bd912a', 0, '2025-06-05 15:02:12'),
+(11, 'exploration', 'exploration', '#bd912a', 0, '2025-06-05 15:02:12'),
+(12, 'öneri', 'oneri', '#bd912a', 0, '2025-06-05 15:02:12'),
+(13, 'deneme', 'deneme', '#bd912a', 0, '2025-06-06 20:47:19');
 
 -- --------------------------------------------------------
 
@@ -384,13 +425,6 @@ CREATE TABLE `forum_topics` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Tablo döküm verisi `forum_topics`
---
-
-INSERT INTO `forum_topics` (`id`, `category_id`, `user_id`, `title`, `slug`, `content`, `visibility`, `is_pinned`, `is_locked`, `view_count`, `reply_count`, `last_post_user_id`, `last_post_at`, `tags`, `created_at`, `updated_at`) VALUES
-(33, 2, 1, 'Deneme', 'deneme', '12312312123', 'public', 0, 0, 7, 2, 1, '2025-06-06 21:11:12', 'deneme', '2025-06-06 20:47:19', '2025-06-10 01:04:54');
-
 -- --------------------------------------------------------
 
 --
@@ -404,13 +438,6 @@ CREATE TABLE `forum_topic_likes` (
   `liked_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Tablo döküm verisi `forum_topic_likes`
---
-
-INSERT INTO `forum_topic_likes` (`id`, `topic_id`, `user_id`, `liked_at`) VALUES
-(58, 33, 11, '2025-06-06 21:18:42');
-
 -- --------------------------------------------------------
 
 --
@@ -421,13 +448,6 @@ CREATE TABLE `forum_topic_tags` (
   `topic_id` int(11) NOT NULL,
   `tag_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Tablo döküm verisi `forum_topic_tags`
---
-
-INSERT INTO `forum_topic_tags` (`topic_id`, `tag_id`) VALUES
-(33, 13);
 
 -- --------------------------------------------------------
 
@@ -474,9 +494,39 @@ CREATE TABLE `gallery_photos` (
 --
 
 INSERT INTO `gallery_photos` (`id`, `user_id`, `image_path`, `description`, `is_public_no_auth`, `is_members_only`, `uploaded_at`) VALUES
-(76, 1, 'uploads/gallery/gallery_user1_58569267268462507608302.91311151.png', '', 1, 0, '2025-06-09 00:04:23'),
-(77, 1, 'uploads/gallery/gallery_user1_92698884868473bd1025060.70616589.png', '', 1, 0, '2025-06-09 19:53:53'),
-(78, 11, 'uploads/gallery/gallery_user11_17301979766847811c2d3292.43426248.png', '', 1, 0, '2025-06-10 00:49:32');
+(10, 4, 'uploads/gallery/gallery_user4_1748009937_9d48b962.png', '', 0, 1, '2025-05-23 14:18:57'),
+(11, 1, 'uploads/gallery/gallery_user1_1748013808_eb1dc946.jpg', '', 0, 1, '2025-05-23 15:23:28'),
+(12, 7, 'uploads/gallery/gallery_user7_1748014812_c4dd7be5.jpg', '', 0, 1, '2025-05-23 15:40:12'),
+(13, 7, 'uploads/gallery/gallery_user7_1748014825_f2467d47.jpg', '', 0, 1, '2025-05-23 15:40:25'),
+(14, 7, 'uploads/gallery/gallery_user7_1748014832_98d27209.jpg', '', 0, 1, '2025-05-23 15:40:32'),
+(15, 7, 'uploads/gallery/gallery_user7_1748014848_f585e08e.jpg', '', 0, 1, '2025-05-23 15:40:48'),
+(16, 7, 'uploads/gallery/gallery_user7_1748014868_ba6e0896.jpg', '', 0, 1, '2025-05-23 15:41:08'),
+(17, 7, 'uploads/gallery/gallery_user7_1748015022_2900c6fe.jpg', '', 0, 1, '2025-05-23 15:43:42'),
+(18, 7, 'uploads/gallery/gallery_user7_1748015050_ee4af680.jpg', '', 0, 1, '2025-05-23 15:44:10'),
+(19, 7, 'uploads/gallery/gallery_user7_1748015064_1b259d4d.jpg', '', 0, 1, '2025-05-23 15:44:24'),
+(20, 7, 'uploads/gallery/gallery_user7_1748015084_4a839680.jpg', '', 0, 1, '2025-05-23 15:44:44'),
+(21, 7, 'uploads/gallery/gallery_user7_1748015104_b0271b2a.jpg', '', 0, 1, '2025-05-23 15:45:04'),
+(22, 7, 'uploads/gallery/gallery_user7_1748015337_fe088081.png', '', 0, 1, '2025-05-23 15:48:57'),
+(23, 7, 'uploads/gallery/gallery_user7_1748016112_23af335b.png', '', 0, 1, '2025-05-23 16:01:52'),
+(24, 1, 'uploads/gallery/gallery_user1_1748016918_b631f663.png', '', 0, 1, '2025-05-23 16:15:18'),
+(26, 7, 'uploads/gallery/gallery_user7_1748049738_aa2211a2.jpg', '', 0, 1, '2025-05-24 01:22:18'),
+(28, 7, 'uploads/gallery/gallery_user7_1748049841_38db116a.jpg', '', 0, 1, '2025-05-24 01:24:01'),
+(29, 1, 'uploads/gallery/gallery_user1_1748212710_3bf12760.png', '', 0, 1, '2025-05-25 22:38:30'),
+(30, 1, 'uploads/gallery/gallery_user1_1748216354_380aa3c1.png', '', 0, 1, '2025-05-25 23:39:14'),
+(34, 7, 'uploads/gallery/gallery_user7_1748568276_edde91f1.webp', 'bloom', 0, 1, '2025-05-30 01:24:36'),
+(35, 7, 'uploads/gallery/gallery_user7_1748629049_ddc74ed5.png', 'orbital laser', 0, 1, '2025-05-30 18:17:29'),
+(37, 13, 'uploads/gallery/gallery_user13_1748823839_e51d1641.png', 'Mekan hazır.', 0, 1, '2025-06-02 00:23:59'),
+(38, 7, 'uploads/gallery/gallery_user7_1748825114_ecc2b18d.png', 'after orbital laser', 0, 1, '2025-06-02 00:45:14'),
+(39, 13, 'uploads/gallery/gallery_user13_1748841875_4c4c5963.png', 'Bir idrisimiz yok ama polaris de çok can yakıyor..', 0, 1, '2025-06-02 05:24:35'),
+(40, 7, 'uploads/gallery/gallery_user7_1748875013_c7e07cc7.png', 'orbital laser engage phase', 0, 1, '2025-06-02 14:36:54'),
+(41, 7, 'uploads/gallery/gallery_user7_1748875886_23570e38.png', 'orbital blast', 0, 1, '2025-06-02 14:51:26'),
+(42, 7, 'uploads/gallery/gallery_user7_1748875936_f1baa7cc.png', 'ATLS geo mining', 0, 1, '2025-06-02 14:52:16'),
+(43, 7, 'uploads/gallery/gallery_user7_1748875965_d4e03da7.png', 'ATLS GEO mining', 0, 1, '2025-06-02 14:52:45'),
+(45, 7, 'uploads/gallery/gallery_user7_1748876036_6b314a2b.png', 'Lorville - Teasa  Spaceport', 0, 1, '2025-06-02 14:53:56'),
+(46, 7, 'uploads/gallery/gallery_user7_1748877305_e0e8712a.png', 'aberdeen clouds w polaris', 0, 1, '2025-06-02 15:15:05'),
+(47, 13, 'uploads/gallery/gallery_user13_1748921244_d8f47c85.png', 'Pyroda devri alem.', 0, 1, '2025-06-03 03:27:24'),
+(48, 13, 'uploads/gallery/gallery_user13_1748923749_549a8c66.png', 'Syulen keyifli gemi.', 0, 1, '2025-06-03 04:09:09'),
+(79, 1, 'uploads/gallery/gallery_user1_823854967684ac9f905ae02.25370047.gif', 'zooort', 1, 0, '2025-06-12 12:37:13');
 
 -- --------------------------------------------------------
 
@@ -494,6 +544,14 @@ CREATE TABLE `gallery_photo_comments` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp() COMMENT 'Yorumun oluşturulma zamanı',
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp() COMMENT 'Son düzenlenme zamanı'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Galeri fotoğrafları için yorum sistemi';
+
+--
+-- Tablo döküm verisi `gallery_photo_comments`
+--
+
+INSERT INTO `gallery_photo_comments` (`id`, `photo_id`, `user_id`, `parent_comment_id`, `comment_text`, `is_edited`, `created_at`, `updated_at`) VALUES
+(27, 38, 1, NULL, '1', 0, '2025-06-10 01:41:12', NULL),
+(28, 48, 1, NULL, '1', 0, '2025-06-10 01:42:00', NULL);
 
 -- --------------------------------------------------------
 
@@ -513,8 +571,8 @@ CREATE TABLE `gallery_photo_likes` (
 --
 
 INSERT INTO `gallery_photo_likes` (`id`, `photo_id`, `user_id`, `liked_at`) VALUES
-(61, 76, 11, '2025-06-10 00:49:09'),
-(62, 78, 1, '2025-06-10 00:49:47');
+(64, 45, 1, '2025-06-10 01:55:30'),
+(65, 46, 1, '2025-06-13 12:47:58');
 
 -- --------------------------------------------------------
 
@@ -597,7 +655,8 @@ CREATE TABLE `loadout_sets` (
 
 INSERT INTO `loadout_sets` (`id`, `user_id`, `set_name`, `set_description`, `set_image_path`, `visibility`, `status`, `created_at`, `updated_at`) VALUES
 (9, 1, 'Keşif & Klavuz Operatörü (Scout / Pointman)', 'Timin intikal düzeninin en önünde ilerleyerek ileri keşif yapar, muhtemel kontakları, pusu noktalarını ve tehlikeli bölgeleri erken safhada tespit eder.\r\nEmniyetli intikal rotalarını belirler, timin muharebe düzenlerinin yönlendirilmesine ve uygulanmasına yardımcı olur.\r\nGizlilik ve sessiz hareket prensiplerine azami riayet gösterir.\r\nScalpel Piyade Tüfeği, OT8-RF 8x taktik dürbün ile teçhiz edilmiştir. P8-AR Taarruz Silahı üzerinde Gamma Duo 2x holografik nişangah bulunmaktadır.', 'uploads/loadouts/loadout_user1_1749509727_93db6922.png', 'public', 'published', '2025-06-07 01:42:20', '2025-06-09 22:55:27'),
-(10, 1, 'Deneme Seti', 'Deneme setidir bir önemi yoktur', 'uploads/loadouts/loadout_user1_1749509255_e0d968ef.png', 'members_only', 'published', '2025-06-09 22:47:35', NULL);
+(10, 1, 'Deneme Seti', 'Deneme setidir bir önemi yoktur', 'uploads/loadouts/loadout_user1_1749509255_e0d968ef.png', 'members_only', 'published', '2025-06-09 22:47:35', NULL),
+(11, 13, 'Star Kitten', 'Bu teçhizat, düşman üzerinde şok ve tereddüt etkisi yaratarak sizi öncelikli hedef olarak belirlemesine neden olacaktır. Düşman, \'kendine bu zararı göze alan bir unsurun, hasmına neler yapabileceğini\' hesaplayarak ateş gücünü üzerinize yoğunlaştıracaktır.', 'uploads/loadouts/loadout_user13_1749560728_10d1a858.png', 'public', 'published', '2025-06-10 13:05:28', NULL);
 
 -- --------------------------------------------------------
 
@@ -642,7 +701,10 @@ INSERT INTO `loadout_set_items` (`id`, `loadout_set_id`, `equipment_slot_id`, `c
 (124, 9, 8, NULL, 'P8-AR Rifle', '53042ca6-a9ba-4b0e-8c36-a11a5f47feb9', 'WeaponPersonal', 'Behring Applied Technology', ''),
 (125, 9, 9, NULL, 'ParaMed Medical Device', '3ad9e5f0-8c8f-42b4-adc9-fed1435c8d26', 'WeaponPersonal', 'Curelife', ''),
 (126, 9, 10, NULL, 'Pyro RYT Multi-Tool', '396ccb0d-c251-484d-998e-cc3616a37ee5', 'WeaponPersonal', 'Greycat Industrial', ''),
-(127, 9, 12, NULL, 'MedPen (Hemozal)', '7d50411f-088c-4c99-b85a-a6eaf95504c3', 'FPS_Consumable', 'Curelife', '');
+(127, 9, 12, NULL, 'MedPen (Hemozal)', '7d50411f-088c-4c99-b85a-a6eaf95504c3', 'FPS_Consumable', 'Curelife', ''),
+(128, 11, 1, NULL, 'Fieldsbury Dark Bear Helmet Guava', '0090e00a-4340-4032-82b8-32def1b39d99', 'Char_Armor_Helmet', 'CC\'s Conversions', ''),
+(129, 11, 5, NULL, 'Star Kitten Racing Flight Suit', '95b17843-9a67-470d-b6c2-4bfab8c70ba2', 'Char_Armor_Undersuit', 'Mirai', ''),
+(130, 11, 7, NULL, 'LH86 \"Takahashi Racing\" Pistol', 'c5b90a4e-d944-408d-afaa-48ec0cf571fb', 'WeaponPersonal', 'Gemini', '');
 
 --
 -- Tetikleyiciler `loadout_set_items`
@@ -704,7 +766,10 @@ INSERT INTO `loadout_weapon_attachments` (`id`, `loadout_set_id`, `parent_equipm
 (54, 9, 7, 3, 'FieldLite Flashlight', '60fab7a8-617c-4962-8391-69221ed761d6', 'BottomAttachment', 'NV-TAC', '', '2025-06-09 22:55:27'),
 (55, 9, 8, 1, 'Gamma Plus (3x Holographic)', 'fd9d06a9-5cf8-4325-9149-538d576e5146', 'IronSight', 'NV-TAC', '', '2025-06-09 22:55:27'),
 (56, 9, 8, 2, 'Tacit Suppressor2', 'dffa4527-2748-4f52-a7da-e57aae1c293c', 'Barrel', 'ArmaMod', '', '2025-06-09 22:55:27'),
-(57, 9, 8, 3, 'FieldLite Flashlight', '60fab7a8-617c-4962-8391-69221ed761d6', 'BottomAttachment', 'NV-TAC', '', '2025-06-09 22:55:27');
+(57, 9, 8, 3, 'FieldLite Flashlight', '60fab7a8-617c-4962-8391-69221ed761d6', 'BottomAttachment', 'NV-TAC', '', '2025-06-09 22:55:27'),
+(58, 11, 7, 1, 'Gamma (1x Holographic)', 'e812e76a-4068-4e91-8511-45a26039aa12', 'IronSight', 'NV-TAC', '', '2025-06-10 13:05:28'),
+(59, 11, 7, 2, 'Veil Flash Hider1', '04f546d6-651a-47f4-b0ae-64ed2b37557b', 'Barrel', 'ArmaMod', '', '2025-06-10 13:05:28'),
+(60, 11, 7, 3, 'FieldLite Flashlight Blue', '30c2a2e9-fba9-40b5-830c-0f9ad43b18ad', 'BottomAttachment', 'NV-TAC', '', '2025-06-10 13:05:28');
 
 -- --------------------------------------------------------
 
@@ -815,7 +880,8 @@ INSERT INTO `permissions` (`id`, `permission_key`, `permission_name`, `permissio
 (125, 'loadout.delete_own_sets', 'Kendi Teçhizat Setlerini Silme', 'loadout', 1, '2025-06-07 14:44:03'),
 (126, 'loadout.delete_all_sets', 'Tüm Teçhizat Setlerini Silme', 'loadout', 1, '2025-06-07 14:44:03'),
 (127, 'loadout.publish_sets', 'Teçhizat Setlerini Yayınlama', 'loadout', 1, '2025-06-07 14:44:03'),
-(128, 'loadout.approve_sets', 'Teçhizat Setlerini Onaylama', 'loadout', 1, '2025-06-07 14:44:03');
+(128, 'loadout.approve_sets', 'Teçhizat Setlerini Onaylama', 'loadout', 1, '2025-06-07 14:44:03'),
+(129, 'scg.hangar.view', 'SCG Hangar Görüntüleme', 'scg', 1, '2025-06-13 18:44:01');
 
 -- --------------------------------------------------------
 
@@ -838,9 +904,9 @@ CREATE TABLE `roles` (
 --
 
 INSERT INTO `roles` (`id`, `name`, `description`, `color`, `created_at`, `updated_at`, `priority`) VALUES
-(2, 'admin', 'Site Yöneticisi - Tüm yetkilere sahip', '#95a800', '2025-05-30 11:51:48', '2025-06-02 08:20:43', 2),
-(5, 'uye', 'Standart üye temel erişimlere sahip', '#6a2929', '2025-05-30 11:51:48', '2025-06-07 21:15:08', 4),
-(67, 'moderator', 'Moderatör', '#11ff00', '2025-06-02 15:17:25', '2025-06-02 15:24:14', 3);
+(2, 'admin', 'Site Yöneticisi - Tüm yetkilere sahip', '#ffa200', '2025-05-30 11:51:48', '2025-06-13 20:01:44', 1),
+(5, 'uye', 'Standart üye temel erişimlere sahip', '#fcfcfc', '2025-05-30 11:51:48', '2025-06-13 11:30:02', 5),
+(68, 'scg', 'Star Citizen Global Üyesi', '#9a3c3c', '2025-06-13 11:29:54', '2025-06-13 18:35:36', 6);
 
 -- --------------------------------------------------------
 
@@ -859,144 +925,140 @@ CREATE TABLE `role_permissions` (
 --
 
 INSERT INTO `role_permissions` (`role_id`, `permission_id`, `granted_at`) VALUES
-(2, 1, '2025-06-02 08:20:43'),
-(2, 2, '2025-06-02 08:20:43'),
-(2, 3, '2025-06-02 08:20:43'),
-(2, 4, '2025-06-02 08:20:43'),
-(2, 5, '2025-06-02 08:20:43'),
-(2, 6, '2025-06-02 08:20:43'),
-(2, 7, '2025-06-02 08:20:43'),
-(2, 8, '2025-06-02 08:20:43'),
-(2, 9, '2025-06-02 08:20:43'),
-(2, 10, '2025-06-02 08:20:43'),
-(2, 11, '2025-06-02 08:20:43'),
-(2, 12, '2025-06-02 08:20:43'),
-(2, 13, '2025-06-02 08:20:43'),
-(2, 14, '2025-06-02 08:20:43'),
-(2, 15, '2025-06-02 08:20:43'),
-(2, 16, '2025-06-02 08:20:43'),
-(2, 17, '2025-06-02 08:20:43'),
-(2, 18, '2025-06-02 08:20:43'),
-(2, 19, '2025-06-02 08:20:43'),
-(2, 20, '2025-06-02 08:20:43'),
-(2, 21, '2025-06-02 08:20:43'),
-(2, 22, '2025-06-02 08:20:43'),
-(2, 23, '2025-06-02 08:20:43'),
-(2, 24, '2025-06-02 08:20:43'),
-(2, 25, '2025-06-02 08:20:43'),
-(2, 26, '2025-06-02 08:20:43'),
-(2, 27, '2025-06-02 08:20:43'),
-(2, 28, '2025-06-02 08:20:43'),
-(2, 29, '2025-06-02 08:20:43'),
-(2, 55, '2025-06-02 08:20:43'),
-(2, 56, '2025-06-02 08:20:43'),
-(2, 57, '2025-06-02 08:20:43'),
-(2, 58, '2025-06-02 08:20:43'),
-(2, 59, '2025-06-02 08:20:43'),
-(2, 60, '2025-06-02 08:20:43'),
-(2, 63, '2025-06-02 08:20:43'),
-(2, 64, '2025-06-02 08:20:43'),
-(2, 65, '2025-06-02 08:20:43'),
-(2, 76, '2025-06-02 08:20:43'),
-(2, 77, '2025-06-02 08:20:43'),
-(2, 78, '2025-06-02 08:20:43'),
-(2, 79, '2025-06-02 08:20:43'),
-(2, 80, '2025-06-02 08:20:43'),
-(2, 81, '2025-06-02 08:20:43'),
-(2, 100, '2025-06-04 02:31:13'),
-(2, 101, '2025-06-06 18:24:13'),
-(2, 102, '2025-06-07 14:44:03'),
-(2, 103, '2025-06-07 14:44:03'),
-(2, 105, '2025-06-07 14:44:03'),
-(2, 106, '2025-06-07 14:44:03'),
-(2, 108, '2025-06-07 14:44:03'),
-(2, 111, '2025-06-07 14:44:03'),
-(2, 117, '2025-06-07 14:44:03'),
-(2, 119, '2025-06-07 14:44:03'),
-(5, 12, '2025-06-07 21:15:08'),
-(5, 13, '2025-06-07 21:15:08'),
-(5, 16, '2025-06-07 21:15:08'),
-(5, 17, '2025-06-07 21:15:08'),
-(5, 19, '2025-06-07 21:15:08'),
-(5, 21, '2025-06-07 21:15:08'),
-(5, 23, '2025-06-07 21:15:08'),
-(5, 24, '2025-06-07 21:15:08'),
-(5, 25, '2025-06-07 21:15:08'),
-(5, 26, '2025-06-07 21:15:08'),
-(5, 27, '2025-06-07 21:15:08'),
-(5, 55, '2025-06-07 21:15:08'),
-(5, 56, '2025-06-07 21:15:08'),
-(5, 57, '2025-06-07 21:15:08'),
-(5, 76, '2025-06-07 21:15:08'),
-(5, 77, '2025-06-07 21:15:08'),
-(5, 79, '2025-06-07 21:15:08'),
-(5, 81, '2025-06-07 21:15:08'),
-(5, 82, '2025-06-07 21:15:08'),
-(5, 83, '2025-06-07 21:15:08'),
-(5, 84, '2025-06-07 21:15:08'),
-(5, 85, '2025-06-07 21:15:08'),
-(5, 86, '2025-06-07 21:15:08'),
-(5, 87, '2025-06-07 21:15:08'),
-(5, 88, '2025-06-07 21:15:08'),
-(5, 89, '2025-06-07 21:15:08'),
-(5, 90, '2025-06-07 21:15:08'),
-(5, 91, '2025-06-07 21:15:08'),
-(5, 92, '2025-06-07 21:15:08'),
-(5, 93, '2025-06-07 21:15:08'),
-(5, 94, '2025-06-07 21:15:08'),
-(5, 95, '2025-06-07 21:15:08'),
-(5, 96, '2025-06-07 21:15:08'),
-(5, 97, '2025-06-07 21:15:08'),
-(5, 98, '2025-06-07 21:15:08'),
-(5, 99, '2025-06-07 21:15:08'),
-(5, 102, '2025-06-07 21:15:08'),
-(5, 103, '2025-06-07 21:15:08'),
-(5, 104, '2025-06-07 21:15:08'),
-(5, 115, '2025-06-07 21:15:08'),
-(5, 117, '2025-06-07 21:15:08'),
-(67, 1, '2025-06-07 21:11:39'),
-(67, 4, '2025-06-07 21:11:39'),
-(67, 5, '2025-06-07 21:11:39'),
-(67, 8, '2025-06-07 21:11:39'),
-(67, 10, '2025-06-07 21:11:39'),
-(67, 12, '2025-06-07 21:11:39'),
-(67, 13, '2025-06-07 21:11:39'),
-(67, 14, '2025-06-07 21:11:39'),
-(67, 15, '2025-06-07 21:11:39'),
-(67, 16, '2025-06-07 21:11:39'),
-(67, 17, '2025-06-07 21:11:39'),
-(67, 18, '2025-06-07 21:11:39'),
-(67, 19, '2025-06-07 21:11:39'),
-(67, 20, '2025-06-07 21:11:39'),
-(67, 21, '2025-06-07 21:11:39'),
-(67, 22, '2025-06-07 21:11:39'),
-(67, 23, '2025-06-07 21:11:39'),
-(67, 24, '2025-06-07 21:11:39'),
-(67, 25, '2025-06-07 21:11:39'),
-(67, 26, '2025-06-07 21:11:39'),
-(67, 27, '2025-06-07 21:11:39'),
-(67, 28, '2025-06-07 21:11:39'),
-(67, 29, '2025-06-07 21:11:39'),
-(67, 55, '2025-06-07 21:11:39'),
-(67, 56, '2025-06-07 21:11:39'),
-(67, 57, '2025-06-07 21:11:39'),
-(67, 58, '2025-06-07 21:11:39'),
-(67, 59, '2025-06-07 21:11:39'),
-(67, 60, '2025-06-07 21:11:39'),
-(67, 76, '2025-06-07 21:11:39'),
-(67, 77, '2025-06-07 21:11:39'),
-(67, 78, '2025-06-07 21:11:39'),
-(67, 79, '2025-06-07 21:11:39'),
-(67, 80, '2025-06-07 21:11:39'),
-(67, 81, '2025-06-07 21:11:39'),
-(67, 101, '2025-06-07 21:11:39'),
-(67, 102, '2025-06-07 21:11:39'),
-(67, 103, '2025-06-07 21:11:39'),
-(67, 104, '2025-06-07 21:11:39'),
-(67, 105, '2025-06-07 21:11:39'),
-(67, 106, '2025-06-07 21:11:39'),
-(67, 108, '2025-06-07 21:11:39'),
-(67, 111, '2025-06-07 21:11:39');
+(2, 1, '2025-06-13 18:45:57'),
+(2, 2, '2025-06-13 18:45:57'),
+(2, 3, '2025-06-13 18:45:57'),
+(2, 4, '2025-06-13 18:45:57'),
+(2, 5, '2025-06-13 18:45:57'),
+(2, 6, '2025-06-13 18:45:57'),
+(2, 7, '2025-06-13 18:45:57'),
+(2, 8, '2025-06-13 18:45:57'),
+(2, 9, '2025-06-13 18:45:57'),
+(2, 10, '2025-06-13 18:45:57'),
+(2, 11, '2025-06-13 18:45:57'),
+(2, 12, '2025-06-13 18:45:57'),
+(2, 13, '2025-06-13 18:45:57'),
+(2, 14, '2025-06-13 18:45:57'),
+(2, 15, '2025-06-13 18:45:57'),
+(2, 16, '2025-06-13 18:45:57'),
+(2, 17, '2025-06-13 18:45:57'),
+(2, 18, '2025-06-13 18:45:57'),
+(2, 19, '2025-06-13 18:45:57'),
+(2, 20, '2025-06-13 18:45:57'),
+(2, 21, '2025-06-13 18:45:57'),
+(2, 22, '2025-06-13 18:45:57'),
+(2, 23, '2025-06-13 18:45:57'),
+(2, 24, '2025-06-13 18:45:57'),
+(2, 25, '2025-06-13 18:45:57'),
+(2, 26, '2025-06-13 18:45:57'),
+(2, 27, '2025-06-13 18:45:57'),
+(2, 28, '2025-06-13 18:45:57'),
+(2, 29, '2025-06-13 18:45:57'),
+(2, 55, '2025-06-13 18:45:57'),
+(2, 56, '2025-06-13 18:45:57'),
+(2, 57, '2025-06-13 18:45:57'),
+(2, 58, '2025-06-13 18:45:57'),
+(2, 59, '2025-06-13 18:45:57'),
+(2, 60, '2025-06-13 18:45:57'),
+(2, 63, '2025-06-13 18:45:57'),
+(2, 64, '2025-06-13 18:45:57'),
+(2, 65, '2025-06-13 18:45:57'),
+(2, 76, '2025-06-13 18:45:57'),
+(2, 77, '2025-06-13 18:45:57'),
+(2, 78, '2025-06-13 18:45:57'),
+(2, 79, '2025-06-13 18:45:57'),
+(2, 80, '2025-06-13 18:45:57'),
+(2, 81, '2025-06-13 18:45:57'),
+(2, 82, '2025-06-13 18:45:57'),
+(2, 83, '2025-06-13 18:45:57'),
+(2, 84, '2025-06-13 18:45:57'),
+(2, 85, '2025-06-13 18:45:57'),
+(2, 86, '2025-06-13 18:45:57'),
+(2, 87, '2025-06-13 18:45:57'),
+(2, 88, '2025-06-13 18:45:57'),
+(2, 89, '2025-06-13 18:45:57'),
+(2, 90, '2025-06-13 18:45:57'),
+(2, 91, '2025-06-13 18:45:57'),
+(2, 92, '2025-06-13 18:45:57'),
+(2, 93, '2025-06-13 18:45:57'),
+(2, 94, '2025-06-13 18:45:57'),
+(2, 95, '2025-06-13 18:45:57'),
+(2, 96, '2025-06-13 18:45:57'),
+(2, 97, '2025-06-13 18:45:57'),
+(2, 98, '2025-06-13 18:45:57'),
+(2, 99, '2025-06-13 18:45:57'),
+(2, 100, '2025-06-13 18:45:57'),
+(2, 101, '2025-06-13 18:45:57'),
+(2, 102, '2025-06-13 18:45:57'),
+(2, 103, '2025-06-13 18:45:57'),
+(2, 104, '2025-06-13 18:45:57'),
+(2, 105, '2025-06-13 18:45:57'),
+(2, 106, '2025-06-13 18:45:57'),
+(2, 107, '2025-06-13 18:45:57'),
+(2, 108, '2025-06-13 18:45:57'),
+(2, 109, '2025-06-13 18:45:57'),
+(2, 110, '2025-06-13 18:45:57'),
+(2, 111, '2025-06-13 18:45:57'),
+(2, 112, '2025-06-13 18:45:57'),
+(2, 113, '2025-06-13 18:45:57'),
+(2, 114, '2025-06-13 18:45:57'),
+(2, 115, '2025-06-13 18:45:57'),
+(2, 116, '2025-06-13 18:45:57'),
+(2, 117, '2025-06-13 18:45:57'),
+(2, 118, '2025-06-13 18:45:57'),
+(2, 119, '2025-06-13 18:45:57'),
+(2, 121, '2025-06-13 18:45:57'),
+(2, 122, '2025-06-13 18:45:57'),
+(2, 123, '2025-06-13 18:45:57'),
+(2, 124, '2025-06-13 18:45:57'),
+(2, 125, '2025-06-13 18:45:57'),
+(2, 126, '2025-06-13 18:45:57'),
+(2, 127, '2025-06-13 18:45:57'),
+(2, 128, '2025-06-13 18:45:57'),
+(2, 129, '2025-06-13 18:45:57'),
+(5, 12, '2025-06-13 20:01:58'),
+(5, 13, '2025-06-13 20:01:58'),
+(5, 16, '2025-06-13 20:01:58'),
+(5, 17, '2025-06-13 20:01:58'),
+(5, 19, '2025-06-13 20:01:58'),
+(5, 21, '2025-06-13 20:01:58'),
+(5, 23, '2025-06-13 20:01:58'),
+(5, 24, '2025-06-13 20:01:58'),
+(5, 25, '2025-06-13 20:01:58'),
+(5, 26, '2025-06-13 20:01:58'),
+(5, 27, '2025-06-13 20:01:58'),
+(5, 55, '2025-06-13 20:01:58'),
+(5, 56, '2025-06-13 20:01:58'),
+(5, 57, '2025-06-13 20:01:58'),
+(5, 76, '2025-06-13 20:01:58'),
+(5, 77, '2025-06-13 20:01:58'),
+(5, 79, '2025-06-13 20:01:58'),
+(5, 81, '2025-06-13 20:01:58'),
+(5, 82, '2025-06-13 20:01:58'),
+(5, 83, '2025-06-13 20:01:58'),
+(5, 84, '2025-06-13 20:01:58'),
+(5, 85, '2025-06-13 20:01:58'),
+(5, 86, '2025-06-13 20:01:58'),
+(5, 87, '2025-06-13 20:01:58'),
+(5, 88, '2025-06-13 20:01:58'),
+(5, 89, '2025-06-13 20:01:58'),
+(5, 90, '2025-06-13 20:01:58'),
+(5, 91, '2025-06-13 20:01:58'),
+(5, 92, '2025-06-13 20:01:58'),
+(5, 93, '2025-06-13 20:01:58'),
+(5, 94, '2025-06-13 20:01:58'),
+(5, 95, '2025-06-13 20:01:58'),
+(5, 96, '2025-06-13 20:01:58'),
+(5, 97, '2025-06-13 20:01:58'),
+(5, 98, '2025-06-13 20:01:58'),
+(5, 99, '2025-06-13 20:01:58'),
+(5, 102, '2025-06-13 20:01:58'),
+(5, 103, '2025-06-13 20:01:58'),
+(5, 104, '2025-06-13 20:01:58'),
+(5, 115, '2025-06-13 20:01:58'),
+(5, 117, '2025-06-13 20:01:58'),
+(5, 129, '2025-06-13 20:01:58'),
+(68, 129, '2025-06-13 18:44:01');
 
 -- --------------------------------------------------------
 
@@ -1038,8 +1100,7 @@ CREATE TABLE `system_settings` (
 --
 
 INSERT INTO `system_settings` (`id`, `setting_key`, `setting_value`, `setting_type`, `description`, `updated_at`) VALUES
-(1, 'super_admin_users', '[1]', 'json', 'Süper admin kullanıcı ID listesi', '2025-06-02 14:27:22'),
-(10, 'event_webhook_url', 'https://ilgarionturanis.app.n8n.cloud/webhook-test/a7491ddc-3b59-462d-aa3d-7c641a85ce97', 'string', 'Event creation webhook URL', '2025-06-10 19:52:35');
+(1, 'super_admin_users', '[1]', 'json', 'Süper admin kullanıcı ID listesi', '2025-06-02 14:27:22');
 
 -- --------------------------------------------------------
 
@@ -1066,20 +1127,21 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password`, `email`, `profile_info`, `avatar_path`, `status`, `ingame_name`, `discord_username`, `created_at`, `updated_at`) VALUES
-(1, 'Doğanay', '$2y$12$ZUDegf.5Yo/MvZE3wWe0z.OEFi7Njl9/w74TUsBmpXmCaM047Xkle', 'doganayurgupluoglu@gmail.com', 'Deneme açıklaması', 'uploads/avatars/avatar_1_1749603651.gif', 'approved', 'Cpt_Bosmang', '_doganay', '2025-05-30 11:01:51', '2025-06-11 01:21:05'),
-(2, 'test', '$2y$10$.ovtIyA3gdvc/cCypSEUhuP2QhBjspIbyfRQ9VC8x8ToMhcXWySKy', 'fatih54king@gmail.com', NULL, 'uploads/avatars/avatar_user2_1748831738.png', 'approved', 'asd', NULL, '2025-05-30 12:31:22', '2025-06-02 14:26:33'),
-(3, 'test1', '$2y$10$SJx5eH2mTOK/gy2kTV/VMuwxFfbgs2P4cxWG4fkNofWhNFQnnPJbu', 'test1@test1.com', NULL, NULL, 'approved', 'test1', NULL, '2025-05-30 12:40:34', '2025-06-02 15:45:27'),
-(4, 'test2', '$2y$10$wY/UL/R/bX6.Ec9ZPpkaQeLbVACx6kjpZ.jQRblEbXNRHnpCp4abC', 'test@test.com', NULL, NULL, 'approved', 'test2', NULL, '2025-05-30 12:42:48', '2025-05-30 12:42:51'),
-(6, 'Mehmet', '$2y$10$DaeNRmtZsZJEPJVRA9nj2O5duGAoFwhwbpRuKhuiodq7N0CpiI9hC', 'mehmet@mehmet.com', '', '../assets/logo.png', 'approved', 'Cpt_bosmang', '_doganay', '2025-06-02 16:20:03', '2025-06-02 16:20:13'),
-(7, 'user', '$2y$10$.yF6mJwA3MKbUj8yBlMRP.Zj1pEVqv4OBBc09L35pl2uT2QhSyF3i', 'user@user.com', NULL, NULL, 'approved', 'sanane', NULL, '2025-06-02 21:04:43', '2025-06-02 21:05:32'),
-(8, 'krall', '$2y$10$/tnf5Oo2H9o6FMdnjf7mKelpkmhy3IZUFiA4cxlPsqEJD4HsHniSS', 'krall@krall.com', NULL, NULL, 'pending', 'krall', NULL, '2025-06-03 00:33:42', '2025-06-03 00:33:42'),
-(9, 'ahmet', '$argon2id$v=19$m=65536,t=4,p=3$QW85VGZhZmlwejNiWmlqcQ$yGA/bYrXZa5iJeErPdjvtjA18VM4qIo+2h0++C7Z+9s', 'ahmet@ahmet.com', NULL, NULL, 'rejected', 'ahmet', NULL, '2025-06-03 01:21:32', '2025-06-05 13:21:52'),
-(10, 'kerem', '$argon2id$v=19$m=65536,t=4,p=3$WDNWYjZ2L1R3OW1COS9KOQ$NTs6yngtnbwvQL70Bt/AyWl4yLNsEveTC8F4cpP+l4A', 'kerem@kerem.com', NULL, NULL, 'approved', 'sanane', NULL, '2025-06-03 01:23:12', '2025-06-03 01:24:12'),
-(11, 'mert', '$argon2id$v=19$m=65536,t=4,p=3$ZUcybHNZcm1OdUN2TkI1Vw$djNs5rA5tfE8xKK0vNUtSQdXK2ODBrVauzGxpkT56zU', 'mert@mert.com', 'whooo', '/assets/logo.png', 'approved', 'mert', '_mert', '2025-06-03 01:28:48', '2025-06-10 00:50:21'),
-(12, 'fatih', '$argon2id$v=19$m=65536,t=4,p=3$VEp3RzF3a1ZzLzVPZnVmcQ$sQJLBa9fdaLdJcc3SE+Lr+mi8ePHK9EL8ar++ewl0PQ', 'fatih@fatih.com', NULL, '../assets/logo.png', 'approved', 'fatih', NULL, '2025-06-03 01:31:43', '2025-06-05 13:22:12'),
-(13, 'sc_admin_test', '$2y$10$yourhashedpasswordplaceholder', 'sc_admin_test@example.com', NULL, NULL, 'approved', 'SC_Admin_Oyuncu', 'sc_admin_discord', '2025-06-04 03:56:13', '2025-06-04 03:56:13'),
-(14, 'sc_yorumcu1', '$2y$10$yourhashedpasswordplaceholder', 'sc_yorumcu1@example.com', NULL, NULL, 'approved', 'SC_Yorumcu1_Oyuncu', 'sc_yorumcu1_discord', '2025-06-04 03:56:13', '2025-06-04 03:56:13'),
-(15, 'sc_yorumcu2', '$2y$10$yourhashedpasswordplaceholder', 'sc_yorumcu2@example.com', NULL, NULL, 'approved', 'SC_Yorumcu2_Oyuncu', 'sc_yorumcu2_discord', '2025-06-04 03:56:13', '2025-06-04 03:56:13');
+(1, 'Doğanay', '$2y$12$ZUDegf.5Yo/MvZE3wWe0z.OEFi7Njl9/w74TUsBmpXmCaM047Xkle', 'doganayurgupluoglu@gmail.com', 'Deneme açıklaması', 'uploads/avatars/avatar_1_1749678135.gif', 'approved', 'Cpt_Bosmang', '_doganay', '2025-05-30 11:01:51', '2025-06-11 21:42:15'),
+(4, 'Sirjamesss', '$2y$10$s59QfVjCUWgqKjvcP3tZo.Q1BRgPD8/1sm4/jRZGH7/4WqA/yE4Tm', 'mehmettt68100@gmail.com', NULL, NULL, 'approved', 'Sirjamesss', NULL, '2025-05-23 14:13:02', '2025-05-23 14:13:29'),
+(5, 'DreadGG', '$2y$10$A1kgEwzUTw9MmAyWtinMt.ngJYgSHdZpx0ni.1XmK4GPAL8FDDBDq', 'extremejazz22.gg@gmail.com', NULL, NULL, 'approved', 'DreadGG', NULL, '2025-05-23 15:24:09', '2025-05-23 15:25:10'),
+(6, 'Tunyukuk', '$2y$10$Jpdn7jdV6aNGZORJiW.IbenaD5jcxbL977BZitwR4aqkrPpwazpDK', 'saitzafergunes@gmail.com', NULL, NULL, 'approved', 'Tunyukuk', NULL, '2025-05-23 15:38:08', '2025-05-23 15:39:13'),
+(7, 'hanmirgen', '$2y$10$oCA.KJqnscKgd508mdWs2.uXl93JJuA/RZ7Tvtj1lgpf.eNUhqsIG', 'rtuk-rtuk@hotmail.com', NULL, 'uploads/avatars/avatar_user7_1748569110.gif', 'approved', 'hanmirgen', '! HanMirgen', '2025-05-23 15:39:04', '2025-05-30 01:39:31'),
+(8, 'alpysl', '$2y$10$AGWs3rvnenvyfx5LqyMRBOiFXfgbMQf053LT8yhQpTZNXZ2fkZV7C', 'alperensyesil@gmail.com', NULL, NULL, 'approved', 'AlperenS', 'alpysl', '2025-05-23 15:59:38', '2025-05-23 16:09:50'),
+(9, 'Boomer.1312', '$2y$10$U.T4eGbkg7BdGECpuTyrDOhI/IhIjSpvIYFo3UuxljfFrCo00xyyS', 'scubadiver.burak@hotmail.com', NULL, NULL, 'approved', 'Boomer.1312', NULL, '2025-05-23 16:23:17', '2025-05-23 16:23:43'),
+(10, 'test', '$2y$10$hzJEZusBxMXSkTUsjmKeYeIAgGFPGBVgIKZI8/E1d6aSNnMenPBae', 'test@test.com', NULL, NULL, 'approved', 'tester', NULL, '2025-05-23 17:07:46', '2025-06-11 21:17:48'),
+(11, 'hatbak16', '$2y$10$wHFAgVNEick0a0KTA8rhIuLYoJx.4OogweerDw7LhF53JktKVJHfW', 'hatbak16@windowslive.com', NULL, NULL, 'approved', 'Hatbak', NULL, '2025-05-23 18:21:47', '2025-05-23 20:32:55'),
+(12, '61DeJaVu61', '$2y$10$GnXIDoetED4YFu6f84TzLOBx6uobo5aRRKGO5/52UM.nJwilKhPM.', 'starctz616161@gmail.com', NULL, NULL, 'approved', '61DeJaVu61', NULL, '2025-05-23 21:27:49', '2025-05-23 21:33:31'),
+(13, 'OzelTech', '$2y$10$l9MFdQ7eXBu3yc1AyGUJY.FX2l65uPKU7K/2Ys.t9mFKdJJU5Fu2a', 'ounyayar@gmail.com', NULL, 'uploads/avatars/avatar_user13_1748037646.jpg', 'approved', 'Ozeltech', NULL, '2025-05-23 21:57:29', '2025-05-23 22:00:46'),
+(15, 'NecroP', '$2y$10$E.MVpPHT7ILSIwES6Ltkz.FSGfktNuFYkNkDDaLNC.mtbF9bsGBPu', 'Necrop@gmail.com', NULL, NULL, 'approved', 'NecroP', NULL, '2025-06-04 09:49:37', '2025-06-04 10:14:32'),
+(17, 'Alprstayn', '$2y$10$siMszdTi2KLhnJNebjIWzeESC0xgZxDIUIwQvtQ1FoIacdNvs0FaG', 'alperozturkerz25oyun@gmail.com', NULL, NULL, 'approved', 'ALPRSTAYN', NULL, '2025-06-04 10:35:57', '2025-06-13 12:30:45'),
+(18, 'Aietes', '$2y$10$K0QMvMhSeyLpIvsAVgMCC.We1b6Zj7KtScEmOADuEoKLe30SB4ezu', 'obi08@hotmail.com', 'SCG', 'uploads/avatars/avatar_user18_1749037638.jpg', 'approved', 'Aietes', 'aietes', '2025-06-04 10:37:38', '2025-06-04 11:47:18'),
+(19, 'delidolo', '$2y$10$gbz82GL3LR5mSPoNnwlMMOlE9xNMbfSNDA8h5DgFlQhtMnE99O0VS', 'theroling26@gmail.com', NULL, NULL, 'approved', 'AZ4Z1L', NULL, '2025-06-05 09:20:11', '2025-06-13 11:56:56');
 
 -- --------------------------------------------------------
 
@@ -1096,22 +1158,95 @@ CREATE TABLE `user_hangar` (
   `ship_focus` varchar(255) DEFAULT NULL,
   `ship_size` varchar(255) DEFAULT NULL,
   `ship_image_url` varchar(255) DEFAULT NULL,
-  `user_notes` text DEFAULT NULL,
-  `added_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `quantity` int(11) NOT NULL DEFAULT 1,
-  `has_lti` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Lifetime Insurance var mı?'
+  `has_lti` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Lifetime Insurance var mı?',
+  `user_notes` text DEFAULT NULL,
+  `added_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Tablo döküm verisi `user_hangar`
 --
 
-INSERT INTO `user_hangar` (`id`, `user_id`, `ship_api_id`, `ship_name`, `ship_manufacturer`, `ship_focus`, `ship_size`, `ship_image_url`, `user_notes`, `added_at`, `quantity`, `has_lti`) VALUES
-(19, 1, 'api_65', 'Mustang Alpha', 'Consolidated Outland', 'Cargo', 'Small', 'https://media.robertsspaceindustries.com/g0lupo5x3wp8u/source.jpg', NULL, '2025-06-10 23:55:46', 1, 0),
-(20, 1, 'api_4', 'Aurora MR', 'Roberts Space Industries', 'Light Fighter', 'Small', 'https://media.robertsspaceindustries.com/kinuf02r7s4oq/source.jpg', NULL, '2025-06-11 00:19:18', 1, 1),
-(21, 1, 'api_3', 'Aurora LX', 'Roberts Space Industries', 'Pathfinder', 'Small', 'https://media.robertsspaceindustries.com/28jsrvn7jb54w/source.jpg', NULL, '2025-06-11 00:19:18', 3, 0),
-(22, 1, 'api_46', 'Constellation Taurus', 'Roberts Space Industries', 'Medium Freight', 'Large', 'https://media.robertsspaceindustries.com/mw5k52yzgo7fd/source.jpg', NULL, '2025-06-11 01:20:27', 1, 1),
-(23, 1, 'api_216', 'Nomad', 'Consolidated Outland', 'Starter', NULL, 'https://media.robertsspaceindustries.com/inqdpb67v815c/source.jpg', NULL, '2025-06-11 01:20:50', 1, 0);
+INSERT INTO `user_hangar` (`id`, `user_id`, `ship_api_id`, `ship_name`, `ship_manufacturer`, `ship_focus`, `ship_size`, `ship_image_url`, `quantity`, `has_lti`, `user_notes`, `added_at`) VALUES
+(1, 1, '168', 'Mercury', 'Crusader Industries', 'Medium Cargo / Medium Data', 'medium', 'https://media.robertsspaceindustries.com/219rro1mjtov6/source.jpg', 1, 0, NULL, '2025-05-23 20:10:40'),
+(2, 1, '281', 'CSV-SM', 'Argo Astronautics', 'Freight', 'vehicle', 'https://media.robertsspaceindustries.com/yrzxl9cs9zhjy/source.jpg', 1, 0, NULL, '2025-05-23 20:10:40'),
+(3, 1, '287', 'Guardian QI', 'Mirai', 'Heavy Fighter', 'small', 'https://media.robertsspaceindustries.com/efsw63dokhn35/source.jpg', 1, 1, NULL, '2025-05-23 20:10:40'),
+(4, 13, '116', 'Polaris', 'Roberts Space Industries', 'Corvette', 'capital', 'https://media.robertsspaceindustries.com/oe0wikh6g3ltm/source.jpg', 1, 1, NULL, '2025-05-23 22:04:18'),
+(5, 13, '8', '315p', 'Origin Jumpworks', 'Pathfinder', 'small', 'https://media.robertsspaceindustries.com/tclw2w16unsyq/source.jpg', 1, 1, NULL, '2025-05-23 22:05:47'),
+(6, 13, '36', 'Merchantman', 'Banu', 'Heavy Freight', 'large', 'https://media.robertsspaceindustries.com/gmtme5pca7eis/source.jpg', 1, 1, 'UCUZA ALDIM', '2025-05-23 22:05:47'),
+(7, 13, '103', 'Crucible', 'Anvil Aerospace', 'Heavy Repair', 'large', 'https://media.robertsspaceindustries.com/q81gvelwf2usv/source.jpg', 1, 1, 'ÇIKSIN ARTIK.', '2025-05-23 22:05:47'),
+(8, 13, '141', '600i Explorer', 'Origin Jumpworks', 'Expedition', 'large', 'https://media.robertsspaceindustries.com/nsl0zel8gmfxl/source.jpg', 1, 1, NULL, '2025-05-23 22:05:47'),
+(10, 13, '296', 'ATLS GEO', 'Argo Astronautics', 'Industrial', 'vehicle', 'https://media.robertsspaceindustries.com/rbkutfuffvdy7/source.jpg', 1, 1, 'AŞK VAR BU ALETTE', '2025-05-23 22:05:47'),
+(11, 7, '37', 'F7A Hornet Mk II', 'Anvil Aerospace', 'Medium Fighter', 'small', 'https://media.robertsspaceindustries.com/fbn41urx9yszc/source.jpg', 1, 0, NULL, '2025-05-23 22:20:42'),
+(12, 7, '168', 'Mercury', 'Crusader Industries', 'Medium Cargo / Medium Data', 'medium', 'https://media.robertsspaceindustries.com/219rro1mjtov6/source.jpg', 1, 0, NULL, '2025-05-23 22:20:42'),
+(13, 7, '217', 'Perseus', 'Roberts Space Industries', 'Gunboat', 'large', 'https://media.robertsspaceindustries.com/rofj7fmgtekyg/source.jpg', 1, 0, NULL, '2025-05-23 22:20:42'),
+(14, 7, '279', 'Starlancer TAC', 'MISC', 'Patrol', 'medium', 'https://media.robertsspaceindustries.com/emx6dhzo9kbox/source.jpg', 1, 0, NULL, '2025-05-23 22:20:42'),
+(15, 7, '282', 'Paladin', 'Anvil Aerospace', 'Gunship', 'medium', 'https://media.robertsspaceindustries.com/7dbgpx4iv3dut/source.jpg', 1, 0, NULL, '2025-05-23 22:20:42'),
+(16, 7, '298', 'Guardian MX', 'Mirai', 'Heavy Fighter', 'small', 'https://media.robertsspaceindustries.com/e92jsru2uvimx/source.jpg', 1, 0, NULL, '2025-05-23 22:20:42'),
+(17, 7, '181', 'Ranger TR', 'Tumbril', 'Combat', 'vehicle', 'https://media.robertsspaceindustries.com/eehhr9ql9y04w/source.jpg', 1, 0, NULL, '2025-05-23 22:21:21'),
+(18, 7, '210', 'G12a', 'Origin Jumpworks', 'Military', 'vehicle', 'https://media.robertsspaceindustries.com/2btmuamt8zv4g/source.jpg', 1, 0, NULL, '2025-05-23 22:21:21'),
+(19, 7, '271', 'Pulse', 'Mirai', 'Combat', 'vehicle', 'https://media.robertsspaceindustries.com/slp0u937q6i57/source.jpg', 1, 0, NULL, '2025-05-23 22:21:21'),
+(20, 13, '37', 'F7A Hornet Mk II', 'Anvil Aerospace', 'Medium Fighter', 'small', 'https://media.robertsspaceindustries.com/fbn41urx9yszc/source.jpg', 1, 1, NULL, '2025-05-23 22:30:07'),
+(21, 13, '169', 'Valkyrie', 'Anvil Aerospace', 'Dropship', 'small', 'https://media.robertsspaceindustries.com/yjh17ca5zprfr/source.jpg', 1, 1, NULL, '2025-05-23 22:30:21'),
+(22, 13, '256', 'Zeus Mk II MR', 'Roberts Space Industries', 'Interdiction', 'medium', 'https://media.robertsspaceindustries.com/pj51owg973q4h/source.jpg', 1, 1, NULL, '2025-05-23 22:30:39'),
+(24, 13, '232', 'Legionnaire', 'Anvil Aerospace', 'Boarding', 'small', 'https://media.robertsspaceindustries.com/qxgdodjdhuvsr/source.jpeg', 1, 1, NULL, '2025-05-23 22:30:47'),
+(25, 13, '237', 'A1 Spirit ', 'Crusader Industries', 'Bomber', 'medium', 'https://media.robertsspaceindustries.com/nsqe4f3nl1mqn/source.jpg', 1, 1, NULL, '2025-05-24 00:20:23'),
+(26, 13, '297', 'MTC', 'Greycat Industrial', 'Combat', 'vehicle', 'https://media.robertsspaceindustries.com/mbsnp3745enyi/source.jpg', 1, 1, NULL, '2025-05-24 00:20:37'),
+(27, 13, '249', 'Storm', 'Tumbril', 'Combat Support', 'vehicle', 'https://media.robertsspaceindustries.com/kwrokktl2sfx0/source.jpg', 1, 1, NULL, '2025-05-24 00:20:52'),
+(28, 13, '264', 'Storm AA', 'Tumbril', 'Combat Support', 'vehicle', 'https://media.robertsspaceindustries.com/x42epibkm0264/source.jpg', 1, 1, NULL, '2025-05-24 00:20:52'),
+(29, 6, '37', 'F7A Hornet Mk II', 'Anvil Aerospace', 'Medium Fighter', 'small', 'https://media.robertsspaceindustries.com/fbn41urx9yszc/source.jpg', 1, 0, NULL, '2025-05-24 17:08:30'),
+(30, 6, '45', 'Constellation Andromeda', 'Roberts Space Industries', 'Medium Freight / Gun Ship', 'large', 'https://media.robertsspaceindustries.com/x1aflxx72d3xs/source.jpg', 1, 0, NULL, '2025-05-24 17:08:30'),
+(31, 6, '165', 'Vulture', 'Drake Interplanetary', 'Light Salvage', 'small', 'https://media.robertsspaceindustries.com/ryxb5u7q09x06/source.jpg', 1, 0, NULL, '2025-05-24 17:08:30'),
+(32, 6, '173', 'Arrow', 'Anvil Aerospace', 'Light Fighter', 'small', 'https://media.robertsspaceindustries.com/je860sn8tg87z/source.jpg', 1, 0, NULL, '2025-05-24 17:08:30'),
+(33, 6, '295', 'Golem', 'Drake Interplanetary', 'Mining', 'small', 'https://media.robertsspaceindustries.com/yzx7t45a965dk/source.jpg', 1, 0, NULL, '2025-05-24 17:08:30'),
+(34, 6, '282', 'Paladin', 'Anvil Aerospace', 'Gunship', 'medium', 'https://media.robertsspaceindustries.com/7dbgpx4iv3dut/source.jpg', 1, 0, NULL, '2025-05-24 17:08:47'),
+(35, 9, '37', 'F7A Hornet Mk II', 'Anvil Aerospace', 'Medium Fighter', 'small', 'https://media.robertsspaceindustries.com/fbn41urx9yszc/source.jpg', 1, 0, NULL, '2025-05-25 12:10:12'),
+(36, 9, '141', '600i Explorer', 'Origin Jumpworks', 'Expedition', 'large', 'https://media.robertsspaceindustries.com/nsl0zel8gmfxl/source.jpg', 1, 0, NULL, '2025-05-25 12:10:12'),
+(37, 9, '168', 'Mercury', 'Crusader Industries', 'Medium Cargo / Medium Data', 'medium', 'https://media.robertsspaceindustries.com/219rro1mjtov6/source.jpg', 1, 0, NULL, '2025-05-25 12:10:12'),
+(38, 9, '173', 'Arrow', 'Anvil Aerospace', 'Light Fighter', 'small', 'https://media.robertsspaceindustries.com/je860sn8tg87z/source.jpg', 1, 0, NULL, '2025-05-25 12:10:12'),
+(39, 9, '217', 'Perseus', 'Roberts Space Industries', 'Gunboat', 'large', 'https://media.robertsspaceindustries.com/rofj7fmgtekyg/source.jpg', 1, 0, NULL, '2025-05-25 12:10:12'),
+(40, 9, '279', 'Starlancer TAC', 'MISC', 'Patrol', 'medium', 'https://media.robertsspaceindustries.com/emx6dhzo9kbox/source.jpg', 1, 0, NULL, '2025-05-25 12:10:12'),
+(41, 9, '298', 'Guardian MX', 'Mirai', 'Heavy Fighter', 'small', 'https://media.robertsspaceindustries.com/e92jsru2uvimx/source.jpg', 1, 0, NULL, '2025-05-25 12:10:12'),
+(43, 4, '51', 'Reclaimer', 'Aegis Dynamics', 'Heavy Salvage', 'large', 'https://media.robertsspaceindustries.com/mp4b03l05po17/source.jpg', 1, 0, NULL, '2025-05-30 23:32:00'),
+(44, 4, '274', 'Ironclad', 'Drake Interplanetary', 'Armored Freight', 'large', 'https://media.robertsspaceindustries.com/gtz4uouxebp3u/source.jpg', 1, 0, NULL, '2025-05-31 00:03:54'),
+(45, 4, '37', 'F7A Hornet Mk II', 'Anvil Aerospace', 'Medium Fighter', 'small', 'https://media.robertsspaceindustries.com/fbn41urx9yszc/source.jpg', 1, 0, NULL, '2025-05-31 00:04:04'),
+(48, 18, '36', 'Merchantman', 'Banu', 'Heavy Freight', 'large', 'https://media.robertsspaceindustries.com/gmtme5pca7eis/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(49, 18, '37', 'F7A Hornet Mk II', 'Anvil Aerospace', 'Medium Fighter', 'small', 'https://media.robertsspaceindustries.com/fbn41urx9yszc/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(50, 18, '51', 'Reclaimer', 'Aegis Dynamics', 'Heavy Salvage', 'large', 'https://media.robertsspaceindustries.com/mp4b03l05po17/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(51, 18, '63', 'Javelin', 'Aegis Dynamics', 'Destroyer', 'capital', 'https://media.robertsspaceindustries.com/oc89p5ksizcla/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(52, 18, '71', 'Orion', 'Roberts Space Industries', 'Heavy Mining', 'capital', 'https://media.robertsspaceindustries.com/b3nwvt5ye3zj0/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(53, 18, '88', 'Starfarer', 'MISC', 'Heavy Refuelling', 'large', 'https://media.robertsspaceindustries.com/wcxbs18v57gxv/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(54, 18, '91', 'Genesis', 'Crusader Industries', 'Passenger', 'large', 'https://media.robertsspaceindustries.com/gpdjd9p1jnxj4/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(55, 18, '103', 'Crucible', 'Anvil Aerospace', 'Heavy Repair', 'large', 'https://media.robertsspaceindustries.com/q81gvelwf2usv/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(56, 18, '116', 'Polaris', 'Roberts Space Industries', 'Corvette', 'capital', 'https://media.robertsspaceindustries.com/oe0wikh6g3ltm/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(57, 18, '165', 'Vulture', 'Drake Interplanetary', 'Light Salvage', 'small', 'https://media.robertsspaceindustries.com/ryxb5u7q09x06/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(58, 18, '168', 'Mercury', 'Crusader Industries', 'Medium Cargo / Medium Data', 'medium', 'https://media.robertsspaceindustries.com/219rro1mjtov6/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(59, 18, '261', 'F8C Lightning', 'Anvil Aerospace', 'Heavy Fighter', 'small', 'https://media.robertsspaceindustries.com/j6rvfrkux5nrm/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(60, 18, '266', 'Cutter Rambler', 'Drake Interplanetary', 'Starter / Expedition', 'small', 'https://media.robertsspaceindustries.com/7xwtmjrvqlyee/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(61, 18, '268', 'MPUV Tractor', 'Argo Astronautics', 'Cargo Loader', 'snub', 'https://media.robertsspaceindustries.com/i9guillde6qib/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(62, 18, '274', 'Ironclad', 'Drake Interplanetary', 'Armored Freight', 'large', 'https://media.robertsspaceindustries.com/gtz4uouxebp3u/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(63, 18, '295', 'Golem', 'Drake Interplanetary', 'Mining', 'small', 'https://media.robertsspaceindustries.com/yzx7t45a965dk/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(64, 18, '296', 'ATLS GEO', 'Argo Astronautics', 'Industrial', 'vehicle', 'https://media.robertsspaceindustries.com/rbkutfuffvdy7/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(65, 18, '297', 'MTC', 'Greycat Industrial', 'Combat', 'vehicle', 'https://media.robertsspaceindustries.com/mbsnp3745enyi/source.jpg', 1, 0, NULL, '2025-06-04 11:06:22'),
+(67, 1, 'api_216', 'Nomad', 'Consolidated Outland', 'Starter', NULL, 'https://media.robertsspaceindustries.com/inqdpb67v815c/source.jpg', 1, 1, NULL, '2025-06-11 00:23:27'),
+(68, 1, 'api_1', 'Aurora ES', 'Roberts Space Industries', 'Starter / Pathfinder', 'Small', 'https://media.robertsspaceindustries.com/e1i4i2ixe6ouo/source.jpg', 1, 0, NULL, '2025-06-11 00:23:38'),
+(69, 13, 'api_154', 'Nova', 'Tumbril', 'Combat', 'Vehicle', 'https://media.robertsspaceindustries.com/698j1tw6sqq4t/source.jpg', 1, 1, NULL, '2025-06-11 00:28:25');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `user_remember_tokens`
+--
+
+CREATE TABLE `user_remember_tokens` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `selector` varchar(255) NOT NULL,
+  `token_hash` varchar(255) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -1130,14 +1265,15 @@ CREATE TABLE `user_roles` (
 
 INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 (1, 2),
-(2, 67),
-(3, 2),
-(4, 2),
-(4, 67),
-(9, 5),
+(1, 68),
+(6, 68),
+(7, 2),
 (10, 5),
-(11, 5),
-(12, 5);
+(13, 2),
+(13, 68),
+(18, 68),
+(19, 2),
+(19, 5);
 
 -- --------------------------------------------------------
 
@@ -1150,6 +1286,15 @@ CREATE TABLE `user_skill_tags` (
   `skill_tag_id` int(11) NOT NULL,
   `added_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Tablo döküm verisi `user_skill_tags`
+--
+
+INSERT INTO `user_skill_tags` (`user_id`, `skill_tag_id`, `added_at`) VALUES
+(1, 8, '2025-06-09 19:34:03'),
+(1, 12, '2025-06-13 11:26:58'),
+(19, 12, '2025-06-13 12:02:03');
 
 -- --------------------------------------------------------
 
@@ -1497,6 +1642,15 @@ ALTER TABLE `user_hangar`
   ADD KEY `fk_user_hangar_users_idx` (`user_id`);
 
 --
+-- Tablo için indeksler `user_remember_tokens`
+--
+ALTER TABLE `user_remember_tokens`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `selector` (`selector`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `expires_at` (`expires_at`);
+
+--
 -- Tablo için indeksler `user_roles`
 --
 ALTER TABLE `user_roles`
@@ -1529,7 +1683,7 @@ ALTER TABLE `weapon_attachment_slots`
 -- Tablo için AUTO_INCREMENT değeri `audit_log`
 --
 ALTER TABLE `audit_log`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1799;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2301;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `equipment_slots`
@@ -1541,37 +1695,37 @@ ALTER TABLE `equipment_slots`
 -- Tablo için AUTO_INCREMENT değeri `events`
 --
 ALTER TABLE `events`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `event_participations`
 --
 ALTER TABLE `event_participations`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `event_roles`
 --
 ALTER TABLE `event_roles`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `event_role_slots`
 --
 ALTER TABLE `event_role_slots`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `forum_categories`
 --
 ALTER TABLE `forum_categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `forum_posts`
 --
 ALTER TABLE `forum_posts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=98;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=196;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `forum_post_likes`
@@ -1589,7 +1743,7 @@ ALTER TABLE `forum_tags`
 -- Tablo için AUTO_INCREMENT değeri `forum_topics`
 --
 ALTER TABLE `forum_topics`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `forum_topic_likes`
@@ -1607,19 +1761,19 @@ ALTER TABLE `gallery_comment_likes`
 -- Tablo için AUTO_INCREMENT değeri `gallery_photos`
 --
 ALTER TABLE `gallery_photos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=79;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=80;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `gallery_photo_comments`
 --
 ALTER TABLE `gallery_photo_comments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `gallery_photo_likes`
 --
 ALTER TABLE `gallery_photo_likes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=63;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=66;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `guides`
@@ -1637,31 +1791,31 @@ ALTER TABLE `guide_likes`
 -- Tablo için AUTO_INCREMENT değeri `loadout_sets`
 --
 ALTER TABLE `loadout_sets`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `loadout_set_items`
 --
 ALTER TABLE `loadout_set_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=128;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=131;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `loadout_weapon_attachments`
 --
 ALTER TABLE `loadout_weapon_attachments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `permissions`
 --
 ALTER TABLE `permissions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=129;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `roles`
 --
 ALTER TABLE `roles`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=69;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `skill_tags`
@@ -1673,7 +1827,7 @@ ALTER TABLE `skill_tags`
 -- Tablo için AUTO_INCREMENT değeri `system_settings`
 --
 ALTER TABLE `system_settings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `users`
@@ -1685,7 +1839,13 @@ ALTER TABLE `users`
 -- Tablo için AUTO_INCREMENT değeri `user_hangar`
 --
 ALTER TABLE `user_hangar`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `user_remember_tokens`
+--
+ALTER TABLE `user_remember_tokens`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- Tablo için AUTO_INCREMENT değeri `weapon_attachment_slots`
@@ -1892,6 +2052,12 @@ ALTER TABLE `user_hangar`
   ADD CONSTRAINT `fk_user_hangar_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
 
 --
+-- Tablo kısıtlamaları `user_remember_tokens`
+--
+ALTER TABLE `user_remember_tokens`
+  ADD CONSTRAINT `user_remember_tokens_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
 -- Tablo kısıtlamaları `user_roles`
 --
 ALTER TABLE `user_roles`
@@ -1904,6 +2070,16 @@ ALTER TABLE `user_roles`
 ALTER TABLE `user_skill_tags`
   ADD CONSTRAINT `fk_ust_skill` FOREIGN KEY (`skill_tag_id`) REFERENCES `skill_tags` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_ust_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+DELIMITER $$
+--
+-- Olaylar
+--
+CREATE DEFINER=`u426745395_itdatabase`@`localhost` EVENT `cleanup_remember_tokens` ON SCHEDULE EVERY 1 DAY STARTS '2025-06-13 15:58:08' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN
+  DELETE FROM user_remember_tokens WHERE expires_at < NOW();
+END$$
+
+DELIMITER ;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -174,7 +174,7 @@ $can_access_admin_panel = $is_logged_in && has_permission($pdo, 'admin.panel.acc
                                 <h6 class="dropdown-header">İçeriklerim</h6>
                                 <a class="dropdown-item" href="/view/gallery_photos.php?user_id=<?= $current_user_id ?>"><i class="fas fa-images"></i> Galerim</a>
                                 <a class="dropdown-item" href="/view/hangar_ships.php?user_id=<?= $current_user_id ?>"><i class="fas fa-rocket"></i> Hangarım</a>
-                                <a class="dropdown-item" href="/forum/search.php?author_id=<?= $current_user_id ?>"><i class="fas fa-comments"></i> Forum Aktivitem</a>
+                                <a class="dropdown-item" href="/view/forum_topics.php?user_id=<?= $current_user_id ?>"><i class="fas fa-comments"></i> Forum Aktivitem</a>
                             </div>
                             
                             <?php if ($can_access_admin_panel): ?>

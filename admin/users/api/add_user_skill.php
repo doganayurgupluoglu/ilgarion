@@ -84,20 +84,20 @@ try {
     }
     
     // Kullanıcının zaten bu skill tag'i var mı?
-    $existing_check = $pdo->prepare("SELECT COUNT(*) as count FROM user_skill_tags WHERE user_id = :user_id AND skill_tag_id = :skill_id");
-    $existing_check->execute([':user_id' => $user_id, ':skill_id' => $skill_id]);
+    $existing_check = $pdo->prepare("SELECT COUNT(*) as count FROM user_skill_tags WHERE user_id = :user_id AND skill_tag_id = :skill_tag_id");
+    $existing_check->execute([':user_id' => $user_id, ':skill_tag_id' => $skill_id]);
     if ($existing_check->fetch()['count'] > 0) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Kullanıcının bu skill tag\'i zaten var']);
+        echo json_encode(['success' => false, 'message' => 'Kullanıcının bu skill tag\\\'i zaten var']);
         exit;
     }
     
     // Skill tag'i ekle
-    $insert_query = "INSERT INTO user_skill_tags (user_id, skill_tag_id) VALUES (:user_id, :skill_id)";
+    $insert_query = "INSERT INTO user_skill_tags (user_id, skill_tag_id) VALUES (:user_id, :skill_tag_id)";
     $insert_stmt = $pdo->prepare($insert_query);
     $result = $insert_stmt->execute([
         ':user_id' => $user_id,
-        ':skill_id' => $skill_id
+        ':skill_tag_id' => $skill_id
     ]);
     
     if (!$result) {

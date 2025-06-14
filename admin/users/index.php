@@ -27,9 +27,17 @@ if (!has_permission($pdo, 'admin.users.view')) {
     exit;
 }
 
+// URL'den gelen kullanıcı ID'sini al
+$user_id_to_edit = null;
+if (isset($_GET['user_id']) && is_numeric($_GET['user_id'])) {
+    $user_id_to_edit = (int)$_GET['user_id'];
+}
+
 $page_title = 'Kullanıcı Yönetimi';
-$additional_css = ['../../css/style.css'];
-$additional_css = ['../admin/users/css/manage_users.css'];
+$additional_css = [
+    '../../css/style.css',
+    '../admin/users/css/manage_users.css'
+];
 $additional_js = ['../admin/users/js/manage_users.js'];
 
 // Kullanıcı istatistikleri
@@ -419,6 +427,15 @@ require_once BASE_PATH . '/src/includes/footer.php';
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof ManageUsers !== 'undefined') {
         ManageUsers.init();
+
+        const userIdToEdit = <?= json_encode($user_id_to_edit) ?>;
+        if (userIdToEdit) {
+            // Modalı açmak için küçük bir gecikme eklemek,
+            // diğer scriptlerin ve arayüz elemanlarının tam olarak yüklenmesini garanti eder.
+            setTimeout(() => {
+                ManageUsers.openEditUserModal(userIdToEdit);
+            }, 100);
+        }
     }
 });
 </script>

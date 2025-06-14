@@ -18,7 +18,12 @@ function get_accessible_forum_categories(PDO $pdo, ?int $user_id = null): array 
                    lt.last_post_at,
                    lpu.id as last_post_user_id,
                    lpu.username as last_post_username,
-                   lpr.color as last_post_user_role_color
+                   (SELECT r.color 
+                    FROM roles r 
+                    JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = lt.last_post_user_id 
+                    ORDER BY r.priority ASC 
+                    LIMIT 1) as last_post_user_role_color
             FROM forum_categories fc
             LEFT JOIN forum_topics ft ON fc.id = ft.category_id
             LEFT JOIN forum_posts fp ON ft.id = fp.topic_id
@@ -29,11 +34,9 @@ function get_accessible_forum_categories(PDO $pdo, ?int $user_id = null): array 
                 WHERE ft2.last_post_at IS NOT NULL
             ) lt ON fc.id = lt.category_id AND lt.rn = 1
             LEFT JOIN users lpu ON lt.last_post_user_id = lpu.id
-            LEFT JOIN user_roles lpur ON lpu.id = lpur.user_id
-            LEFT JOIN roles lpr ON lpur.role_id = lpr.id
             WHERE fc.is_active = 1
             GROUP BY fc.id, fc.name, fc.description, fc.slug, fc.icon, fc.color, fc.display_order, fc.visibility,
-                     lt.id, lt.title, lt.last_post_at, lpu.id, lpu.username, lpr.color
+                     lt.id, lt.title, lt.last_post_at, lpu.id, lpu.username
             ORDER BY fc.display_order ASC, fc.name ASC
         ";
         
@@ -212,25 +215,23 @@ function get_forum_topics_in_category(PDO $pdo, int $category_id, ?int $user_id 
         $topics_query = "
             SELECT ft.*,
                    u.username as author_username,
-                   ur.color as author_role_color,
+                   (SELECT r.color 
+                    FROM roles r 
+                    JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = ft.user_id 
+                    ORDER BY r.priority ASC 
+                    LIMIT 1) as author_role_color,
                    lpu.username as last_post_username,
                    lpu.id as last_post_user_id,
-                   lpur.color as last_post_role_color
+                   (SELECT r.color 
+                    FROM roles r 
+                    JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = ft.last_post_user_id 
+                    ORDER BY r.priority ASC 
+                    LIMIT 1) as last_post_role_color
             FROM forum_topics ft
             JOIN users u ON ft.user_id = u.id
-            LEFT JOIN user_roles uur ON u.id = uur.user_id
-            LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
-                SELECT MIN(r2.priority) FROM user_roles ur2 
-                JOIN roles r2 ON ur2.role_id = r2.id 
-                WHERE ur2.user_id = u.id
-            )
             LEFT JOIN users lpu ON ft.last_post_user_id = lpu.id
-            LEFT JOIN user_roles lpuur ON lpu.id = lpuur.user_id
-            LEFT JOIN roles lpur ON lpuur.role_id = lpur.id AND lpur.priority = (
-                SELECT MIN(r3.priority) FROM user_roles ur3
-                JOIN roles r3 ON ur3.role_id = r3.id
-                WHERE ur3.user_id = lpu.id
-            )
             WHERE ft.category_id = :category_id
             ORDER BY ft.is_pinned DESC, ft.{$sort_column} {$order_direction}
             LIMIT :limit OFFSET :offset
@@ -567,16 +568,15 @@ function get_recent_forum_topics(PDO $pdo, int $limit = 5, ?int $user_id = null)
                    fc.name as category_name,
                    fc.color as category_color,
                    u.username as author_username,
-                   ur.color as author_role_color
+                   (SELECT r.color 
+                    FROM roles r 
+                    JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = ft.user_id 
+                    ORDER BY r.priority ASC 
+                    LIMIT 1) as author_role_color
             FROM forum_topics ft
             JOIN forum_categories fc ON ft.category_id = fc.id
             JOIN users u ON ft.user_id = u.id
-            LEFT JOIN user_roles uur ON u.id = uur.user_id
-            LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
-                SELECT MIN(r2.priority) FROM user_roles ur2 
-                JOIN roles r2 ON ur2.role_id = r2.id 
-                WHERE ur2.user_id = u.id
-            )
             WHERE fc.is_active = 1
             ORDER BY ft.updated_at DESC
             LIMIT :limit
@@ -735,15 +735,16 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
             SELECT 'topic' as type, 'Konu' as type_label,
                    ft.id, ft.title, LEFT(ft.content, 200) as content,
                    CONCAT('/forum/topic.php?id=', ft.id) as url,
-                   u.username, ur.color as user_role_color, ft.user_id, ft.created_at
+                   u.username, 
+                   (SELECT r.color 
+                    FROM roles r 
+                    JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = ft.user_id 
+                    ORDER BY r.priority ASC 
+                    LIMIT 1) as user_role_color, 
+                   ft.user_id, ft.created_at
             FROM forum_topics ft
             JOIN users u ON ft.user_id = u.id
-            LEFT JOIN user_roles uur ON u.id = uur.user_id
-            LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
-                SELECT MIN(r2.priority) FROM user_roles ur2 
-                JOIN roles r2 ON ur2.role_id = r2.id 
-                WHERE ur2.user_id = u.id
-            )
             WHERE ft.category_id IN ($category_ids_placeholder) 
             AND (ft.title LIKE ? OR ft.content LIKE ?)
             ORDER BY ft.updated_at DESC
@@ -763,16 +764,17 @@ function search_forum_content(PDO $pdo, string $search_query, ?int $user_id = nu
             SELECT 'post' as type, 'Gönderi' as type_label,
                    fp.id, ft.title, LEFT(fp.content, 200) as content,
                    CONCAT('/forum/topic.php?id=', ft.id, '#post-', fp.id) as url,
-                   u.username, ur.color as user_role_color, fp.user_id, fp.created_at
+                   u.username, 
+                   (SELECT r.color 
+                    FROM roles r 
+                    JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = fp.user_id 
+                    ORDER BY r.priority ASC 
+                    LIMIT 1) as user_role_color, 
+                   fp.user_id, fp.created_at
             FROM forum_posts fp
             JOIN forum_topics ft ON fp.topic_id = ft.id
             JOIN users u ON fp.user_id = u.id
-            LEFT JOIN user_roles uur ON u.id = uur.user_id
-            LEFT JOIN roles ur ON uur.role_id = ur.id AND ur.priority = (
-                SELECT MIN(r2.priority) FROM user_roles ur2 
-                JOIN roles r2 ON ur2.role_id = r2.id 
-                WHERE ur2.user_id = u.id
-            )
             WHERE ft.category_id IN ($category_ids_placeholder) 
             AND fp.content LIKE ?
             ORDER BY fp.created_at DESC

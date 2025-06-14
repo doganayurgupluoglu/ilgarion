@@ -76,8 +76,8 @@ try {
     }
     
     // Kullanıcının bu skill tag'i var mı?
-    $existing_check = $pdo->prepare("SELECT COUNT(*) as count FROM user_skill_tags WHERE user_id = :user_id AND skill_tag_id = :skill_id");
-    $existing_check->execute([':user_id' => $user_id, ':skill_id' => $skill_id]);
+    $existing_check = $pdo->prepare("SELECT COUNT(*) as count FROM user_skill_tags WHERE user_id = :user_id AND skill_tag_id = :skill_tag_id");
+    $existing_check->execute([':user_id' => $user_id, ':skill_tag_id' => $skill_id]);
     if ($existing_check->fetch()['count'] == 0) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Kullanıcının bu skill tag\'i zaten yok']);
@@ -85,11 +85,11 @@ try {
     }
     
     // Skill tag'i kaldır
-    $delete_query = "DELETE FROM user_skill_tags WHERE user_id = :user_id AND skill_tag_id = :skill_id";
+    $delete_query = "DELETE FROM user_skill_tags WHERE user_id = :user_id AND skill_tag_id = :skill_tag_id";
     $delete_stmt = $pdo->prepare($delete_query);
     $result = $delete_stmt->execute([
         ':user_id' => $user_id,
-        ':skill_id' => $skill_id
+        ':skill_tag_id' => $skill_id
     ]);
     
     if (!$result) {

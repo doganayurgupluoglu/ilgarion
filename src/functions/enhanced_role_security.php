@@ -76,10 +76,13 @@ function can_user_manage_user_roles(PDO $pdo, int $target_user_id, ?int $manager
         $manager_user_id = $_SESSION['user_id'];
     }
 
-    // Kendini yönetemez (admin rolünü kaldırma gibi)
-    if ($target_user_id === $manager_user_id) {
-        return false;
-    }
+    // UYARI: Kendi rolünü yönetme engeli kaldırıldı.
+    // Bu, yöneticilerin kendilerine rol ekleyip çıkarmasına olanak tanır.
+    // Ancak bir yönetici kendi admin rolünü kaldırırsa erişimini kaybedebilir.
+    // Bu özellik bilinçli olarak etkinleştirilmiştir.
+    // if ($target_user_id === $manager_user_id) {
+    //     return false;
+    // }
 
     // Süper admin herkesi yönetebilir
     if (is_super_admin($pdo, $manager_user_id)) {
@@ -107,8 +110,9 @@ function can_user_manage_user_roles(PDO $pdo, int $target_user_id, ?int $manager
             }
         }
 
-        // Sadece daha düşük hiyerarşili kullanıcıları yönetebilir
-        return $target_highest_priority > $manager_highest_priority;
+        // Hiyerarşi kontrolü: Eşit veya daha düşük hiyerarşili (daha yüksek öncelik numaralı) 
+        // kullanıcıları yönetebilir.
+        return $target_highest_priority >= $manager_highest_priority;
         
     } catch (Exception $e) {
         error_log("User role management check error: " . $e->getMessage());

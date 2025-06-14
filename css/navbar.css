@@ -88,6 +88,7 @@
 
 .nav-item {
     position: relative;
+    white-space: nowrap;
 }
 
 .nav-link {

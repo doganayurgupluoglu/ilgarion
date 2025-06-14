@@ -176,7 +176,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
         0 0 0 1px rgba(189, 145, 42, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.05);
     position: relative;
-    overflow: hidden;
+    overflow: auto;
     transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -734,11 +734,279 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 }
 
 /* Responsive Design */
-@media (max-width: 1024px) {
+/* ==========================================================================
+   DETAYLI RESPONSIVE MEDIA QUERIES - AUTH PAGE
+   ========================================================================== */
+
+/* Ultra Wide Screens (3840px+) - 4K ve üzeri */
+@media screen and (min-width: 3840px) {
+    .auth-page-wrapper {
+        font-size: 1.1rem;
+    }
+    
+    .auth-content {
+        max-width: 2400px;
+        margin: 0 auto;
+        grid-template-columns: 1.2fr 600px;
+        gap: 6rem;
+    }
+    
+    .auth-welcome {
+        font-size: 4rem;
+        margin-bottom: 2rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 1.4rem;
+        margin-bottom: 3rem;
+    }
+    
+    .auth-card {
+        padding: 3.5rem;
+        max-width: 600px;
+    }
+    
+    .form-input {
+        padding: 1.2rem 1.5rem;
+        font-size: 1.1rem;
+    }
+    
+    .btn-auth {
+        padding: 1.4rem 2.5rem;
+        font-size: 1.1rem;
+    }
+}
+
+/* Wide Desktop Screens (2560px - 3839px) - 2K/1440p */
+@media screen and (min-width: 2560px) and (max-width: 3839px) {
+    .auth-container {
+        max-width: 2200px;
+        padding: 0 3rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1.1fr 550px;
+        gap: 5rem;
+        min-width: auto;
+    }
+    
+    .auth-welcome {
+        font-size: 3.5rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 1.3rem;
+        margin-bottom: 3rem;
+    }
+    
+    .auth-card {
+        padding: 3rem;
+        max-width: 550px;
+    }
+    
+    .form-input {
+        padding: 1.1rem 1.4rem;
+        font-size: 1rem;
+    }
+    
+    .btn-auth {
+        padding: 1.3rem 2.2rem;
+        font-size: 1.05rem;
+    }
+}
+
+/* Large Desktop Screens (1920px - 2559px) - Full HD */
+@media screen and (min-width: 1920px) and (max-width: 2559px) {
+    .auth-container {
+        max-width: 1800px;
+        padding: 0 2.5rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1fr 500px;
+        gap: 4rem;
+        min-width: auto;
+    }
+    
+    .auth-welcome {
+        font-size: 3.2rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 1.25rem;
+    }
+    
+    .auth-card {
+        padding: 2.8rem;
+        max-width: 500px;
+    }
+}
+
+/* Standard Desktop Screens (1600px - 1919px) */
+@media screen and (min-width: 1600px) and (max-width: 1919px) {
+    .auth-container {
+        max-width: 1500px;
+        padding: 0 2rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1fr 480px;
+        gap: 3.5rem;
+        min-width: auto;
+    }
+    
+    .auth-welcome {
+        font-size: 3rem;
+    }
+    
+    .auth-card {
+        padding: 2.5rem;
+        max-width: 480px;
+    }
+}
+
+/* Medium Desktop Screens (1440px - 1599px) */
+@media screen and (min-width: 1440px) and (max-width: 1599px) {
+    .auth-container {
+        max-width: 1300px;
+        padding: 0 2rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1fr 450px;
+        gap: 3rem;
+        min-width: auto;
+    }
+    
+    .auth-welcome {
+        font-size: 2.8rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 1.15rem;
+    }
+    
+    .auth-card {
+        padding: 2.3rem;
+        max-width: 450px;
+        min-height: auto;
+        max-height: none;
+    }
+}
+
+/* Small Desktop Screens (1200px - 1439px) */
+@media screen and (min-width: 1200px) and (max-width: 1439px) {
+    .auth-container {
+        max-width: 1100px;
+        padding: 0 1.5rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1fr 420px;
+        gap: 2.5rem;
+        min-width: auto;
+    }
+    
+    .auth-welcome {
+        font-size: 2.5rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 1.1rem;
+    }
+    
+    .auth-card {
+        padding: 2rem;
+        max-width: 420px;
+        min-height: auto;
+        max-height: none;
+    }
+    
+    .form-input {
+        padding: 0.9rem 1.1rem;
+        font-size: 0.9rem;
+    }
+    
+    .btn-auth {
+        padding: 1.1rem 1.8rem;
+        font-size: 0.95rem;
+    }
+}
+
+/* Large Tablet/Small Desktop (1024px - 1199px) */
+@media screen and (min-width: 1024px) and (max-width: 1199px) {
+    .auth-page-wrapper {
+        min-height: calc(100vh - 140px);
+    }
+    
+    .auth-container {
+        max-width: 950px;
+        padding: 0 1.5rem;
+    }
+    
     .auth-content {
         grid-template-columns: 1fr;
         gap: 2rem;
         text-align: center;
+        min-width: auto;
+    }
+    
+    .auth-info {
+        order: 2;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .auth-card {
+        order: 1;
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 2rem;
+        min-height: auto;
+        max-height: none;
+    }
+    
+    .auth-welcome {
+        font-size: 2.3rem;
+        margin-bottom: 1rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .auth-features {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem 2rem;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    
+    .auth-features li {
+        font-size: 0.9rem;
+        text-align: left;
+    }
+}
+
+/* Standard Tablet Portrait (768px - 1023px) */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+    .auth-page-wrapper {
+        min-height: calc(100vh - 120px);
+        padding: 1.5rem 0;
+    }
+    
+    .auth-container {
+        max-width: 700px;
+        padding: 0 1rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        text-align: center;
+        min-width: auto;
     }
     
     .auth-info {
@@ -747,55 +1015,578 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     
     .auth-card {
         order: 1;
-        max-width: 500px;
+        max-width: 450px;
         margin: 0 auto;
-    }
-}
-
-@media (max-width: 768px) {
-    .auth-page-wrapper {
-        padding: 2rem 0;
-    }
-    
-    .auth-container {
-        padding: 0 1rem;
+        padding: 1.8rem;
+        min-height: auto;
+        max-height: none;
     }
     
     .auth-welcome {
-        font-size: 2.2rem;
+        font-size: 2rem;
+        margin-bottom: 1rem;
     }
     
-    .auth-card {
-        padding: 2rem;
+    .auth-subtitle {
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .auth-features {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem 1.5rem;
+        max-width: 450px;
+        margin: 0 auto;
+    }
+    
+    .auth-features li {
+        font-size: 0.85rem;
+        text-align: left;
     }
     
     .form-row {
         grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .auth-welcome {
-        font-size: 1.8rem;
-    }
-    
-    .auth-card {
-        padding: 1.5rem;
-        border-radius: 12px;
+        gap: 1.2rem;
     }
     
     .form-input {
-        padding: 0.875rem 1rem;
+        padding: 0.85rem 1rem;
+        font-size: 0.9rem;
     }
     
     .btn-auth {
         padding: 1rem 1.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .nav-btn {
+        padding: 0.65rem 1.2rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* Large Mobile Landscape/Small Tablet (640px - 767px) */
+@media screen and (min-width: 640px) and (max-width: 767px) {
+    .auth-page-wrapper {
+        min-height: calc(100vh - 100px);
+        padding: 1rem 0;
+    }
+    
+    .auth-container {
+        max-width: 600px;
+        padding: 0 1rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1fr;
+        gap: 1.2rem;
+        text-align: center;
+        min-width: auto;
+    }
+    
+    .auth-info {
+        order: 2;
+    }
+    
+    .auth-card {
+        order: 1;
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 1.5rem;
+        border-radius: 12px;
+        min-height: auto;
+        max-height: none;
+    }
+    
+    .auth-welcome {
+        font-size: 1.8rem;
+        margin-bottom: 0.8rem;
+        line-height: 1.1;
+    }
+    
+    .auth-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 1.2rem;
+    }
+    
+    .auth-features {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+        max-width: 350px;
+        margin: 0 auto;
+    }
+    
+    .auth-features li {
+        font-size: 0.8rem;
+        text-align: center;
+    }
+    
+    .form-group {
+        margin-bottom: 1.2rem;
+    }
+    
+    .form-input {
+        padding: 0.8rem 0.9rem;
+        font-size: 0.85rem;
+    }
+    
+    .btn-auth {
+        padding: 0.9rem 1.3rem;
+        font-size: 0.85rem;
     }
     
     .nav-btn {
         padding: 0.6rem 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .password-requirements {
+        padding: 0.8rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Standard Mobile (480px - 639px) */
+@media screen and (min-width: 480px) and (max-width: 639px) {
+    .auth-page-wrapper {
+        min-height: calc(100vh - 80px);
+        padding: 0.8rem 0;
+    }
+    
+    .auth-container {
+        max-width: 460px;
+        padding: 0 0.8rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        text-align: center;
+        min-width: auto;
+    }
+    
+    .auth-info {
+        order: 2;
+    }
+    
+    .auth-card {
+        order: 1;
+        max-width: 360px;
+        margin: 0 auto;
+        padding: 1.3rem;
+        border-radius: 10px;
+        min-height: auto;
+        max-height: none;
+    }
+    
+    .auth-logo {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 0.8rem;
+    }
+    
+    .auth-title {
+        font-size: 1.4rem;
+    }
+    
+    .auth-welcome {
+        font-size: 1.6rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    .auth-subtitle {
         font-size: 0.85rem;
+        margin-bottom: 1rem;
+    }
+    
+    .auth-features {
+        display: none; /* Mobilde gizle, yer kazanmak için */
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-input {
+        padding: 0.75rem 0.85rem;
+        font-size: 0.8rem;
+    }
+    
+    .btn-auth {
+        padding: 0.85rem 1.2rem;
+        font-size: 0.8rem;
+        margin: 1.2rem 0;
+    }
+    
+    .nav-btn {
+        padding: 0.55rem 0.9rem;
+        font-size: 0.75rem;
+    }
+    
+    .password-requirements {
+        padding: 0.7rem;
+        font-size: 0.7rem;
+    }
+    
+    .alert {
+        padding: 0.8rem;
+        font-size: 0.8rem;
+        margin-bottom: 1rem;
+    }
+}
+
+/* Small Mobile (320px - 479px) */
+@media screen and (min-width: 320px) and (max-width: 479px) {
+    .auth-page-wrapper {
+        min-height: calc(100vh - 60px);
+        padding: 0.5rem 0;
+    }
+    
+    .auth-container {
+        max-width: 300px;
+        padding: 0 0.5rem;
+    }
+    
+    .auth-content {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+        text-align: center;
+        min-width: auto;
+    }
+    
+    .auth-info {
+        order: 2;
+    }
+    
+    .auth-card {
+        order: 1;
+        max-width: 290px;
+        margin: 0 auto;
+        padding: 1rem;
+        border-radius: 8px;
+        min-height: auto;
+        max-height: none;
+    }
+    
+    .auth-logo {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 0.6rem;
+    }
+    
+    .auth-title {
+        font-size: 1.2rem;
+        margin-bottom: 0.3rem;
+    }
+    
+    .auth-card-subtitle {
+        font-size: 0.75rem;
+    }
+    
+    .auth-welcome {
+        font-size: 1.4rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 0.8rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    .auth-features {
+        display: none;
+    }
+    
+    .form-navigation {
+        margin-bottom: 1.5rem;
+        padding: 0.2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 0.9rem;
+    }
+    
+    .form-label {
+        font-size: 0.8rem;
+        margin-bottom: 0.4rem;
+    }
+    
+    .form-input {
+        padding: 0.7rem 0.8rem;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+    
+    .btn-auth {
+        padding: 0.8rem 1rem;
+        font-size: 0.75rem;
+        margin: 1rem 0;
+        border-radius: 6px;
+    }
+    
+    .nav-btn {
+        padding: 0.5rem 0.7rem;
+        font-size: 0.7rem;
+        border-radius: 4px;
+    }
+    
+    .password-requirements {
+        padding: 0.6rem;
+        font-size: 0.65rem;
+        margin-top: 0.8rem;
+    }
+    
+    .password-requirements ul {
+        padding-left: 1rem;
+    }
+    
+    .alert {
+        padding: 0.7rem;
+        font-size: 0.75rem;
+        margin-bottom: 0.8rem;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+    
+    .alert i.fas {
+        align-self: center;
+        margin-top: 0;
+    }
+    
+    .form-note {
+        font-size: 0.7rem;
+        margin-top: 0.3rem;
+    }
+    
+    .checkbox-group {
+        margin: 0.8rem 0;
+    }
+    
+    .checkbox-label {
+        font-size: 0.8rem;
+    }
+    
+    .auth-links {
+        margin-top: 0.5rem;
+    }
+    
+    .auth-links p {
+        font-size: 0.75rem;
+    }
+}
+
+/* Very Small Mobile (300px ve altı) */
+@media screen and (max-width: 319px) {
+    .auth-page-wrapper {
+        min-height: calc(100vh - 40px);
+        padding: 0.3rem 0;
+    }
+    
+    .auth-container {
+        max-width: 280px;
+        padding: 0 0.3rem;
+    }
+    
+    .auth-card {
+        max-width: 270px;
+        padding: 0.8rem;
+        border-radius: 6px;
+    }
+    
+    .auth-logo {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .auth-title {
+        font-size: 1.1rem;
+    }
+    
+    .auth-welcome {
+        font-size: 1.2rem;
+    }
+    
+    .auth-subtitle {
+        font-size: 0.75rem;
+    }
+    
+    .form-input {
+        padding: 0.6rem 0.7rem;
+        font-size: 0.7rem;
+    }
+    
+    .btn-auth {
+        padding: 0.7rem 0.9rem;
+        font-size: 0.7rem;
+    }
+    
+    .nav-btn {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.65rem;
+    }
+    
+    .password-requirements {
+        padding: 0.5rem;
+        font-size: 0.6rem;
+    }
+    
+    .alert {
+        padding: 0.6rem;
+        font-size: 0.7rem;
+    }
+}
+
+/* Landscape Orientation Adjustments */
+@media screen and (max-width: 1023px) and (orientation: landscape) {
+    .auth-page-wrapper {
+        min-height: calc(100vh - 100px);
+        padding: 0.5rem 0;
+    }
+    
+    .auth-content {
+        gap: 1rem;
+    }
+    
+    .auth-info {
+        display: none; /* Landscape'de bilgi kısmını gizle */
+    }
+    
+    .auth-card {
+        max-width: 400px;
+        padding: 1.2rem;
+        margin: 0 auto;
+    }
+    
+    .auth-welcome {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .password-requirements {
+        display: none; /* Landscape'de şifre gereksinimlerini gizle */
+    }
+}
+
+/* High DPI / Retina Display Adjustments */
+@media screen and (-webkit-min-device-pixel-ratio: 2),
+       screen and (min-resolution: 192dpi),
+       screen and (min-resolution: 2dppx) {
+    .auth-logo {
+        background-size: cover;
+    }
+    
+    .floating-element {
+        border: 0.5px solid rgba(189, 145, 42, 0.1);
+    }
+}
+
+/* Dark Mode Adjustments (if device prefers dark) */
+@media (prefers-color-scheme: dark) {
+    .auth-page-wrapper::before {
+        opacity: 0.8;
+    }
+    
+    .auth-card {
+        box-shadow: 
+            0 25px 50px rgba(0, 0, 0, 0.5),
+            0 0 0 1px rgba(189, 145, 42, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+}
+
+/* Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .floating-elements {
+        display: none;
+    }
+    
+    .auth-page-wrapper::before {
+        animation: none;
+    }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .form-input {
+        padding: 1rem 1.2rem; /* Daha büyük dokunma alanı */
+    }
+    
+    .btn-auth {
+        padding: 1.2rem 2rem;
+        min-height: 48px; /* iOS dokunma standardı */
+    }
+    
+    .nav-btn {
+        padding: 0.8rem 1.2rem;
+        min-height: 44px;
+    }
+    
+    .checkbox-input {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .auth-link {
+        padding: 0.3rem;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+}
+
+/* Print Styles (if someone tries to print) */
+@media print {
+    .auth-page-wrapper {
+        background: white !important;
+        color: black !important;
+    }
+    
+    .floating-elements,
+    .auth-info,
+    .btn-auth {
+        display: none !important;
+    }
+    
+    .auth-card {
+        box-shadow: none !important;
+        border: 2px solid #000 !important;
+        background: white !important;
+    }
+}
+
+/* Special handling for very wide but short screens */
+@media screen and (min-width: 1400px) and (max-height: 800px) {
+    .auth-content {
+        min-height: auto;
+        align-items: center;
+    }
+    
+    .auth-card {
+        min-height: auto;
+        max-height: 700px;
+        overflow-y: auto;
+    }
+    
+    .auth-info {
+        max-height: 600px;
+    }
+    
+    .auth-features {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.5rem 1rem;
+    }
+    
+    .auth-features li {
+        font-size: 0.9rem;
     }
 }
 /* Gelişmiş Alert Stilleri - Register.php için */

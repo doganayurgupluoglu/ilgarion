@@ -311,7 +311,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                         <?php endif; ?>
                         
                         <?php if (has_permission($pdo, 'gallery.upload')): ?>
-                            <a href="/gallery/upload.php" class="quick-action-btn">
+                            <a href="/gallery/" class="quick-action-btn">
                                 <i class="fas fa-camera"></i>
                                 <span>Fotoğraf Yükle</span>
                             </a>

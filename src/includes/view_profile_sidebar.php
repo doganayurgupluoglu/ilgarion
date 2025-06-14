@@ -225,8 +225,8 @@ if (has_permission($pdo, 'admin.users.view')) {
         'id' => 'admin',
         'title' => 'Yönetici İşlemleri',
         'icon' => 'fas fa-shield-alt',
-        'url' => '/admin/user_management.php?user_id=' . $sidebar_user['id'],
-        'active' => $current_path === '/admin/user_management.php',
+        'url' => '/admin/users/index.php?user_id=' . $sidebar_user['id'],
+        'active' => $current_path === '/admin/users/index.php',
         'admin_only' => true
     ];
 }

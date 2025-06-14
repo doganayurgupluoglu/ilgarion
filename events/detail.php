@@ -69,11 +69,14 @@ try {
     $event_stmt = $pdo->prepare("
         SELECT e.*, 
                u.username as creator_username,
-               r.color as creator_role_color
+               (SELECT r.color 
+                FROM roles r 
+                JOIN user_roles ur ON r.id = ur.role_id 
+                WHERE ur.user_id = e.created_by_user_id 
+                ORDER BY r.priority ASC 
+                LIMIT 1) as creator_role_color
         FROM events e
         LEFT JOIN users u ON e.created_by_user_id = u.id
-        LEFT JOIN user_roles ur ON u.id = ur.user_id
-        LEFT JOIN roles r ON ur.role_id = r.id
         WHERE e.id = :event_id
     ");
     
@@ -162,13 +165,16 @@ try {
             SELECT ep.*, u.username, 
                    COALESCE(er.role_name, 'Rol Atanmamış') as role_name,
                    ers.role_id,
-                   r.color as user_role_color
+                   (SELECT r.color 
+                    FROM roles r 
+                    JOIN user_roles ur ON r.id = ur.role_id 
+                    WHERE ur.user_id = u.id 
+                    ORDER BY r.priority ASC 
+                    LIMIT 1) as user_role_color
             FROM event_participations ep
             JOIN users u ON ep.user_id = u.id
             LEFT JOIN event_role_slots ers ON ep.role_slot_id = ers.id
             LEFT JOIN event_roles er ON ers.role_id = er.id
-            LEFT JOIN user_roles ur ON u.id = ur.user_id
-            LEFT JOIN roles r ON ur.role_id = r.id
             WHERE ep.event_id = :event_id
             ORDER BY 
                 CASE ep.participation_status 
