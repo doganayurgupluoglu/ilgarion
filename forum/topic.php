@@ -90,8 +90,8 @@ $page_title = htmlspecialchars($topic['title']) . " - " . htmlspecialchars($topi
 
 // Breadcrumb verileri
 $breadcrumb_items = [
-    ['text' => 'Ana Sayfa', 'url' => 'index.php', 'icon' => 'fas fa-home'],
-    ['text' => 'Forum', 'url' => 'forum/', 'icon' => 'fas fa-comments'],
+    ['text' => 'Ana Sayfa', 'url' => '/index.php', 'icon' => 'fas fa-home'],
+    ['text' => 'Forum', 'url' => '/forum/', 'icon' => 'fas fa-comments'],
     ['text' => $topic['category_name'], 'url' => 'category.php?slug=' . urlencode($topic['category_slug']), 'icon' => $topic['category_icon'] ?? 'fas fa-folder'],
     ['text' => $topic['title'], 'url' => '', 'icon' => 'fas fa-comment-dots']
 ];
@@ -184,7 +184,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                         $tags = array_filter(array_map('trim', explode(',', $topic['tags'])));
                         foreach ($tags as $tag): 
                         ?>
-                            <a href="search.php?q=<?= urlencode($tag) ?>&type=tag" 
+                            <a href="search.php?q=<?= urlencode($tag) ?>&type=tags" 
                                class="topic-tag" 
                                title="'<?= htmlspecialchars($tag) ?>' etiketini ara">
                                 <?= htmlspecialchars($tag) ?>

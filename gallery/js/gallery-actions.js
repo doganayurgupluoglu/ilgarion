@@ -237,8 +237,8 @@ const GalleryActions = {
     },
 
     editComment(commentId) {
-        // Yorum düzenleme fonksiyonu - gelecekte implement edilebilir
-        GalleryUtils.showNotification('Yorum düzenleme özelliği yakında eklenecek.', 'info');
+        // Silme işlemi iptal edilirse bir şey yapma
+        return;
     },
 
     confirmCommentDelete(commentId) {
@@ -290,3 +290,122 @@ const GalleryActions = {
         }
     }
 };
+
+/**
+ * Toggles a comment between view and edit mode.
+ * @param {number} commentId - The ID of the comment to edit.
+ */
+function toggleCommentEdit(commentId) {
+    const commentDiv = document.getElementById(`comment-${commentId}`);
+    if (!commentDiv) {
+        console.error(`[Gallery Error] toggleCommentEdit: Comment container #comment-${commentId} not found.`);
+        return;
+    }
+
+    const textP = commentDiv.querySelector('.comment-text');
+    const editContainer = commentDiv.querySelector('.comment-edit-container');
+
+    // DEFENSIVE CODING: Prevent crash if the HTML structure is wrong.
+    if (!textP || !editContainer) {
+        console.error(`[Gallery Error] toggleCommentEdit: HTML for comment #${commentId} is malformed. It's missing '.comment-text' or the crucial '.comment-edit-container'. This is an error in 'renderComments' function.`);
+        console.log("Faulty HTML for this comment:", commentDiv.innerHTML);
+        alert("Yorum düzenlenirken bir hata oluştu. Lütfen konsolu kontrol edin.");
+        return;
+    }
+
+    // If already in edit mode, cancel
+    if (editContainer.style.display !== 'none') {
+        editContainer.style.display = 'none';
+        textP.style.display = 'block';
+        editContainer.innerHTML = ''; // Clear the edit form
+        return;
+    }
+
+    // Switch to edit mode
+    textP.style.display = 'none';
+    editContainer.style.display = 'block';
+
+    const currentText = textP.innerHTML.replace(/<br\s*[\/]?>/gi, "\n"); // br2nl
+
+    editContainer.innerHTML = `
+        <textarea class="comment-edit-textarea" rows="3">${currentText}</textarea>
+        <div class="comment-edit-actions">
+            <button class="btn-primary btn-sm" onclick="saveCommentEdit(${commentId})">
+                <i class="fas fa-save"></i> Kaydet
+            </button>
+            <button class="btn-secondary btn-sm" onclick="toggleCommentEdit(${commentId})">
+                <i class="fas fa-times"></i> İptal
+            </button>
+        </div>
+    `;
+
+    const textarea = editContainer.querySelector('textarea');
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+}
+
+/**
+ * Saves the edited comment content via an API call.
+ * @param {number} commentId - The ID of the comment to save.
+ */
+async function saveCommentEdit(commentId) {
+    const commentDiv = document.getElementById(`comment-${commentId}`);
+    if (!commentDiv) {
+        console.error(`[Gallery Error] saveCommentEdit: Comment container #comment-${commentId} not found.`);
+        return;
+    }
+    const editContainer = commentDiv.querySelector('.comment-edit-container');
+    const textarea = editContainer ? editContainer.querySelector('.comment-edit-textarea') : null;
+    
+    if (!textarea) {
+        console.error(`[Gallery Error] saveCommentEdit: Textarea not found for comment #${commentId}.`);
+        alert("Yorum kaydedilirken bir hata oluştu. Lütfen konsolu kontrol edin.");
+        return;
+    }
+
+    const newContent = textarea.value;
+    const saveButton = editContainer.querySelector('.btn-primary');
+    const originalButtonText = saveButton.innerHTML;
+
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
+
+    try {
+        const response = await fetch('/gallery/actions/edit_comment.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                comment_id: commentId,
+                content: newContent,
+                csrf_token: csrfToken // Use the global csrfToken
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const textP = commentDiv.querySelector('.comment-text');
+            // Use the sanitized content returned from the server
+            textP.innerHTML = result.new_content_html; 
+            
+            // Hide edit form and show the updated text
+            editContainer.style.display = 'none';
+            textP.style.display = 'block';
+            editContainer.innerHTML = ''; // Clean up the edit form
+            
+            GalleryUtils.showNotification('Yorum başarıyla güncellendi.', 'success');
+        } else {
+            GalleryUtils.showNotification(result.message || 'Yorum güncellenemedi.', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving comment:', error);
+        GalleryUtils.showNotification('Bir ağ hatası oluştu.', 'error');
+    } finally {
+        // Restore button state
+        saveButton.disabled = false;
+        saveButton.innerHTML = originalButtonText;
+    }
+}

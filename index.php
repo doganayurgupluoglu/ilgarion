@@ -301,12 +301,12 @@ require_once BASE_PATH . '/src/includes/navbar.php';
     <section class="recent-gallery-section">
         <div class="section-header">
             <h2><i class="fas fa-images"></i> Son Eklenen Fotoğraflar</h2>
-            <a href="/gallery.php" class="section-link">Galeriyi Gör</a>
+            <a href="/gallery/" class="section-link">Galeriyi Gör</a>
         </div>
         <div class="gallery-grid">
             <?php foreach ($recent_photos as $photo): ?>
                 <div class="gallery-item">
-                    <a href="/gallery.php#photo-<?php echo $photo['id']; ?>">
+                    <a href="/gallery/#photo-<?php echo $photo['id']; ?>">
                         <img src="<?php echo htmlspecialchars($photo['image_path']); ?>" 
                              alt="<?php echo htmlspecialchars($photo['description'] ?? 'Galeri Fotoğrafı'); ?>">
                         <div class="gallery-overlay">

@@ -117,7 +117,7 @@ try {
         (has_permission($pdo, 'event.delete_own') && $event['created_by_user_id'] == $current_user_id)
     );
     
-    $can_participate = $is_logged_in && $is_approved && $event['status'] === 'published';
+    $can_participate = $is_logged_in && $is_approved && $event['status'] === 'published' && has_permission($pdo, 'event_role.join');
     
     // Rol slotlarını getir
     $roles_stmt = $pdo->prepare("
@@ -139,9 +139,34 @@ try {
     $roles_stmt->execute([':event_id' => $event_id]);
     $event_roles = $roles_stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Kullanıcının katılım durumunu kontrol et
+    // ROLLERİN GEREKSİNİMLERİNİ TOPLU OLARAK ÇEK
+    $role_requirements = [];
+    if (!empty($event_roles)) {
+        $role_ids = array_column($event_roles, 'role_id');
+        if (!empty($role_ids)) {
+            $placeholders = implode(',', array_fill(0, count($role_ids), '?'));
+    
+            $req_stmt = $pdo->prepare("
+                SELECT err.role_id, err.skill_tag_id, st.tag_name
+                FROM event_role_requirements err
+                JOIN skill_tags st ON err.skill_tag_id = st.id
+                WHERE err.role_id IN ($placeholders)
+            ");
+            $req_stmt->execute($role_ids);
+            $all_requirements = $req_stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+            // Gereksinimleri role_id'ye göre grupla
+            foreach ($all_requirements as $req) {
+                $role_requirements[$req['role_id']][] = $req;
+            }
+        }
+    }
+
+    // Kullanıcının katılım durumunu ve yeteneklerini kontrol et
     $user_participation = null;
+    $user_skill_tags = [];
     if ($is_logged_in) {
+        // Katılım durumu
         $participation_stmt = $pdo->prepare("
             SELECT ep.*, ers.role_id, er.role_name
             FROM event_participations ep
@@ -156,40 +181,47 @@ try {
         ]);
         
         $user_participation = $participation_stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Yetenek etiketleri
+        $user_tags_stmt = $pdo->prepare("
+            SELECT ust.skill_tag_id
+            FROM user_skill_tags ust
+            WHERE ust.user_id = :user_id
+        ");
+        $user_tags_stmt->execute([':user_id' => $current_user_id]);
+        $user_skill_tags_raw = $user_tags_stmt->fetchAll(PDO::FETCH_COLUMN);
+        $user_skill_tags = array_map('intval', $user_skill_tags_raw);
     }
     
-    // Katılımcıları getir (organize edenler görebilir) - GÜNCELLENMİŞ SORGU
-    $participants = [];
-    if ($can_edit || $event['created_by_user_id'] == $current_user_id) {
-        $participants_stmt = $pdo->prepare("
-            SELECT ep.*, u.username, 
-                   COALESCE(er.role_name, 'Rol Atanmamış') as role_name,
-                   ers.role_id,
-                   (SELECT r.color 
-                    FROM roles r 
-                    JOIN user_roles ur ON r.id = ur.role_id 
-                    WHERE ur.user_id = u.id 
-                    ORDER BY r.priority ASC 
-                    LIMIT 1) as user_role_color
-            FROM event_participations ep
-            JOIN users u ON ep.user_id = u.id
-            LEFT JOIN event_role_slots ers ON ep.role_slot_id = ers.id
-            LEFT JOIN event_roles er ON ers.role_id = er.id
-            WHERE ep.event_id = :event_id
-            ORDER BY 
-                CASE ep.participation_status 
-                    WHEN 'confirmed' THEN 1 
-                    WHEN 'maybe' THEN 2 
-                    WHEN 'declined' THEN 3 
-                    ELSE 4 
-                END,
-                COALESCE(er.role_name, 'ZZZ') ASC, 
-                u.username ASC
-        ");
-        
-        $participants_stmt->execute([':event_id' => $event_id]);
-        $participants = $participants_stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
+    // Katılımcıları getir (Artık herkes görebilir)
+    $participants_stmt = $pdo->prepare("
+        SELECT ep.*, u.username, 
+               COALESCE(er.role_name, 'Rol Atanmamış') as role_name,
+               ers.role_id,
+               (SELECT r.color 
+                FROM roles r 
+                JOIN user_roles ur ON r.id = ur.role_id 
+                WHERE ur.user_id = u.id 
+                ORDER BY r.priority ASC 
+                LIMIT 1) as user_role_color
+        FROM event_participations ep
+        JOIN users u ON ep.user_id = u.id
+        LEFT JOIN event_role_slots ers ON ep.role_slot_id = ers.id
+        LEFT JOIN event_roles er ON ers.role_id = er.id
+        WHERE ep.event_id = :event_id
+        ORDER BY 
+            CASE ep.participation_status 
+                WHEN 'confirmed' THEN 1 
+                WHEN 'maybe' THEN 2 
+                WHEN 'declined' THEN 3 
+                ELSE 4 
+            END,
+            COALESCE(er.role_name, 'ZZZ') ASC, 
+            u.username ASC
+    ");
+    
+    $participants_stmt->execute([':event_id' => $event_id]);
+    $participants = $participants_stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // HTML Purifier'ı başlat
     $config = HTMLPurifier_Config::createDefault();
@@ -236,6 +268,12 @@ events_layout_start($breadcrumb_items, $page_title);
 <link rel="stylesheet" href="css/events_sidebar.css">
 
 <style>
+.requirement-missing {
+    background-color: var(--orange-dark);
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    cursor: help;
+}
 .suggested-loadout-container {
     text-align: center;
     margin-top: 0.5rem;
@@ -514,11 +552,34 @@ events_layout_start($breadcrumb_items, $page_title);
 
                                 <div class="role-actions">
                                     <?php
-                                    // FIX: 'current_participants' hem 'confirmed' hem de 'maybe' durumlarını içerir, bu da doğru kontenjanı verir.
                                     $available_slots = $role['slot_count'] - $role['current_participants'];
-
-                                    // FIX: Kullanıcının bu spesifik rol slotunda olup olmadığını kontrol et.
                                     $user_in_this_role = $user_participation && isset($user_participation['role_slot_id']) && $user_participation['role_slot_id'] == $role['slot_id'];
+                                    
+                                    // ROL GEREKSİNİMLERİNİ KONTROL ET
+                                    $role_id = $role['role_id'];
+                                    $requirements_for_this_role = $role_requirements[$role_id] ?? [];
+                                    $user_meets_requirements = true;
+                                    $missing_tags_str = '';
+                                    
+                                    if (!empty($requirements_for_this_role)) {
+                                        if (!$is_logged_in) {
+                                            $user_meets_requirements = false;
+                                        } else {
+                                            $required_tag_ids = array_column($requirements_for_this_role, 'skill_tag_id');
+                                            $missing_tag_ids = array_diff($required_tag_ids, $user_skill_tags);
+                                            
+                                            if (!empty($missing_tag_ids)) {
+                                                $user_meets_requirements = false;
+                                                $missing_tag_names = [];
+                                                foreach ($requirements_for_this_role as $req) {
+                                                    if (in_array($req['skill_tag_id'], $missing_tag_ids)) {
+                                                        $missing_tag_names[] = $req['tag_name'];
+                                                    }
+                                                }
+                                                $missing_tags_str = 'Eksik Yetenekler: ' . implode(', ', $missing_tag_names);
+                                            }
+                                        }
+                                    }
                                     ?>
 
                                     <?php if ($user_in_this_role): ?>
@@ -530,6 +591,11 @@ events_layout_start($breadcrumb_items, $page_title);
                                         <span class="role-full-badge">
                                             <i class="fas fa-users"></i>
                                             Dolu
+                                        </span>
+                                    <?php elseif ($can_participate && !$user_meets_requirements): ?>
+                                        <span class="role-full-badge requirement-missing" title="<?= htmlspecialchars($missing_tags_str) ?>">
+                                            <i class="fas fa-times-circle"></i>
+                                            Gereksinimler Eksik
                                         </span>
                                     <?php elseif ($can_participate): ?>
                                         <?php
@@ -558,8 +624,8 @@ events_layout_start($breadcrumb_items, $page_title);
                 </div>
             <?php endif; ?>
             
-            <!-- Participants (sadece organize edenler görebilir) - GÜNCELLENMİŞ -->
-            <?php if (($can_edit || $event['created_by_user_id'] == $current_user_id) && !empty($participants)): ?>
+            <!-- Participants (Artık herkes görebilir, aksiyonlar yetkiye bağlı) -->
+            <?php if (!empty($participants)): ?>
                 <div class="content-section">
                     <h2>
                         <i class="fas fa-list"></i>

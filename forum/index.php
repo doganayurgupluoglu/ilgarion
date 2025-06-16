@@ -43,7 +43,7 @@ include BASE_PATH . '/src/includes/navbar.php';
     <nav class="forum-breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
-                <a href="index.php">
+                <a href="/index.php">
                     <i class="fas fa-home"></i> Ana Sayfa
                 </a>
             </li>

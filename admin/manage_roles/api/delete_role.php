@@ -16,9 +16,17 @@ require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_role_security.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+require_once BASE_PATH . '/src/functions/audit_functions.php'; // Audit log eklendi
 
 // Yetki kontrolü
 if (!is_user_logged_in() || !has_permission($pdo, 'admin.roles.delete')) {
+    // Yetkisiz rol silme denemesi audit log
+    add_audit_log($pdo, 'Yetkisiz rol silme denemesi', 'security', null, null, [
+        'attempted_action' => 'delete_role',
+        'ip_address' => get_client_ip(),
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+    ]);
+    
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Yetkisiz erişim']);
     exit;
@@ -35,6 +43,11 @@ $role_id = isset($_POST['role_id']) ? (int)$_POST['role_id'] : 0;
 
 // Validasyon
 if (!$role_id) {
+    add_audit_log($pdo, 'Geçersiz rol ID ile silme denemesi', 'security', null, null, [
+        'attempted_role_id' => $role_id,
+        'error' => 'missing_role_id'
+    ]);
+    
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Rol ID gerekli']);
     exit;
@@ -43,6 +56,11 @@ if (!$role_id) {
 try {
     // Rolü yönetme yetkisi kontrol et
     if (!can_user_manage_role($pdo, $role_id)) {
+        add_audit_log($pdo, 'Yetki dışı rol silme denemesi', 'security', 'role', $role_id, null, [
+            'attempted_role_id' => $role_id,
+            'error' => 'insufficient_permissions'
+        ]);
+        
         http_response_code(403);
         echo json_encode(['success' => false, 'message' => 'Bu rolü silme yetkiniz yok']);
         exit;
@@ -54,6 +72,11 @@ try {
     $role = $stmt_role->fetch();
     
     if (!$role) {
+        add_audit_log($pdo, 'Olmayan rol silme denemesi', 'security', 'role', $role_id, null, [
+            'attempted_role_id' => $role_id,
+            'error' => 'role_not_found'
+        ]);
+        
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Rol bulunamadı']);
         exit;
@@ -61,6 +84,11 @@ try {
     
     // Korumalı rol kontrolü
     if (!is_role_deletable($role['name'])) {
+        add_audit_log($pdo, 'Korumalı rol silme denemesi', 'security', 'role', $role_id, null, [
+            'role_name' => $role['name'],
+            'error' => 'protected_role'
+        ]);
+        
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Bu rol silinemez (korumalı rol)']);
         exit;
@@ -72,6 +100,12 @@ try {
     $user_count = $stmt_count->fetchColumn();
     
     if ($user_count > 0) {
+        add_audit_log($pdo, 'Kullanıcılı rol silme denemesi', 'security', 'role', $role_id, null, [
+            'role_name' => $role['name'],
+            'assigned_user_count' => $user_count,
+            'error' => 'role_has_users'
+        ]);
+        
         http_response_code(400);
         echo json_encode([
             'success' => false, 
@@ -117,27 +151,41 @@ try {
             throw new Exception('Rol silinemedi');
         }
         
-        // Audit log
-        audit_log($pdo, $_SESSION['user_id'], 'role_deleted', 'role', $role_id, [
+        // Başarılı rol silme audit log (Türkçe mesaj)
+        audit_role_deleted($pdo, $role_id, [
             'name' => $role['name'],
             'description' => $role['description'],
             'permission_count' => count($role_permissions),
             'permissions' => $role_permissions
-        ], null);
+        ], $_SESSION['user_id']);
+        
+        // Eski audit log sistemini de koru (backward compatibility)
+        if (function_exists('audit_log')) {
+            audit_log($pdo, $_SESSION['user_id'], 'role_deleted', 'role', $role_id, [
+                'name' => $role['name'],
+                'description' => $role['description'],
+                'permission_count' => count($role_permissions),
+                'permissions' => $role_permissions
+            ], null);
+        }
         
         // Rol güvenlik logu
-        log_role_security_event($pdo, 'role_deleted', $role_id, [
-            'role_name' => $role['name'],
-            'permission_count' => count($role_permissions),
-            'deleted_by' => $_SESSION['user_id']
-        ]);
+        if (function_exists('log_role_security_event')) {
+            log_role_security_event($pdo, 'role_deleted', $role_id, [
+                'role_name' => $role['name'],
+                'permission_count' => count($role_permissions),
+                'deleted_by' => $_SESSION['user_id']
+            ]);
+        }
         
         return true;
     });
     
     if ($result) {
         // Acil durum cache temizliği
-        emergency_clear_all_role_caches($pdo);
+        if (function_exists('emergency_clear_all_role_caches')) {
+            emergency_clear_all_role_caches($pdo);
+        }
         
         echo json_encode([
             'success' => true,
@@ -148,6 +196,14 @@ try {
     }
     
 } catch (Exception $e) {
+    // Hata durumunda audit log
+    add_audit_log($pdo, 'Rol silme hatası', 'error', 'role', $role_id ?? null, null, [
+        'attempted_role_id' => $role_id ?? null,
+        'role_name' => $role['name'] ?? 'unknown',
+        'error_message' => $e->getMessage(),
+        'error_type' => 'role_deletion_failed'
+    ]);
+    
     error_log("Delete role error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Rol silinirken hata oluştu']);

@@ -1,5 +1,8 @@
 // /gallery/js/gallery-modal.js - Modal Module
 
+// A global flag to prevent hashchange event from re-triggering modal actions
+let isProgrammaticHashChange = false;
+
 const GalleryModal = {
     init() {
         // Modal initialization if needed
@@ -23,6 +26,9 @@ const GalleryModal = {
             const photoDetails = document.getElementById('photoDetails');
             const photoComments = document.getElementById('photoComments');
             const commentFormSection = document.getElementById('commentFormSection');
+            
+            // Set a flag to indicate which photo is open
+            modal.dataset.currentPhotoId = photoId;
             
             // Modal başlığı ve meta bilgileri
             modalTitle.textContent = data.photo.description || 'Fotoğraf Detayları';
@@ -135,13 +141,20 @@ const GalleryModal = {
             
             // Modal'ı göster
             modal.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
             
             // Eğer yorumlara focus isteniyorsa
             if (focusComments) {
                 setTimeout(() => {
                     photoComments.scrollIntoView({ behavior: 'smooth' });
                 }, 300);
+            }
+            
+            // Update URL hash
+            const newHash = `#photo-${photoId}${focusComments ? '-comment' : ''}`;
+            if (window.location.hash !== newHash) {
+                isProgrammaticHashChange = true;
+                window.location.hash = newHash;
             }
             
         } catch (error) {
@@ -152,10 +165,30 @@ const GalleryModal = {
 
     closePhotoModal() {
         const modal = document.getElementById('photoModal');
-        if (modal) {
-            modal.style.display = 'none';
-            document.body.style.overflow = '';
+        if (!modal) return;
+
+        // Clear the photo ID flag
+        modal.removeAttribute('data-current-photo-id');
+
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+
+        // Clear URL hash
+        if (window.location.hash) {
+            isProgrammaticHashChange = true;
+            history.pushState("", document.title, window.location.pathname + window.location.search);
         }
+
+        // Clear content to avoid showing old data briefly
+        const image = document.getElementById('modalPhotoImage');
+        const details = document.getElementById('photoDetails');
+        const comments = document.getElementById('photoComments');
+        const commentForm = document.getElementById('commentFormSection');
+
+        if (image) image.src = '';
+        if (details) details.innerHTML = '<div class="spinner"></div>';
+        if (comments) comments.innerHTML = '';
+        if (commentForm) commentForm.innerHTML = '';
     },
 
     async loadPhotoComments(photoId) {
@@ -169,11 +202,37 @@ const GalleryModal = {
                 let commentsHtml = '<h4><i class="fas fa-comments"></i> Yorumlar</h4>';
                 
                 data.comments.forEach(comment => {
+                    // Conditionally build the HTML for each action button.
+                    const likeButtonHTML = comment.can_like ? `
+                        <button class="comment-action-btn like-comment-btn ${comment.user_liked ? 'liked' : ''}" 
+                                title="Beğen" 
+                                onclick="toggleCommentLike(${comment.id})">
+                            <i class="fas fa-heart"></i>
+                            <span class="like-count">${comment.like_count}</span>
+                        </button>
+                    ` : '';
+
+                    const editButtonHTML = comment.can_edit ? `
+                        <button class="comment-action-btn edit-comment-btn" 
+                                title="Yorumu Düzenle" 
+                                onclick="toggleCommentEdit(${comment.id})">
+                            <i class="fas fa-edit"></i> Düzenle
+                        </button>
+                    ` : '';
+
+                    const deleteButtonHTML = comment.can_delete ? `
+                        <button class="comment-action-btn delete-comment-btn" 
+                                title="Yorumu Sil" 
+                                onclick="confirmCommentDelete(${comment.id})">
+                            <i class="fas fa-trash"></i> Sil
+                        </button>
+                    ` : '';
+
                     commentsHtml += `
                         <div class="comment-item" id="comment-${comment.id}">
                             <div class="comment-header">
                                 <div class="comment-author">
-                                    <img src="/${comment.avatar_path || 'assets/logo.png'}" alt="${GalleryUtils.escapeHtml(comment.username)}">
+                                    <img src="/${comment.avatar_path || 'assets/logo.png'}" alt="${GalleryUtils.escapeHtml(comment.username)}" class="comment-avatar">
                                     <div class="comment-user-info">
                                         <span class="comment-username user-link" data-user-id="${comment.user_id}" 
                                               style="color: ${comment.user_role_color || '#bd912a'}">
@@ -182,28 +241,15 @@ const GalleryModal = {
                                         <span class="comment-date">${GalleryUtils.formatTimeAgo(comment.created_at)}</span>
                                     </div>
                                 </div>
+                                <div class="comment-actions">
+                                    ${likeButtonHTML}
+                                    ${editButtonHTML}
+                                    ${deleteButtonHTML}
+                                </div>
                             </div>
-                            <div class="comment-content">
-                                ${GalleryUtils.escapeHtml(comment.comment_text).replace(/\n/g, '<br>')}
-                            </div>
-                            <div class="comment-actions">
-                                ${comment.can_like ? `
-                                    <button class="comment-action-btn ${comment.user_liked ? 'liked' : ''}" 
-                                            onclick="toggleCommentLike(${comment.id})">
-                                        <i class="fas fa-heart"></i>
-                                        <span class="like-count">${comment.like_count}</span>
-                                    </button>
-                                ` : ''}
-                                ${comment.can_edit ? `
-                                    <button class="comment-action-btn" onclick="editComment(${comment.id})">
-                                        <i class="fas fa-edit"></i> Düzenle
-                                    </button>
-                                ` : ''}
-                                ${comment.can_delete ? `
-                                    <button class="comment-action-btn" onclick="confirmCommentDelete(${comment.id})">
-                                        <i class="fas fa-trash"></i> Sil
-                                    </button>
-                                ` : ''}
+                            <div class="comment-body">
+                                <p class="comment-text">${GalleryUtils.escapeHtml(comment.comment_text).replace(/\n/g, '<br>')}</p>
+                                <div class="comment-edit-container" style="display:none;"></div>
                             </div>
                         </div>
                     `;
@@ -285,3 +331,69 @@ window.submitPhotoComment = async (event, photoId) => {
         submitBtn.innerHTML = originalText;
     }
 };
+
+/**
+ * Renders the comments for a photo.
+ * This function is a complete rewrite to be robust and error-free, building
+ * the HTML as a string to avoid DOM manipulation errors.
+ * @param {Array} comments - An array of comment objects to render.
+ */
+function renderComments(comments) {
+    const commentsContainer = document.getElementById('photoComments');
+    if (!commentsContainer) return;
+
+    // Clear previous comments to prevent duplication.
+    commentsContainer.innerHTML = '';
+
+    // Handle the case where there are no comments.
+    if (!comments || comments.length === 0) {
+        commentsContainer.innerHTML = '<div class="no-comments"><i class="fas fa-comment-slash"></i><p>Henüz yorum yapılmamış.</p></div>';
+        return;
+    }
+
+    let allCommentsHTML = '';
+    comments.forEach(comment => {
+        // Conditionally build the HTML for each action button.
+        const likeButtonHTML = comment.can_like ? `
+            <button class="comment-action-btn like-comment-btn ${comment.user_liked ? 'liked' : ''}" title="Beğen" onclick="toggleCommentLike(${comment.id})">
+                <i class="fas fa-heart"></i> <span class="like-count">${comment.like_count}</span>
+            </button>` : '';
+
+        const editButtonHTML = comment.can_edit ? `
+            <button class="comment-action-btn edit-comment-btn" title="Yorumu Düzenle" onclick="toggleCommentEdit(${comment.id})">
+                <i class="fas fa-edit"></i>
+            </button>` : '';
+
+        const deleteButtonHTML = comment.can_delete ? `
+            <button class="comment-action-btn delete-comment-btn" title="Yorumu Sil" onclick="confirmCommentDelete(${comment.id})">
+                <i class="fas fa-trash"></i>
+            </button>` : '';
+
+        // Assemble the final HTML for a single comment using a template literal.
+        allCommentsHTML += `
+            <div class="comment-item" id="comment-${comment.id}">
+                <div class="comment-header">
+                    <div class="comment-author">
+                        <img src="${comment.user_avatar || '/uploads/avatars/default.png'}" alt="${comment.username}" class="comment-avatar">
+                        <span class="comment-username user-link" data-user-id="${comment.user_id}" style="color: ${comment.user_role_color || '#bd912a'}">
+                            ${comment.username}
+                        </span>
+                        <span class="comment-date">${comment.time_ago}</span>
+                    </div>
+                    <div class="comment-actions">
+                        ${likeButtonHTML}
+                        ${editButtonHTML}
+                        ${deleteButtonHTML}
+                    </div>
+                </div>
+                <p class="comment-text">${comment.comment.replace(/\n/g, '<br>')}</p>
+                
+                <!-- This is the container that the edit function requires. It is now guaranteed to exist. -->
+                <div class="comment-edit-container" style="display:none;"></div>
+            </div>
+        `;
+    });
+
+    // Inject the fully constructed HTML into the container in one operation.
+    commentsContainer.innerHTML = allCommentsHTML;
+}

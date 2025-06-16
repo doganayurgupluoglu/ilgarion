@@ -3,7 +3,6 @@
    ================================= */
    .main-navbar {
     height: var(--navbar-height, 70px);
-    background-color: rgba(22, 20, 18, 0.95);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     padding: 0 2rem;
@@ -55,7 +54,7 @@
 }
 
 .navbar-brand-link:hover .logo-img {
-    filter: drop-shadow(0 0 8px rgba(184, 132, 92, 0.3));
+    filter: drop-shadow(0 0 8px rgba(255, 0, 0, 0.473));
 }
 
 .navbar-brand-text {
@@ -170,7 +169,7 @@
 .btn-primary:hover {
     background-color: var(--light-gold);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(184, 132, 92, 0.3);
+    box-shadow: 0 4px 12px rgba(184, 92, 92, 0.3);
 }
 
 .btn-secondary {

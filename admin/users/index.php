@@ -81,7 +81,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 <div class="site-container">
     <!-- Breadcrumb -->
     <nav class="breadcrumb">
-        <a href="/index.php"><i class="fas fa-home"></i> Ana Sayfa</a>
+        <a href="/admin/dashboard.php"><i class="fas fa-tachometer-alt"></i> Admin Dashboard</a>
         <span class="active"><i class="fas fa-users-cog"></i> Kullanıcı Yönetimi</span>
     </nav>
 
@@ -97,12 +97,6 @@ require_once BASE_PATH . '/src/includes/navbar.php';
             </div>
             
             <div class="page-actions">
-                <?php if (has_permission($pdo, 'admin.users.edit_status')): ?>
-                    <button class="btn btn-primary" onclick="openBulkActionsModal()">
-                        <i class="fas fa-tasks"></i>
-                        Toplu İşlemler
-                    </button>
-                <?php endif; ?>
                 
                 <button class="btn btn-secondary" onclick="refreshUserData()">
                     <i class="fas fa-sync-alt"></i>
@@ -357,52 +351,6 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                     </div>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-
-<!-- Toplu İşlemler Modal -->
-<div id="bulkActionsModal" class="modal" style="display: none;">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title">Toplu İşlemler</h4>
-                <button type="button" class="modal-close" onclick="closeBulkActionsModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="modal-body">
-                <div class="selected-users-info" id="selectedUsersInfo">
-                    <span id="selectedCount">0</span> kullanıcı seçili
-                </div>
-                
-                <div class="bulk-actions-list">
-                    <button class="bulk-action-btn" onclick="bulkChangeStatus('approved')">
-                        <i class="fas fa-user-check"></i>
-                        <span>Tümünü Onayla</span>
-                    </button>
-                    
-                    <button class="bulk-action-btn" onclick="bulkChangeStatus('suspended')">
-                        <i class="fas fa-user-slash"></i>
-                        <span>Tümünü Askıya Al</span>
-                    </button>
-                    
-                    <button class="bulk-action-btn" onclick="bulkChangeStatus('rejected')">
-                        <i class="fas fa-user-times"></i>
-                        <span>Tümünü Reddet</span>
-                    </button>
-                    
-                    <button class="bulk-action-btn bulk-action-danger" onclick="bulkDeleteUsers()">
-                        <i class="fas fa-trash"></i>
-                        <span>Seçilenleri Sil</span>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeBulkActionsModal()">İptal</button>
-            </div>
         </div>
     </div>
 </div>

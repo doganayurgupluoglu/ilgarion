@@ -47,7 +47,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 <div class="site-container">
     <!-- Breadcrumb -->
     <nav class="breadcrumb">
-        <a href="/index.php"><i class="fas fa-home"></i> Ana Sayfa</a>
+        <a href="/admin/dashboard.php"><i class="fas fa-tachometer-alt"></i> Admin Dashboard</a>
         <span class="active"><i class="fas fa-user-tag"></i> Rol Yönetimi</span>
     </nav>
 
@@ -115,7 +115,7 @@ require_once BASE_PATH . '/src/includes/navbar.php';
                 <i class="fas fa-crown"></i>
             </div>
             <div class="stat-content">
-                <div class="stat-number"><?= $user_info['highest_priority'] ?? 999 ?></div>
+            <div class="stat-number"><?= $user_info['priority'] ?? 999 ?></div>
                 <div class="stat-label">Öncelik Seviyeniz</div>
             </div>
         </div>

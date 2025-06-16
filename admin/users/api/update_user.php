@@ -15,6 +15,10 @@ require_once BASE_PATH . '/src/config/database.php';
 require_once BASE_PATH . '/src/functions/auth_functions.php';
 require_once BASE_PATH . '/src/functions/role_functions.php';
 require_once BASE_PATH . '/src/functions/enhanced_role_security.php';
+require_once BASE_PATH . '/src/functions/audit_functions.php'; // Audit log eklendi
+
+// DEBUG: Log dosyasına yaz
+error_log("update_user.php çağrıldı - " . date('Y-m-d H:i:s'));
 
 // Sadece POST metoduna izin ver
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -25,6 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Yetki kontrolü - Süper admin bypass
 if (!is_user_logged_in()) {
+    // Yetkisiz erişim denemesi audit log
+    add_audit_log($pdo, 'Yetkisiz kullanıcı güncelleme denemesi', 'security', null, null, [
+        'attempted_action' => 'update_user',
+        'ip_address' => get_client_ip(),
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+    ]);
+    
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Yetkisiz erişim']);
     exit;
@@ -34,6 +45,13 @@ if (!is_user_logged_in()) {
 $is_super_admin = is_super_admin($pdo, $_SESSION['user_id']);
 
 if (!$is_super_admin && !has_permission($pdo, 'admin.users.edit_status')) {
+    // Yetki dışı kullanıcı güncelleme denemesi audit log
+    add_audit_log($pdo, 'Yetki dışı kullanıcı güncelleme denemesi', 'security', null, null, [
+        'attempted_action' => 'update_user',
+        'user_id' => $_SESSION['user_id'],
+        'is_super_admin' => false
+    ]);
+    
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Yetkisiz erişim']);
     exit;
@@ -44,6 +62,11 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     if (!$input) {
+        add_audit_log($pdo, 'Geçersiz JSON ile kullanıcı güncelleme denemesi', 'security', null, null, [
+            'attempted_action' => 'update_user',
+            'error' => 'invalid_json'
+        ]);
+        
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Geçersiz JSON verisi']);
         exit;
@@ -53,6 +76,11 @@ try {
     $user_id = intval($input['user_id'] ?? 0);
     
     if ($user_id <= 0) {
+        add_audit_log($pdo, 'Geçersiz kullanıcı ID ile güncelleme denemesi', 'security', null, null, [
+            'attempted_user_id' => $user_id,
+            'error' => 'invalid_user_id'
+        ]);
+        
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Geçersiz kullanıcı ID']);
         exit;
@@ -60,6 +88,11 @@ try {
     
     // Kullanıcının bu kullanıcıyı yönetme yetkisi var mı? (Süper admin bypass)
     if (!$is_super_admin && !can_user_manage_user_roles($pdo, $user_id, $_SESSION['user_id'])) {
+        add_audit_log($pdo, 'Yetki dışı kullanıcıyı güncelleme denemesi', 'security', 'user', $user_id, null, [
+            'attempted_target_user_id' => $user_id,
+            'error' => 'cannot_manage_user'
+        ]);
+        
         http_response_code(403);
         echo json_encode(['success' => false, 'message' => 'Bu kullanıcıyı düzenleme yetkiniz yok']);
         exit;
@@ -76,14 +109,31 @@ try {
         $current_user = $current_user_stmt->fetch();
         
         if (!$current_user) {
+            add_audit_log($pdo, 'Olmayan kullanıcıyı güncelleme denemesi', 'security', 'user', $user_id, null, [
+                'attempted_user_id' => $user_id,
+                'error' => 'user_not_found'
+            ]);
+            
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Kullanıcı bulunamadı']);
             exit;
         }
         
+        // Eski değerleri sakla (audit için)
+        $old_values = [
+            'username' => $current_user['username'],
+            'email' => $current_user['email'],
+            'ingame_name' => $current_user['ingame_name'],
+            'discord_username' => $current_user['discord_username'],
+            'profile_info' => $current_user['profile_info'],
+            'status' => $current_user['status']
+        ];
+        
         // Güncellenecek alanları hazırla (users tablosu için)
         $update_fields = [];
         $params = [':user_id' => $user_id];
+        $new_values = $old_values; // Başlangıçta eski değerlerle aynı
+        $has_changes = false;
         
         // Email kontrolü
         if (isset($input['email']) && !empty(trim($input['email']))) {
@@ -102,6 +152,8 @@ try {
                 }
                 $update_fields[] = 'email = :email';
                 $params[':email'] = $email;
+                $new_values['email'] = $email;
+                $has_changes = true;
             }
         }
         
@@ -111,6 +163,8 @@ try {
             if ($ingame_name !== $current_user['ingame_name']) {
                 $update_fields[] = 'ingame_name = :ingame_name';
                 $params[':ingame_name'] = $ingame_name;
+                $new_values['ingame_name'] = $ingame_name;
+                $has_changes = true;
             }
         }
         
@@ -122,6 +176,8 @@ try {
             if ($discord_username !== $current_user['discord_username']) {
                 $update_fields[] = 'discord_username = :discord_username';
                 $params[':discord_username'] = $discord_username;
+                $new_values['discord_username'] = $discord_username;
+                $has_changes = true;
             }
         }
         
@@ -133,6 +189,8 @@ try {
             if ($profile_info !== $current_user['profile_info']) {
                 $update_fields[] = 'profile_info = :profile_info';
                 $params[':profile_info'] = $profile_info;
+                $new_values['profile_info'] = $profile_info;
+                $has_changes = true;
             }
         }
         
@@ -148,6 +206,8 @@ try {
             if ($status !== $current_user['status']) {
                 $update_fields[] = 'status = :status';
                 $params[':status'] = $status;
+                $new_values['status'] = $status;
+                $has_changes = true;
             }
         }
         
@@ -161,18 +221,50 @@ try {
         }
 
         // Rolleri güncelle
+        $added_roles = [];
+        $removed_roles = [];
+        
         if (isset($input['roles_to_add']) && is_array($input['roles_to_add'])) {
             $add_role_stmt = $pdo->prepare("INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)");
+            $role_name_stmt = $pdo->prepare("SELECT name FROM roles WHERE id = :role_id");
+            
             foreach ($input['roles_to_add'] as $role_id) {
                 if (!$is_super_admin && !can_user_manage_role($pdo, (int)$role_id, $_SESSION['user_id'])) continue;
+                
                 $add_role_stmt->execute([':user_id' => $user_id, ':role_id' => (int)$role_id]);
+                
+                // Rol adını al
+                $role_name_stmt->execute([':role_id' => (int)$role_id]);
+                $role_name = $role_name_stmt->fetchColumn();
+                
+                if ($role_name) {
+                    $added_roles[] = ['id' => (int)$role_id, 'name' => $role_name];
+                    
+                    // Her rol ataması için ayrı audit log
+                    audit_user_role_assigned($pdo, $user_id, (int)$role_id, $role_name, $_SESSION['user_id']);
+                }
             }
         }
+        
         if (isset($input['roles_to_remove']) && is_array($input['roles_to_remove'])) {
             $remove_role_stmt = $pdo->prepare("DELETE FROM user_roles WHERE user_id = :user_id AND role_id = :role_id");
+            $role_name_stmt = $pdo->prepare("SELECT name FROM roles WHERE id = :role_id");
+            
             foreach ($input['roles_to_remove'] as $role_id) {
                 if (!$is_super_admin && !can_user_manage_role($pdo, (int)$role_id, $_SESSION['user_id'])) continue;
+                
+                // Rol adını al (silmeden önce)
+                $role_name_stmt->execute([':role_id' => (int)$role_id]);
+                $role_name = $role_name_stmt->fetchColumn();
+                
                 $remove_role_stmt->execute([':user_id' => $user_id, ':role_id' => (int)$role_id]);
+                
+                if ($role_name) {
+                    $removed_roles[] = ['id' => (int)$role_id, 'name' => $role_name];
+                    
+                    // Her rol kaldırması için ayrı audit log
+                    audit_user_role_removed($pdo, $user_id, (int)$role_id, $role_name, $_SESSION['user_id']);
+                }
             }
         }
 
@@ -189,6 +281,14 @@ try {
                 $remove_skill_stmt->execute([':user_id' => $user_id, ':skill_tag_id' => (int)$skill_id]);
             }
         }
+        
+        // Ana kullanıcı bilgileri değişikliği audit log (sadece temel bilgiler değiştiyse)
+        if ($has_changes) {
+            audit_user_updated($pdo, $user_id, $old_values, $new_values, $_SESSION['user_id']);
+        }
+        
+        // DEBUG: Başarılı güncelleme log
+        error_log("Kullanıcı güncelleme başarılı - User ID: $user_id, Has Changes: " . ($has_changes ? 'Evet' : 'Hayır') . ", Added Roles: " . count($added_roles) . ", Removed Roles: " . count($removed_roles));
         
         // Transaction'ı onayla
         $pdo->commit();
@@ -210,6 +310,14 @@ try {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
+        
+        // Hata audit log
+        add_audit_log($pdo, 'Kullanıcı güncelleme hatası', 'error', 'user', $user_id ?? null, null, [
+            'attempted_user_id' => $user_id ?? null,
+            'error_message' => $e->getMessage(),
+            'error_type' => 'user_update_failed'
+        ]);
+        
         error_log("Update user error: " . $e->getMessage());
         http_response_code(500);
         echo json_encode([
@@ -220,6 +328,11 @@ try {
 
 } catch (PDOException $e) {
     // Bu blok genel veritabanı bağlantı hataları için
+    add_audit_log($pdo, 'Kullanıcı güncelleme veritabanı hatası', 'error', null, null, [
+        'error_message' => $e->getMessage(),
+        'error_type' => 'database_connection_error'
+    ]);
+    
     error_log("Update user PDO connection error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([

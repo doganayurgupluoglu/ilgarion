@@ -131,7 +131,7 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
     font-size: 0.9rem;
     font-weight: 500;
     background-color: var(--gold);
-    color: var(--black);
+    color: var(--turquase);
     border-radius: 6px;
     text-decoration: none;
     display: inline-flex;
@@ -604,7 +604,7 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
     
     padding: 0rem 1.5rem !important;
     background: var(--gold);
-    color: var(--charcoal);
+    color: var(--turquase);
 }
 .btn-primary:hover {
     background: var(--light-gold);

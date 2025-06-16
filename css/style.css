@@ -2,9 +2,9 @@
 
 
     /* COLORS */
-    --light-gold: #C69653;
-    --gold:#b8845c;
-    --transparent-gold: rgba(189, 145, 42, 0.05);
+    --light-gold: #e02a2a;
+    --gold:#9a3c3c;
+    --transparent-gold: rgba(189, 42, 42, 0.05);
     --red: #EB0000;
     --dark-red: #B81D24;
     --transparent-red: #63020760;
@@ -14,9 +14,9 @@
     --white: #ffffff;
     --black: #000;
     --charcoal: #222222;
-    --turquase: #3DA6A2;
-    --turquase-hover: #43d3ce;
-    --light-turquase: #73e4e0;
+    --turquase: #EEEEED;
+    --turquase-hover: #f8f8f8;
+    --light-turquase: #ffffff;
     --transparent-turquase: #79fffb3b;
     --transparent-turquase-2: rgba(89, 244, 255, 0.035);
 
@@ -28,7 +28,7 @@
     --card-bg-2: #22201E;
     --card-bg-3: #1A1C1D;
     --card-bg-4: #201E22;
-    --body-bg:  #161412;
+    --body-bg:  #161312;
 
     /* BORDERS */
     --border-1: #59524c46;

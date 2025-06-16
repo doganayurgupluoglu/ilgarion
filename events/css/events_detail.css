@@ -110,7 +110,7 @@
 }
 
 .meta-item i {
-    color: var(--turquase);
+    color: var(--gold);
     font-size: 0.85rem;
 }
 
@@ -187,7 +187,7 @@
     color: var(--light-grey);
 }
 
-.participation-status .status-confirmed { color: var(--turquase); font-weight: bold; }
+.participation-status .status-confirmed { color: #46A63D; font-weight: bold; }
 .participation-status .status-maybe { color: var(--gold); font-weight: bold; }
 .participation-status .status-declined { color: var(--red); font-weight: bold; }
 
@@ -234,13 +234,13 @@
 }
 
 .btn-primary {
-    background: var(--turquase);
+    background: var(--gold);
     color: white;
-    border: 1px solid var(--turquase);
+    border: 1px solid var(--border-1);
 }
 
 .btn-primary:hover:not(.disabled) {
-    background: #4aa3a0;
+    background: #a34a4a;
     transform: translateY(-1px);
     color: white;
     text-decoration: none;
@@ -273,9 +273,9 @@
 }
 
 .btn-danger {
-    background: var(--red);
+    background: var(--transparent-gold);
     color: white;
-    border: 1px solid var(--red);
+    border: 1px solid var(--border-1);
 }
 
 .btn-danger:hover:not(.disabled) {
@@ -342,7 +342,7 @@
 }
 
 .content-section h2 i {
-    color: var(--turquase);
+    color: var(--gold);
     font-size: 1.2rem;
 }
 
@@ -466,12 +466,12 @@
 .role-icon {
     width: 40px;
     height: 40px;
-    background: rgba(61, 166, 162, 0.2);
+    background: rgba(255, 109, 109, 0.2);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--turquase);
+    color: var(--gold);
     font-size: 1.2rem;
 }
 
@@ -534,7 +534,7 @@
 }
 
 .btn-role-join {
-    background: var(--turquase);
+    background: var(--transparent-gold);
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -547,10 +547,11 @@
     align-items: center;
     gap: 0.5rem;
     font-family: var(--font);
+    border: 1px solid var(--border-1);
 }
 
 .btn-role-join:hover {
-    background: #4aa3a0;
+    background: #a34a4a;
     transform: translateY(-1px);
 }
 
@@ -578,9 +579,9 @@
 }
 
 .current-role-badge {
-    background: rgba(61, 166, 162, 0.2);
+    background: rgba(166, 61, 61, 0.2);
     color: var(--turquase);
-    border: 1px solid var(--turquase);
+    border: 1px solid var(--light-gold);
     padding: 0.5rem 1rem;
     border-radius: 6px;
     font-size: 0.85rem;
@@ -620,7 +621,7 @@
 }
 
 .group-title.status-confirmed {
-    color: var(--turquase);
+    color: #46A63D;
 }
 
 .group-title.status-maybe {
@@ -771,7 +772,7 @@
 }
 
 .info-card h3 i {
-    color: var(--turquase);
+    color: var(--gold);
     font-size: 1rem;
 }
 
@@ -796,7 +797,7 @@
 }
 
 .info-label i {
-    color: var(--turquase);
+    color: var(--gold );
     font-size: 0.8rem;
 }
 
@@ -885,7 +886,7 @@
 
 .role-summary-count {
     font-size: 0.8rem;
-    color: var(--light-grey);
+    color: var(--gold);
     font-weight: 600;
 }
 
@@ -903,7 +904,7 @@
 
 .progress-fill {
     height: 100%;
-    background: var(--turquase);
+    background: var(--gold);
     border-radius: 3px;
     transition: width 0.3s ease;
 }
@@ -1043,7 +1044,7 @@
 
 .role-option-content i {
     font-size: 1.5rem;
-    color: var(--turquase);
+    color: var(--light-gold);
 }
 
 .role-option .role-name {
@@ -1146,7 +1147,7 @@
     width: 100%;
     padding: 0.65rem;
     text-align: center;
-    background: linear-gradient(45deg, rgba(61, 166, 162, 0.1), rgba(184, 132, 92, 0.1));
+    background: linear-gradient(45deg, rgba(255, 109, 109, 0.1), rgba(184, 92, 92, 0.1));
     border: 1px solid var(--border-1);
     border-radius: 8px;
     color: var(--lighter-grey);
@@ -1158,15 +1159,15 @@
 
 .btn-suggested-loadout i {
     margin-right: 0.5rem;
-    color: var(--turquase);
+    color: var(--gold);
     transition: color 0.3s ease;
 }
 
 .btn-suggested-loadout:hover {
-    background: linear-gradient(45deg, rgba(61, 166, 162, 0.2), rgba(184, 132, 92, 0.2));
+    background: linear-gradient(45deg, rgba(255, 109, 109, 0.1), rgba(184, 92, 92, 0.2));
     border-color: var(--gold);
     color: var(--gold);
-    box-shadow: 0 0 15px rgba(184, 132, 92, 0.3);
+    box-shadow: 0 0 15px rgba(184, 92, 92, 0.3);
     transform: translateY(-2px);
 }
 

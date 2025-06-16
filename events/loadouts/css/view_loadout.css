@@ -267,14 +267,14 @@
 
 .btn-action-primary {
     background: var(--gold);
-    color: var(--charcoal);
+    color: var(--turquase);
 }
 
 .btn-action-primary:hover {
     background: var(--light-gold);
     transform: translateY(-1px);
     text-decoration: none;
-    color: var(--charcoal);
+    color: var(--turquase);
 }
 
 .btn-action-secondary {
@@ -488,7 +488,7 @@
 
 .item-attachments h4 {
     margin: 0 0 1rem 0;
-    color: var(--turquase);
+    color: var(--gold);
     font-size: 0.9rem;
     font-weight: 600;
     display: flex;
@@ -517,14 +517,14 @@
 
 .attachment-item:hover {
     background: var(--card-bg);
-    border-color: var(--turquase);
+    border-color: var(--transparent-gold);
 }
 
 .attachment-slot {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--turquase);
+    color: var(--gold);
     font-weight: 500;
     font-size: 0.8rem;
     min-width: 120px;

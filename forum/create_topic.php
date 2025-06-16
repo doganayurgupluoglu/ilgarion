@@ -24,7 +24,7 @@ check_user_session_validity();
 // Yetki kontrolü
 if (!is_user_logged_in()) {
     $_SESSION['error_message'] = "Bu işlem için giriş yapmalısınız.";
-    header('Location: /public/register.php?mode=login');
+    header('Location: /register.php?mode=login');
     exit;
 }
 
@@ -310,8 +310,8 @@ $page_title = ($is_edit_mode ? "Konu Düzenle" : "Yeni Konu Oluştur") . " - For
 
 // Breadcrumb verileri
 $breadcrumb_items = [
-    ['text' => 'Ana Sayfa', 'url' => '/public/index.php', 'icon' => 'fas fa-home'],
-    ['text' => 'Forum', 'url' => '', 'icon' => 'fas fa-comments'],
+    ['text' => 'Ana Sayfa', 'url' => '/index.php', 'icon' => 'fas fa-home'],
+    ['text' => 'Forum', 'url' => '/forum/', 'icon' => 'fas fa-comments'],
 ];
 
 if ($selected_category) {

@@ -1,225 +1,234 @@
-// Create topic functionality
-let csrfToken = '';
+// public/forum/js/create_topic.js - Final and most robust version
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Character counters
-    setupCharacterCounters();
+    const form = document.getElementById('createTopicForm');
+    if (!form) return;
+
+    // --- Form-level Enter Key Prevention ---
+    // This is the most reliable way to prevent form submission on Enter press
+    // from any input field except textareas and submit buttons.
+    form.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.target.nodeName === 'INPUT' && e.target.type !== 'submit') {
+            e.preventDefault();
+        }
+    });
+
+    // --- Tag Input System ---
+    const tagsInput = document.getElementById('tagsInput');
+    const tagsDisplay = document.getElementById('tagsDisplay');
+    const tagsHidden = document.getElementById('tagsHidden');
+    const tagsCountEl = document.getElementById('tags-count');
+
+    if (tagsInput) {
+        const maxTags = 5;
+        let tags = [];
+
+        const updateTagsDisplay = () => {
+            tagsDisplay.innerHTML = '';
+            tags.forEach(tag => {
+                const tagEl = document.createElement('div');
+                tagEl.className = 'tag-item';
+                tagEl.innerHTML = `<span>${tag}</span><i class="fas fa-times remove-tag" data-tag="${tag}"></i>`;
+                tagsDisplay.appendChild(tagEl);
+            });
+            tagsHidden.value = tags.join(',');
+            tagsCountEl.textContent = tags.length;
+            tagsInput.style.display = tags.length >= maxTags ? 'none' : 'block';
+            handleAutoSave(); // Trigger save on tag change
+        };
+
+        const addTag = (tagValue) => {
+            const tag = tagValue.trim().toLowerCase().replace(/,/g, '');
+            if (tag && !tags.includes(tag) && tags.length < maxTags) {
+                tags.push(tag);
+                updateTagsDisplay();
+            }
+            tagsInput.value = '';
+        };
+
+        const removeTag = (tagValue) => {
+            tags = tags.filter(t => t !== tagValue);
+            updateTagsDisplay();
+        };
+
+        const loadInitialTags = () => {
+            const initialTags = (tagsHidden.value || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+            if (initialTags.length > 0) {
+                tags = [...new Set(initialTags)].slice(0, maxTags);
+                updateTagsDisplay();
+            }
+        };
+
+        tagsInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                addTag(this.value);
+            }
+        });
+
+        tagsInput.addEventListener('blur', () => addTag(tagsInput.value));
+        tagsDisplay.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-tag')) {
+                removeTag(e.target.dataset.tag);
+            }
+        });
+
+        loadInitialTags();
+    }
+
+    // --- Other Form Logic (Counters, Validation, Drafts) ---
+    const titleInput = document.getElementById('title');
+    const titleCountEl = document.getElementById('title-count');
+    const editor = form.querySelector('.wysiwyg-content');
+    const categorySelect = document.getElementById('category_id');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const isEditMode = new URLSearchParams(window.location.search).has('edit');
+    let autoSaveTimeout;
+
+    const updateTitleCounter = () => {
+        if (!titleInput || !titleCountEl) return;
+        const len = titleInput.value.length;
+        titleCountEl.textContent = len;
+        if (len > 230) titleCountEl.style.color = 'var(--red)';
+        else if (len > 200) titleCountEl.style.color = 'var(--gold)';
+        else titleCountEl.style.color = 'var(--light-grey)';
+    };
+
+    const handleAutoSave = () => {
+        if (isEditMode) return;
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            const draft = {
+                title: titleInput.value,
+                content: editor.innerHTML,
+                category_id: categorySelect.value,
+                tags: tagsHidden.value,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('forum_topic_draft', JSON.stringify(draft));
+        }, 2000);
+    };
+
+    const loadDraft = () => {
+        if (isEditMode) return;
+        const savedDraft = localStorage.getItem('forum_topic_draft');
+        if (!savedDraft) return;
+
+        try {
+            const draft = JSON.parse(savedDraft);
+            if (Date.now() - draft.timestamp > 86400000) { // 24 hours
+                localStorage.removeItem('forum_topic_draft');
+                return;
+            }
+            
+            const isFormEmpty = titleInput.value.trim() === '' && (editor.innerHTML.trim() === '' || editor.innerHTML.trim() === '<p><br></p>');
+            if (isFormEmpty && confirm('Kaydedilmiş bir taslak bulundu. Yüklemek ister misiniz?')) {
+                titleInput.value = draft.title || '';
+                editor.innerHTML = draft.content || '';
+                categorySelect.value = draft.category_id || '';
+                tagsHidden.value = draft.tags || '';
+                
+                if(tagsInput) tagsInput.dispatchEvent(new Event('loadInitial')); // Custom event to reload tags
+                updateTitleCounter();
+                showNotification('Taslak yüklendi.', 'success');
+            }
+        } catch (e) {
+            localStorage.removeItem('forum_topic_draft');
+        }
+    };
+
+    form.addEventListener('submit', function(e) {
+        const title = titleInput.value.trim();
+        const content = editor.innerHTML.trim();
+        
+        if (title.length < 3) {
+            e.preventDefault();
+            return showNotification('Konu başlığı en az 3 karakter olmalıdır.', 'error');
+        }
+        if ((content.length < 10) || content === '<p><br></p>') {
+             e.preventDefault();
+            return showNotification('Konu içeriği en az 10 karakter olmalıdır.', 'error');
+        }
+        if (!categorySelect.value) {
+            e.preventDefault();
+            return showNotification('Lütfen bir kategori seçin.', 'error');
+        }
+        
+        localStorage.removeItem('forum_topic_draft');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İşleniyor...';
+    });
     
-    // Form validation
-    setupFormValidation();
+    // Initial calls & event listeners
+    titleInput.addEventListener('input', updateTitleCounter);
+    if (!isEditMode) {
+        titleInput.addEventListener('input', handleAutoSave);
+        editor.addEventListener('input', handleAutoSave);
+        categorySelect.addEventListener('change', handleAutoSave);
+    }
     
-    // Auto-save draft
-    setupAutoSave();
+    // Re-initialize tags if draft is loaded
+    if(tagsInput) tagsInput.addEventListener('loadInitial', () => {
+        const tags = tagsHidden.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+        const tagsComponent = document.getElementById('tagsInput');
+        if (tagsComponent) {
+             const event = new Event('reloadTags', {bubbles: true});
+             event.tags = tags;
+             tagsComponent.dispatchEvent(event);
+        }
+    });
+
+    updateTitleCounter();
+    loadDraft();
 });
 
-function setupCharacterCounters() {
-    const titleInput = document.getElementById('title');
-    const contentInput = document.getElementById('content');
-    const titleCount = document.getElementById('title-count');
-    const contentCount = document.getElementById('content-count');
-    
-    if (titleInput && titleCount) {
-        titleInput.addEventListener('input', function() {
-            titleCount.textContent = this.value.length;
-            
-            if (this.value.length > 230) {
-                titleCount.style.color = 'var(--red)';
-            } else if (this.value.length > 200) {
-                titleCount.style.color = 'var(--gold)';
-            } else {
-                titleCount.style.color = 'var(--light-grey)';
-            }
-        });
-        
-        // Initial count
-        titleCount.textContent = titleInput.value.length;
-    }
-    
-    if (contentInput && contentCount) {
-        contentInput.addEventListener('input', function() {
-            contentCount.textContent = this.value.length;
-            
-            if (this.value.length > 45000) {
-                contentCount.style.color = 'var(--red)';
-            } else if (this.value.length > 40000) {
-                contentCount.style.color = 'var(--gold)';
-            } else {
-                contentCount.style.color = 'var(--light-grey)';
-            }
-        });
-        
-        // Initial count
-        contentCount.textContent = contentInput.value.length;
-    }
-}
 
-function setupFormValidation() {
-    const form = document.getElementById('createTopicForm');
-    
-    form.addEventListener('submit', function(e) {
-        // Temel validasyon
-        const title = document.getElementById('title').value.trim();
-        const content = document.getElementById('content').value.trim();
-        const categoryId = document.getElementById('category_id').value;
-        
-        if (!title || title.length < 3) {
-            e.preventDefault();
-            alert('Konu başlığı en az 3 karakter olmalıdır.');
-            return false;
-        }
-        
-        if (!content || content.length < 10) {
-            e.preventDefault();
-            alert('Konu içeriği en az 10 karakter olmalıdır.');
-            return false;
-        }
-        
-        if (!categoryId) {
-            e.preventDefault();
-            alert('Lütfen bir kategori seçin.');
-            return false;
-        }
-        
-        // Form başarıyla gönderilirse taslağı temizle
-        if (this.checkValidity()) {
-            localStorage.removeItem('forum_topic_draft');
-        }
-        
-        // Disable submit button and show loading
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        
-        submitBtn.disabled = true;
-        submitBtn.classList.add('loading');
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Oluşturuluyor...';
-    });
-}
-
-function setupAutoSave() {
-    let saveTimeout;
-    const titleInput = document.getElementById('title');
-    const contentInput = document.getElementById('content');
-    
-    function saveToLocalStorage() {
-        const draftData = {
-            title: titleInput.value,
-            content: contentInput.value,
-            category_id: document.getElementById('category_id').value,
-            timestamp: Date.now()
-        };
-        
-        localStorage.setItem('forum_topic_draft', JSON.stringify(draftData));
-    }
-    
-    function handleInput() {
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(saveToLocalStorage, 2000); // Save after 2 seconds of no typing
-    }
-    
-    if (titleInput) titleInput.addEventListener('input', handleInput);
-    if (contentInput) contentInput.addEventListener('input', handleInput);
-    
-    // Load draft on page load
-    loadDraft();
-}
-
-function loadDraft() {
-    const savedDraft = localStorage.getItem('forum_topic_draft');
-    if (!savedDraft) return;
-    
-    try {
-        const draftData = JSON.parse(savedDraft);
-        
-        // Check if draft is less than 24 hours old
-        if (Date.now() - draftData.timestamp > 86400000) {
-            localStorage.removeItem('forum_topic_draft');
-            return;
-        }
-        
-        // Only load if form is empty
-        const titleInput = document.getElementById('title');
-        const contentInput = document.getElementById('content');
-        
-        if (titleInput.value === '' && contentInput.value === '') {
-            if (confirm('Kaydedilmiş bir taslak bulundu. Yüklemek ister misiniz?')) {
-                titleInput.value = draftData.title || '';
-                contentInput.value = draftData.content || '';
-                
-                if (draftData.category_id) {
-                    document.getElementById('category_id').value = draftData.category_id;
-                }
-                
-                // Update character counters
-                titleInput.dispatchEvent(new Event('input'));
-                contentInput.dispatchEvent(new Event('input'));
-            }
-        }
-    } catch (e) {
-        console.error('Error loading draft:', e);
-        localStorage.removeItem('forum_topic_draft');
-    }
-}
-
-function saveDraft() {
-    const titleInput = document.getElementById('title');
-    const contentInput = document.getElementById('content');
-    
-    if (!titleInput.value.trim() && !contentInput.value.trim()) {
-        alert('Kaydedilecek içerik bulunamadı.');
+function showNotification(message, type = 'info') {
+    if (window.forumManager && typeof window.forumManager.showNotification === 'function') {
+        window.forumManager.showNotification(message, type);
         return;
     }
-    
-    const draftData = {
-        title: titleInput.value,
-        content: contentInput.value,
-        category_id: document.getElementById('category_id').value,
-        timestamp: Date.now()
-    };
-    
-    localStorage.setItem('forum_topic_draft', JSON.stringify(draftData));
-    showNotification('Taslak kaydedildi.', 'success');
-}
 
-// Notification function
-function showNotification(message, type) {
-    // Simple notification
+    const container = document.body;
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
+
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107',
+        info: '#17a2b8'
+    };
+
     notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: var(--gold);
-        color: var(--charcoal);
-        padding: 1rem 1.5rem;
-        border-radius: 6px;
-        z-index: 10000;
-        font-weight: 500;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        transform: translateX(100%);
-        transition: transform 0.3s ease;
+        position: fixed; top: 80px; right: 20px; padding: 15px 20px; border-radius: 6px; 
+        color: white; font-weight: 500; z-index: 10000; max-width: 400px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; 
+        transform: translateX(100%); transition: all 0.3s ease; cursor: pointer;
+        background-color: ${colors[type] || colors.info};
     `;
-    
-    if (type === 'error') {
-        notification.style.background = 'var(--red)';
-        notification.style.color = 'white';
-    } else if (type === 'success') {
-        notification.style.background = 'var(--turquase)';
-    }
-    
+
     notification.textContent = message;
-    document.body.appendChild(notification);
-    
+    container.appendChild(notification);
+
     setTimeout(() => {
+        notification.style.opacity = '1';
         notification.style.transform = 'translateX(0)';
     }, 100);
-    
-    setTimeout(() => {
-        notification.style.transform = 'translateX(100%)';
+
+    const timeoutId = setTimeout(() => removeNotification(notification), 4000);
+
+    notification.addEventListener('click', () => {
+        clearTimeout(timeoutId);
+        removeNotification(notification);
+    });
+
+    function removeNotification(notif) {
+        notif.style.opacity = '0';
+        notif.style.transform = 'translateX(100%)';
         setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
+            if (notif.parentNode) {
+                notif.parentNode.removeChild(notif);
             }
         }, 300);
-    }, 3000);
+    }
 }

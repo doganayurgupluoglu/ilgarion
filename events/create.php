@@ -197,11 +197,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':id' => $event_id
                 ]);
                 
-                // Mevcut rol slotlarını sil
-                $delete_slots_stmt = $pdo->prepare("DELETE FROM event_role_slots WHERE event_id = :event_id");
-                $delete_slots_stmt->execute([':event_id' => $event_id]);
+                // Rol slotlarını akıllıca güncelle
+                $submitted_slots_map = [];
+                if (!empty($role_slots)) {
+                    foreach($role_slots as $slot) {
+                        $submitted_slots_map[$slot['role_id']] = $slot['slot_count'];
+                    }
+                }
+
+                $existing_slots_stmt = $pdo->prepare("SELECT id, role_id, slot_count FROM event_role_slots WHERE event_id = :event_id");
+                $existing_slots_stmt->execute([':event_id' => $event_id]);
+                $existing_slots_db = $existing_slots_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $existing_slots_map = [];
+                foreach ($existing_slots_db as $slot) {
+                    $existing_slots_map[$slot['role_id']] = ['id' => $slot['id'], 'slot_count' => $slot['slot_count']];
+                }
+                
+                $submitted_role_ids = array_keys($submitted_slots_map);
+                $existing_role_ids = array_keys($existing_slots_map);
+
+                $roles_to_add = array_diff($submitted_role_ids, $existing_role_ids);
+                $roles_to_delete = array_diff($existing_role_ids, $submitted_role_ids);
+                $roles_to_update = array_intersect($submitted_role_ids, $existing_role_ids);
+
+                if (!empty($roles_to_delete)) {
+                    $delete_ids = array_map(fn($role_id) => $existing_slots_map[$role_id]['id'], $roles_to_delete);
+                    $delete_placeholders = implode(',', array_fill(0, count($delete_ids), '?'));
+                    $delete_stmt = $pdo->prepare("DELETE FROM event_role_slots WHERE id IN ($delete_placeholders)");
+                    $delete_stmt->execute($delete_ids);
+                }
+                
+                if (!empty($roles_to_add)) {
+                    $add_stmt = $pdo->prepare("INSERT INTO event_role_slots (event_id, role_id, slot_count) VALUES (:event_id, :role_id, :slot_count)");
+                    foreach ($roles_to_add as $role_id) {
+                        $add_stmt->execute([':event_id' => $event_id, ':role_id' => $role_id, ':slot_count' => $submitted_slots_map[$role_id]]);
+                    }
+                }
+                
+                if (!empty($roles_to_update)) {
+                    $update_stmt = $pdo->prepare("UPDATE event_role_slots SET slot_count = :slot_count WHERE id = :id");
+                    $part_count_stmt = $pdo->prepare("SELECT COUNT(*) FROM event_participations WHERE role_slot_id = ? AND participation_status = 'confirmed'");
+                    $role_name_stmt = $pdo->prepare("SELECT role_name FROM event_roles WHERE id = ?");
+
+                    foreach ($roles_to_update as $role_id) {
+                        $new_count = $submitted_slots_map[$role_id];
+                        $slot_id = $existing_slots_map[$role_id]['id'];
+                        
+                        if ($new_count != $existing_slots_map[$role_id]['slot_count']) {
+                            $part_count_stmt->execute([$slot_id]);
+                            $participant_count = $part_count_stmt->fetchColumn();
+
+                            if ($new_count < $participant_count) {
+                                $role_name_stmt->execute([$role_id]);
+                                $role_name = $role_name_stmt->fetchColumn();
+                                throw new Exception("'$role_name' rolü için slot sayısını ($new_count) mevcut katılımcı sayısından ($participant_count) daha aza düşüremezsiniz.");
+                            }
+                            $update_stmt->execute([':slot_count' => $new_count, ':id' => $slot_id]);
+                        }
+                    }
+                }
                 
                 $message = "Etkinlik başarıyla güncellendi.";
+
             } else {
                 // Yeni oluşturma
                 $stmt = $pdo->prepare("
@@ -224,21 +282,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $event_id = $pdo->lastInsertId();
                 $message = "Etkinlik başarıyla oluşturuldu.";
-            }
-            
-            // Rol slotlarını kaydet
-            if (!empty($role_slots)) {
-                $slot_stmt = $pdo->prepare("
-                    INSERT INTO event_role_slots (event_id, role_id, slot_count)
-                    VALUES (:event_id, :role_id, :slot_count)
-                ");
-                
-                foreach ($role_slots as $slot) {
-                    $slot_stmt->execute([
-                        ':event_id' => $event_id,
-                        ':role_id' => $slot['role_id'],
-                        ':slot_count' => $slot['slot_count']
-                    ]);
+
+                // Rol slotlarını kaydet (sadece yeni etkinlik için)
+                if (!empty($role_slots)) {
+                    $slot_stmt = $pdo->prepare("
+                        INSERT INTO event_role_slots (event_id, role_id, slot_count)
+                        VALUES (:event_id, :role_id, :slot_count)
+                    ");
+                    
+                    foreach ($role_slots as $slot) {
+                        $slot_stmt->execute([
+                            ':event_id' => $event_id,
+                            ':role_id' => $slot['role_id'],
+                            ':slot_count' => $slot['slot_count']
+                        ]);
+                    }
                 }
             }
             

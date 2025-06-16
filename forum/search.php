@@ -142,6 +142,11 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                 $tag_results['total'] = count($filtered_topics);
             }
             
+            // Arayüze tag bilgisini ekle
+            if (!isset($tag_results['tag'])) {
+                $tag_results['tag'] = ['name' => $query];
+            }
+
             return $tag_results;
         }
         
@@ -256,7 +261,7 @@ function perform_forum_search(PDO $pdo, string $query, string $type, ?int $user_
                 SELECT 'tag' as result_type, 'Etiket' as type_label,
                        ft.id, ft.name as title, CONCAT(ft.usage_count, ' konuda kullanılmış') as content,
                        '' as tags, ft.usage_count as view_count, 0 as reply_count,
-                       CONCAT('/forum/search.php?q=', REPLACE(ft.name, ' ', '%20'), '&type=tags') as url,
+                       CONCAT('/forum/search.php?q=', REPLACE(ft.name, ' ', '%20'), '&type=tag') as url,
                        '' as username, '#bd912a' as user_role_color, 0 as user_id, ft.created_at,
                        'Etiket' as category_name, '#bd912a' as category_color,
                        (CASE 
@@ -505,7 +510,7 @@ function format_search_time_ago($datetime) {
                         <h4>Popüler Etiketler:</h4>
                         <div class="tags-list">
                             <?php foreach ($popular_tags as $tag): ?>
-                                <a href="/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tags" 
+                                <a href="/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tag" 
                                    class="suggestion-tag">
                                     <?= htmlspecialchars($tag['name']) ?> 
                                     <span><?= $tag['usage_count'] ?></span>
@@ -588,7 +593,7 @@ function format_search_time_ago($datetime) {
                                                 $tags = array_filter(array_map('trim', explode(',', $topic['tags'])));
                                                 foreach (array_slice($tags, 0, 3) as $tag):
                                                 ?>
-                                                    <a href="/forum/search.php?q=<?= urlencode($tag) ?>&type=tags" 
+                                                    <a href="/forum/search.php?q=<?= urlencode($tag) ?>&type=tag" 
                                                        class="topic-tag <?= $tag === $search_query ? 'active' : '' ?>">
                                                         <?= htmlspecialchars($tag) ?>
                                                     </a>
@@ -726,7 +731,7 @@ function format_search_time_ago($datetime) {
                                             $tags = array_filter(array_map('trim', explode(',', $result['tags'])));
                                             foreach (array_slice($tags, 0, 3) as $tag):
                                             ?>
-                                                <a href="/forum/search.php?q=<?= urlencode($tag) ?>&type=tags" 
+                                                <a href="/forum/search.php?q=<?= urlencode($tag) ?>&type=tag" 
                                                    class="result-tag">
                                                     <?= htmlspecialchars($tag) ?>
                                                 </a>
@@ -823,7 +828,7 @@ function format_search_time_ago($datetime) {
                     <h3><i class="fas fa-fire"></i> Popüler Etiketler</h3>
                     <div class="popular-tags-grid">
                         <?php foreach ($popular_tags as $tag): ?>
-                            <a href="/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tags" 
+                            <a href="/forum/search.php?q=<?= urlencode($tag['name']) ?>&type=tag" 
                                class="popular-tag">
                                 <span class="tag-name"><?= htmlspecialchars($tag['name']) ?></span>
                                 <span class="tag-count"><?= number_format($tag['usage_count']) ?></span>

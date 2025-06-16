@@ -35,7 +35,7 @@
 }
 
 .header-info h1 i {
-    color: var(--turquase);
+    color: var(--gold);
 }
 
 .page-description {
@@ -71,7 +71,7 @@
 
 .btn-action-primary {
     background: var(--gold);
-    color: var(--charcoal);
+    color: var(--turquase);
     border: 1px solid var(--gold);
 }
 
@@ -79,8 +79,8 @@
     background: var(--light-gold);
     transform: translateY(-1px);
     text-decoration: none;
-    color: var(--charcoal);
-    box-shadow: 0 4px 15px rgba(189, 145, 42, 0.3);
+    color: var(--turquase);
+    box-shadow: 0 4px 15px rgba(189, 42, 42, 0.3);
 }
 
 .btn-action-secondary {
@@ -276,7 +276,7 @@
 }
 
 .events-list-header h2 i {
-    color: var(--turquase);
+    color: var(--gold);
 }
 
 .events-count {
@@ -520,7 +520,7 @@
 
 .btn-event-primary {
     background: var(--gold);
-    color: var(--charcoal);
+    color: var(--turquase);
     border: 1px solid var(--gold);
     flex: 1;
     justify-content: center;
@@ -530,7 +530,6 @@
     background: var(--light-gold);
     transform: translateY(-1px);
     text-decoration: none;
-    color: var(--charcoal);
 }
 
 .btn-event-secondary {
@@ -800,7 +799,7 @@
 
 .filter-group select:focus,
 .search-input-group input:focus {
-    box-shadow: 0 0 0 2px rgba(189, 145, 42, 0.2);
+    box-shadow: 0 0 0 2px rgba(189, 42, 42, 0.2);
 }
 
 /* High contrast mode support */

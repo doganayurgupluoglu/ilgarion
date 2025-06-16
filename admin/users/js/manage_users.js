@@ -312,9 +312,6 @@ const ManageUsers = {
                     <button class="action-btn" onclick="editUser(${user.id})" title="Düzenle">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="action-btn" onclick="viewUserDetails(${user.id})" title="Detayları Görüntüle">
-                        <i class="fas fa-eye"></i>
-                    </button>
                     ${this.canDeleteUser(user) ? `
                         <button class="action-btn danger" onclick="deleteUser(${user.id})" title="Sil">
                             <i class="fas fa-trash"></i>
@@ -1043,131 +1040,6 @@ const ManageUsers = {
     },
     
     /**
-     * Toplu işlemler modalını aç
-     */
-    openBulkActionsModal() {
-        if (this.state.selectedUsers.size === 0) {
-            this.showError('Lütfen önce kullanıcı seçin');
-            return;
-        }
-        
-        this.updateBulkActionsState();
-        this.showModal(this.elements.bulkActionsModal);
-    },
-    
-    /**
-     * Toplu işlemler modalını kapat
-     */
-    closeBulkActionsModal() {
-        this.hideModal(this.elements.bulkActionsModal);
-    },
-    
-    /**
-     * Toplu durum değiştir
-     */
-    async bulkChangeStatus(newStatus) {
-        if (this.state.selectedUsers.size === 0) return;
-        
-        const statusText = this.getStatusText(newStatus);
-        
-        if (!confirm(`Seçili ${this.state.selectedUsers.size} kullanıcının durumunu "${statusText}" olarak değiştirmek istediğinizden emin misiniz?`)) {
-            return;
-        }
-        
-        try {
-            this.showLoading();
-            
-            const response = await fetch(`${this.config.apiBaseUrl}bulk_change_status.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_ids: Array.from(this.state.selectedUsers),
-                    status: newStatus
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.showSuccess(`${data.affected_count} kullanıcının durumu başarıyla güncellendi`);
-                this.state.selectedUsers.clear();
-                this.closeBulkActionsModal();
-                this.loadUsersData();
-            } else {
-                this.showError(data.message || 'Toplu durum güncelleme hatası');
-            }
-        } catch (error) {
-            console.error('Error bulk changing status:', error);
-            this.showError('Ağ hatası oluştu');
-        } finally {
-            this.hideLoading();
-        }
-    },
-    
-    /**
-     * Toplu kullanıcı sil
-     */
-    async bulkDeleteUsers() {
-        if (this.state.selectedUsers.size === 0) return;
-        
-        if (!confirm(`Seçili ${this.state.selectedUsers.size} kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`)) {
-            return;
-        }
-        
-        try {
-            this.showLoading();
-            
-            const response = await fetch(`${this.config.apiBaseUrl}bulk_delete_users.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_ids: Array.from(this.state.selectedUsers)
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.showSuccess(`${data.affected_count} kullanıcı başarıyla silindi`);
-                this.state.selectedUsers.clear();
-                this.closeBulkActionsModal();
-                this.loadUsersData();
-            } else {
-                this.showError(data.message || 'Toplu silme hatası');
-            }
-        } catch (error) {
-            console.error('Error bulk deleting users:', error);
-            this.showError('Ağ hatası oluştu');
-        } finally {
-            this.hideLoading();
-        }
-    },
-    
-    /**
-     * Kullanıcı detaylarını görüntüle (readonly modal)
-     */
-    async viewUserDetails(userId) {
-        await this.openEditUserModal(userId);
-        
-        // Modal'ı readonly yap
-        setTimeout(() => {
-            const modal = this.elements.editUserModal;
-            const inputs = modal.querySelectorAll('input:not([type="checkbox"]), textarea, select');
-            const buttons = modal.querySelectorAll('.role-action-btn, .skill-action-btn, .modal-footer .btn-primary');
-            
-            inputs.forEach(input => input.disabled = true);
-            buttons.forEach(btn => btn.style.display = 'none');
-            
-            // Başlığı güncelle
-            this.elements.editModalTitle.textContent = 'Kullanıcı Detayları (Görüntüleme)';
-        }, 100);
-    },
-    
-    /**
      * Verileri yenile
      */
     refreshUserData() {
@@ -1332,7 +1204,6 @@ const ManageUsers = {
 
 // Global fonksiyonlar (HTML'den çağrılabilir)
 window.editUser = (userId) => ManageUsers.openEditUserModal(userId);
-window.viewUserDetails = (userId) => ManageUsers.viewUserDetails(userId);
 window.deleteUser = (userId) => ManageUsers.deleteUser(userId);
 window.refreshUserData = () => ManageUsers.refreshUserData();
 

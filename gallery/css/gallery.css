@@ -31,7 +31,7 @@
     margin: 0 0 0.75rem 0;
     font-size: 2rem;
     font-weight: 500;
-    color: var(--light-gold);
+    color: var(--gold);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -393,6 +393,7 @@
 }
 
 .radio-custom {
+    display: inline-block !important;
     width: 18px;
     height: 18px;
     border: 2px solid var(--border-1);
@@ -810,7 +811,7 @@
 .no-comments {
     text-align: center;
     padding: 2rem;
-    color: var(--light-grey);
+    color: var(--gold);
 }
 
 .no-comments i {
@@ -1047,8 +1048,8 @@
 }
 
 .btn-upload {
-    background: var(--turquase);
-    color: var(--charcoal);
+    background: var(--gold);
+    color: var(--turquase);
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 6px;
@@ -1062,7 +1063,7 @@
 }
 
 .btn-upload:hover {
-    background: var(--light-turquase);
+    background: var(--light-gold);
     transform: translateY(-1px);
 }
 
@@ -1090,8 +1091,28 @@
 
 .photo-container {
     position: relative;
-    aspect-ratio: 4/3;
     overflow: hidden;
+    border-radius: 8px;
+    background-color: var(--card-bg-2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fix for when photo-container is an anchor tag */
+a.photo-container {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.photo-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .photo-image {
@@ -1232,4 +1253,93 @@
 .no-photos p {
     margin-bottom: 1.5rem;
     line-height: 1.5;
+}
+
+/* Comment Edit Form Styles */
+.comment-edit-container {
+    padding-top: 10px;
+}
+
+.comment-edit-textarea {
+    width: 100%;
+    padding: 10px;
+    background-color: #111; /* Koyu tema için */
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    color: var(--light-grey);
+    font-size: 0.95rem;
+    resize: vertical;
+    min-height: 80px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+}
+
+.comment-edit-textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 5px rgba(255, 193, 7, 0.3);
+    outline: none;
+}
+
+.comment-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.comment-edit-actions button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.comment-edit-actions .btn-primary {
+    background-color: var(--success-color);
+    color: #fff;
+}
+
+.comment-edit-actions .btn-primary:hover {
+    background-color: #3ca954;
+    transform: translateY(-2px);
+}
+
+.comment-edit-actions .btn-secondary {
+    background-color: var(--grey);
+    color: #fff;
+}
+
+.comment-edit-actions .btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.comment-edit-actions button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.comment-body {
+    padding-top: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-color-soft);
+    margin-left: 65px;
+    color: var(--light-grey);
+}
+.comment-body .comment-text {
+    line-height: 1.6;
+    font-size: 0.95rem;
+    word-wrap: break-word;
+}
+.comment-item:last-child .comment-body {
+    border-bottom: none;
+}
+
+.no-comments {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gold);
 }

@@ -79,8 +79,8 @@ $can_access_admin_panel = $is_logged_in && has_permission($pdo, 'admin.panel.acc
         <!-- Sol Taraf -->
         <div class="navbar-left">
             <a href="/index.php" class="navbar-brand-link">
-                <img src="/assets/logo.png" alt="Ilgarion Turanis Logo" class="logo-img">
-                <span class="navbar-brand-text">Ilgarion Turanis</span>
+                <img src="/assets/scg-logo.png" alt="SCG Logo" class="logo-img">
+                <span class="navbar-brand-text">Star Citizen Global</span>
             </a>
         </div>
 

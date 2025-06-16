@@ -323,7 +323,7 @@
     background: var(--gold);
     border: none;
     border-radius: 6px;
-    color: var(--charcoal);
+    color: var(--turquase);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -473,7 +473,7 @@
 
 .btn-primary {
     background: var(--gold);
-    color: var(--charcoal);
+    color: var(--turquase);
 }
 
 .btn-primary:hover {

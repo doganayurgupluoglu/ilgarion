@@ -549,3 +549,101 @@ function showNotification(message, type = 'info') {
         }, 300);
     }
 }
+
+// Konu Kilitleme/Açma
+async function toggleTopicLock(topicId, lock) {
+    if (!csrfToken) {
+        showNotification('CSRF token bulunamadı. Sayfayı yenileyin.', 'error');
+        return;
+    }
+
+    const btn = document.querySelector(`.btn-lock[data-topic-id="${topicId}"]`);
+    if (!btn) {
+        showNotification('Kilitleme butonu bulunamadı.', 'error');
+        return;
+    }
+
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İşleniyor...';
+
+    try {
+        const formData = new FormData();
+        formData.append('csrf_token', csrfToken);
+        formData.append('topic_id', topicId);
+        formData.append('locked', lock ? '1' : '0');
+
+        const response = await fetch('/forum/actions/toggle_topic_lock.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+
+        } else {
+            showNotification(data.message, 'error');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        console.error('Topic lock error:', error);
+        showNotification('Konu durumu güncellenirken bir hata oluştu.', 'error');
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+    }
+}
+
+// Konu Sabitleme/Kaldırma
+async function toggleTopicPin(topicId, pin) {
+    if (!csrfToken) {
+        showNotification('CSRF token bulunamadı. Sayfayı yenileyin.', 'error');
+        return;
+    }
+
+    const btn = document.querySelector(`.btn-pin[data-topic-id="${topicId}"]`);
+    if (!btn) {
+        showNotification('Sabitleme butonu bulunamadı.', 'error');
+        return;
+    }
+
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İşleniyor...';
+
+    try {
+        const formData = new FormData();
+        formData.append('csrf_token', csrfToken);
+        formData.append('topic_id', topicId);
+        formData.append('pinned', pin ? '1' : '0');
+
+        // Bu dosyanın var olduğunu varsayıyoruz.
+        const response = await fetch('/forum/actions/toggle_topic_pin.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(data.message, 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Konu durumu güncellenemedi.', 'error');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        console.error('Topic pin error:', error);
+        showNotification('Konu durumu güncellenirken bir hata oluştu.', 'error');
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+    }
+}

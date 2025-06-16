@@ -170,9 +170,9 @@ function get_image_path($image_path) {
                         
                         <div class="photo-overlay">
                             <div class="photo-actions">
-                                <button class="photo-action-btn like-btn" 
-                                        onclick="event.stopPropagation(); togglePhotoLike(<?= $photo['id'] ?>)"
-                                        <?= $photo['user_liked'] ? 'class="liked"' : '' ?>>
+                                <button class="photo-action-btn like-btn <?= $photo['user_liked'] ? 'liked' : '' ?>"
+                                        data-photo-id="<?= $photo['id'] ?>" 
+                                        onclick="event.stopPropagation(); togglePhotoLike(<?= $photo['id'] ?>)">
                                     <i class="fas fa-heart"></i>
                                     <span class="like-count"><?= $photo['like_count'] ?></span>
                                 </button>
@@ -184,7 +184,8 @@ function get_image_path($image_path) {
                                 </button>
                                 
                                 <?php if ($current_user_id && ($photo['user_id'] == $current_user_id || has_permission($pdo, 'gallery.delete_any', $current_user_id))): ?>
-                                    <button class="photo-action-btn delete-btn" 
+                                    <button class="photo-action-btn delete-btn"
+                                            data-photo-id="<?= $photo['id'] ?>"
                                             onclick="event.stopPropagation(); confirmPhotoDelete(<?= $photo['id'] ?>)">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -382,12 +383,23 @@ function get_image_path($image_path) {
 <!-- User Popover Include -->
 <?php include BASE_PATH . '/src/includes/user_popover.php'; ?>
 
+<script>
+    // Pass PHP variables to JavaScript
+    window.galleryConfig = {
+        currentUserId: <?= json_encode($current_user_id) ?>,
+        isLoggedIn: <?= json_encode($is_logged_in) ?>,
+        isApproved: <?= json_encode($is_approved) ?>,
+        csrfToken: "<?= generate_csrf_token() ?>"
+    };
+</script>
+
 <script src="/gallery/js/gallery-utils.js"></script>
 <script src="/gallery/js/gallery-upload.js"></script>
 <script src="/gallery/js/gallery-modal.js"></script>
 <script src="/gallery/js/gallery-actions.js"></script>
 <script src="/gallery/js/gallery-filters.js"></script>
 <script src="/gallery/js/gallery.js"></script>
+
 
 <?php
 // Zaman formatlama fonksiyonu

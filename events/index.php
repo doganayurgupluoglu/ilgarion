@@ -409,8 +409,8 @@ events_layout_start($breadcrumb_items, $page_title);
                             </h3>
                             
                             <p class="event-description">
-                                <?= htmlspecialchars(mb_substr($event['event_description'], 0, 120)) ?>
-                                <?= mb_strlen($event['event_description']) > 120 ? '...' : '' ?>
+                                <?= htmlspecialchars(mb_substr(strip_tags($event['event_description']), 0, 120)) ?>
+                                <?= mb_strlen(strip_tags($event['event_description'])) > 120 ? '...' : '' ?>
                             </p>
 
                             <!-- Event Meta -->
@@ -474,7 +474,7 @@ events_layout_start($breadcrumb_items, $page_title);
                                     <?php endif; ?>
                                     
                                     <?php if ($event['created_by_user_id'] == $current_user_id || $can_edit_all): ?>
-                                        <a href="edit.php?id=<?= $event['id'] ?>" class="btn-event-secondary">
+                                        <a href="create.php?id=<?= $event['id'] ?>" class="btn-event-secondary">
                                             <i class="fas fa-edit"></i>
                                             Düzenle
                                         </a>
@@ -558,8 +558,8 @@ events_layout_start($breadcrumb_items, $page_title);
                                         </h3>
                                         
                                         <p class="event-description">
-                                            <?= htmlspecialchars(mb_substr($event['event_description'], 0, 120)) ?>
-                                            <?= mb_strlen($event['event_description']) > 120 ? '...' : '' ?>
+                                            <?= htmlspecialchars(mb_substr(strip_tags($event['event_description']), 0, 120)) ?>
+                                            <?= mb_strlen(strip_tags($event['event_description'])) > 120 ? '...' : '' ?>
                                         </p>
 
                                         <!-- Event Meta -->

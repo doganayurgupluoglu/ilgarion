@@ -138,7 +138,6 @@ require_once BASE_PATH . '/src/includes/navbar.php';
 <div class="site-container">
     <!-- Breadcrumb -->
     <nav class="breadcrumb">
-        <a href="/index.php"><i class="fas fa-home"></i> Ana Sayfa</a>
         <span class="active"><i class="fas fa-tachometer-alt"></i> Admin Dashboard</span>
     </nav>
 
