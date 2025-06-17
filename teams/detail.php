@@ -68,49 +68,55 @@ try {
     $can_edit_team = $is_team_owner || has_permission($pdo, 'teams.edit_all', $current_user_id);
     $can_manage_members = $is_team_manager || $is_team_owner;
     
-    // Başvuru durumu kontrolü - herhangi bir durumda başvuru var mı?
+    // Takım istatistikleri - can_apply hesaplamadan önce tanımla
     $stmt = $pdo->prepare("
-        SELECT status FROM team_applications 
+        SELECT 
+            COUNT(*) as total_members,
+            COUNT(CASE WHEN tm.last_activity >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as active_members
+        FROM team_members tm
+        WHERE tm.team_id = ? AND tm.status = 'active'
+    ");
+    $stmt->execute([$team_id]);
+    $team_stats = $stmt->fetch();
+    
+    // Bekleyen başvuru sayısı
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as pending_applications
+        FROM team_applications
+        WHERE team_id = ? AND status = 'pending'
+    ");
+    $stmt->execute([$team_id]);
+    $team_stats['pending_applications'] = $stmt->fetchColumn();
+
+    // Başvuru durumu kontrolü - daha güvenli approach
+    $stmt = $pdo->prepare("
+        SELECT status, applied_at FROM team_applications 
         WHERE team_id = ? AND user_id = ? 
         ORDER BY applied_at DESC LIMIT 1
     ");
     $stmt->execute([$team_id, $current_user_id]);
-    $latest_application_status = $stmt->fetchColumn();
-    
-    // Sadece pending başvuruları "bekleyen" olarak say
+    $latest_application = $stmt->fetch();
+
+    $latest_application_status = $latest_application['status'] ?? null;
     $has_pending_application = ($latest_application_status === 'pending');
-    
-    // Eğer approved bir başvuru varsa ve henüz üye değilse, büyük ihtimalle trigger çalışmamıştır
+
+    // Eğer onaylanmış başvuru varsa ama henüz üye değilse
     if ($latest_application_status === 'approved' && !$is_team_member) {
-        // Manuel olarak üye ekle
+        // Bu durumda kullanıcının tekrar başvuru yapabilmesi için eski kaydı temizleyelim
         $stmt = $pdo->prepare("
-            SELECT id FROM team_roles 
-            WHERE team_id = ? AND is_default = 1 
-            LIMIT 1
+            DELETE FROM team_applications 
+            WHERE team_id = ? AND user_id = ? AND status = 'approved'
         ");
-        $stmt->execute([$team_id]);
-        $default_role_id = $stmt->fetchColumn();
+        $stmt->execute([$team_id, $current_user_id]);
         
-        if ($default_role_id) {
-            $stmt = $pdo->prepare("
-                INSERT IGNORE INTO team_members (team_id, user_id, team_role_id, status, joined_at)
-                VALUES (?, ?, ?, 'active', NOW())
-            ");
-            $stmt->execute([$team_id, $current_user_id, $default_role_id]);
-            
-            // Üyelik durumunu yeniden kontrol et
-            $stmt = $pdo->prepare("
-                SELECT tm.*, tr.name as role_name, tr.display_name as role_display_name, 
-                       tr.color as role_color, tr.is_management, tr.priority
-                FROM team_members tm
-                JOIN team_roles tr ON tm.team_role_id = tr.id
-                WHERE tm.team_id = ? AND tm.user_id = ? AND tm.status = 'active'
-            ");
-            $stmt->execute([$team_id, $current_user_id]);
-            $user_membership = $stmt->fetch();
-            $is_team_member = !empty($user_membership);
-        }
+        $latest_application_status = null; // Reset status
     }
+
+    // Başvuru yapmaya uygun mu kontrolü - artık $team_stats tanımlı
+    $can_apply = !$is_team_member && 
+                 !$has_pending_application && 
+                 $team_data['is_recruitment_open'] && 
+                 $team_stats['total_members'] < $team_data['max_members'];
     
     // Takım üyelerini getir
     $stmt = $pdo->prepare("
@@ -139,26 +145,6 @@ try {
         $stmt->execute([$team_id]);
         $team_applications = $stmt->fetchAll();
     }
-    
-    // Takım istatistikleri
-    $stmt = $pdo->prepare("
-        SELECT 
-            COUNT(*) as total_members,
-            COUNT(CASE WHEN tm.last_activity >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as active_members
-        FROM team_members tm
-        WHERE tm.team_id = ? AND tm.status = 'active'
-    ");
-    $stmt->execute([$team_id]);
-    $team_stats = $stmt->fetch();
-    
-    // Bekleyen başvuru sayısı
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) as pending_applications
-        FROM team_applications
-        WHERE team_id = ? AND status = 'pending'
-    ");
-    $stmt->execute([$team_id]);
-    $team_stats['pending_applications'] = $stmt->fetchColumn();
     
     // Rol dağılımı
     $stmt = $pdo->prepare("
@@ -221,7 +207,7 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Başvuru işlemi
+// POST işlemleri
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         $error_message = 'Güvenlik hatası.';
@@ -245,20 +231,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     throw new Exception('Zaten bekleyen bir başvurunuz var.');
                 }
                 
-                // Başvuru oluştur
-                $application_message = trim($_POST['message'] ?? '');
+                // Transaction başlat
+                $pdo->beginTransaction();
                 
-                $stmt = $pdo->prepare("
-                    INSERT INTO team_applications (team_id, user_id, message, status, applied_at)
-                    VALUES (?, ?, ?, 'pending', NOW())
-                ");
-                $result = $stmt->execute([$team_id, $current_user_id, $application_message]);
-                
-                if ($result) {
+                try {
+                    // Önce eski başvuru kayıtlarını temizle (güvenlik için)
+                    $stmt = $pdo->prepare("
+                        DELETE FROM team_applications 
+                        WHERE team_id = ? AND user_id = ? AND status IN ('approved', 'rejected', 'withdrawn')
+                    ");
+                    $stmt->execute([$team_id, $current_user_id]);
+                    
+                    // Yeni başvuru oluştur
+                    $application_message = trim($_POST['message'] ?? '');
+                    
+                    $stmt = $pdo->prepare("
+                        INSERT INTO team_applications (team_id, user_id, message, status, applied_at)
+                        VALUES (?, ?, ?, 'pending', NOW())
+                    ");
+                    $result = $stmt->execute([$team_id, $current_user_id, $application_message]);
+                    
+                    if (!$result) {
+                        throw new Exception('Başvuru oluşturulamadı.');
+                    }
+                    
+                    $pdo->commit();
+                    
                     header('Location: /teams/detail.php?id=' . $team_id . '&success=application_sent');
                     exit;
-                } else {
-                    throw new Exception('Başvuru gönderilirken hata oluştu.');
+                    
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    throw new Exception('Başvuru gönderilirken hata oluştu: ' . $e->getMessage());
                 }
                 
             } elseif ($_POST['action'] === 'withdraw_application') {
@@ -289,18 +293,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     throw new Exception('Takım lideri takımdan ayrılamaz. Önce liderliği devretmelisiniz.');
                 }
                 
-                $stmt = $pdo->prepare("
-                    UPDATE team_members 
-                    SET status = 'inactive'
-                    WHERE team_id = ? AND user_id = ?
-                ");
-                $result = $stmt->execute([$team_id, $current_user_id]);
+                // Transaction başlat
+                $pdo->beginTransaction();
                 
-                if ($result) {
+                try {
+                    // 1. Üyeyi team_members tablosundan tamamen sil
+                    $stmt = $pdo->prepare("
+                        DELETE FROM team_members 
+                        WHERE team_id = ? AND user_id = ?
+                    ");
+                    $stmt->execute([$team_id, $current_user_id]);
+                    
+                    // 2. Bu kullanıcının bu takım için onaylanmış başvurusunu sil
+                    // (Böylece tekrar başvurabilir)
+                    $stmt = $pdo->prepare("
+                        DELETE FROM team_applications 
+                        WHERE team_id = ? AND user_id = ? AND status = 'approved'
+                    ");
+                    $stmt->execute([$team_id, $current_user_id]);
+                    
+                    // 3. Eğer bekleyen başvurusu varsa onu da temizle
+                    $stmt = $pdo->prepare("
+                        DELETE FROM team_applications 
+                        WHERE team_id = ? AND user_id = ? AND status = 'pending'
+                    ");
+                    $stmt->execute([$team_id, $current_user_id]);
+                    
+                    $pdo->commit();
+                    
                     header('Location: /teams/?success=left_team');
                     exit;
-                } else {
-                    throw new Exception('İşlem gerçekleştirilemedi.');
+                    
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    throw new Exception('Takımdan ayrılırken bir hata oluştu: ' . $e->getMessage());
                 }
             }
             
@@ -346,7 +372,7 @@ include BASE_PATH . '/src/includes/navbar.php';
             <div class="team-info">
                 <!-- Team Logo -->
                 <?php if ($team_data['logo_path']): ?>
-                    <img src="<?= htmlspecialchars($team_data['logo_path']) ?>" 
+                    <img src="/uploads/teams/logos/<?= htmlspecialchars($team_data['logo_path']) ?>" 
                          alt="<?= htmlspecialchars($team_data['name']) ?>" 
                          class="team-logo">
                 <?php else: ?>
@@ -442,14 +468,21 @@ include BASE_PATH . '/src/includes/navbar.php';
                             <span class="text-warning">
                                 <i class="fas fa-clock"></i> Başvurunuz değerlendiriliyor
                             </span>
-                        <?php elseif ($team_data['is_recruitment_open'] && $team_stats['total_members'] < $team_data['max_members'] && !$latest_application_status): ?>
+                        <?php elseif ($can_apply): ?>
                             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#applicationModal">
                                 <i class="fas fa-plus"></i> Takıma Başvur
                             </button>
+                        <?php elseif (!$team_data['is_recruitment_open']): ?>
+                            <span class="text-muted">
+                                <i class="fas fa-lock"></i> Üye alımı kapalı
+                            </span>
+                        <?php elseif ($team_stats['total_members'] >= $team_data['max_members']): ?>
+                            <span class="text-muted">
+                                <i class="fas fa-users"></i> Takım dolu
+                            </span>
                         <?php else: ?>
                             <span class="text-muted">
-                                <i class="fas fa-lock"></i> 
-                                <?= !$team_data['is_recruitment_open'] ? 'Üye alımı kapalı' : 'Takım dolu' ?>
+                                <i class="fas fa-info-circle"></i> Başvuru yapılamıyor
                             </span>
                         <?php endif; ?>
                     <?php endif; ?>
@@ -502,7 +535,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                         </h3>
                         <?php if ($can_manage_members): ?>
                             <div class="card-actions">
-                                <a href="/teams/members.php?id=<?= $team_id ?>" class="btn btn-outline-primary btn-sm">
+                                <a href="/teams/manage.php?id=<?= $team_id ?>&tab=members" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-cog"></i> Üye Yönetimi
                                 </a>
                             </div>
@@ -519,7 +552,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                                 <?php foreach ($team_members as $member): ?>
                                     <div class="member-card">
                                         <?php if ($member['avatar_path']): ?>
-                                            <img src="/uploads/avatars/<?= htmlspecialchars($member['avatar_path']) ?>" 
+                                            <img src="/<?= htmlspecialchars($member['avatar_path']) ?>" 
                                                  alt="<?= htmlspecialchars($member['username']) ?>" 
                                                  class="member-avatar">
                                         <?php else: ?>
@@ -560,7 +593,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                                         
                                         <?php if ($can_manage_members && $member['user_id'] != $current_user_id): ?>
                                             <div class="member-actions">
-                                                <a href="/teams/members.php?id=<?= $team_id ?>&member=<?= $member['user_id'] ?>" 
+                                                <a href="/teams/manage.php?id=<?= $team_id ?>&tab=members" 
                                                    class="btn btn-outline-secondary btn-xs">
                                                     <i class="fas fa-cog"></i>
                                                 </a>
@@ -582,7 +615,7 @@ include BASE_PATH . '/src/includes/navbar.php';
                                 Bekleyen Başvurular (<?= count($team_applications) ?>)
                             </h3>
                             <div class="card-actions">
-                                <a href="/teams/applications.php?id=<?= $team_id ?>" class="btn btn-outline-info btn-sm">
+                                <a href="/teams/manage.php?id=<?= $team_id ?>&tab=applications" class="btn btn-outline-info btn-sm">
                                     <i class="fas fa-list"></i> Tümünü Görüntüle
                                 </a>
                             </div>
@@ -676,10 +709,14 @@ include BASE_PATH . '/src/includes/navbar.php';
                                     Bu takım yeni üyeler arıyor. Başvuru yapabilir ve takıma katılabilirsiniz.
                                 </div>
                                 
-                                <?php if (!$has_pending_application && $team_stats['total_members'] < $team_data['max_members']): ?>
+                                <?php if ($can_apply): ?>
                                     <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#applicationModal">
                                         <i class="fas fa-plus"></i> Takıma Başvur
                                     </button>
+                                <?php elseif ($has_pending_application): ?>
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-clock"></i> Başvurunuz değerlendiriliyor
+                                    </div>
                                 <?php endif; ?>
                             <?php else: ?>
                                 <div class="recruitment-info">
@@ -698,11 +735,11 @@ include BASE_PATH . '/src/includes/navbar.php';
                         </div>
                         <div class="card-content">
                             <div class="management-actions">
-                                <a href="/teams/members.php?id=<?= $team_id ?>" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                                <a href="/teams/manage.php?id=<?= $team_id ?>&tab=members" class="btn btn-outline-primary btn-sm w-100 mb-2">
                                     <i class="fas fa-users"></i> Üye Yönetimi
                                 </a>
                                 
-                                <a href="/teams/applications.php?id=<?= $team_id ?>" class="btn btn-outline-info btn-sm w-100 mb-2">
+                                <a href="/teams/manage.php?id=<?= $team_id ?>&tab=applications" class="btn btn-outline-info btn-sm w-100 mb-2">
                                     <i class="fas fa-clipboard-list"></i> Başvuru Yönetimi
                                     <?php if ($team_stats['pending_applications'] > 0): ?>
                                         <span class="badge badge-warning"><?= $team_stats['pending_applications'] ?></span>
@@ -715,9 +752,11 @@ include BASE_PATH . '/src/includes/navbar.php';
                                     </a>
                                 <?php endif; ?>
                                 
-                                <a href="/teams/roles.php?id=<?= $team_id ?>" class="btn btn-outline-secondary btn-sm w-100">
-                                    <i class="fas fa-user-tag"></i> Rol Yönetimi
-                                </a>
+                                <?php if ($is_team_owner): ?>
+                                    <a href="/teams/manage.php?id=<?= $team_id ?>&tab=roles" class="btn btn-outline-secondary btn-sm w-100">
+                                        <i class="fas fa-user-tag"></i> Rol Yönetimi
+                                    </a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>

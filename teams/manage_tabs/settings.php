@@ -207,16 +207,17 @@ if (!$is_team_owner && !has_permission($pdo, 'teams.edit_all', $current_user_id)
                                 <span>Banner Yok</span>
                             </div>
                         <?php endif; ?>
-                    </div>
-                    <div class="media-info">
+                        <div class="media-info">
                         <h4>Mevcut Banner</h4>
                         <p>Banner'ı güncellemek için aşağıdan yeni bir dosya seçin.</p>
                         <ul class="upload-requirements">
                             <li><i class="fas fa-check"></i> Format: JPEG, PNG, GIF veya WebP</li>
                             <li><i class="fas fa-check"></i> Maksimum boyut: 5MB</li>
-                            <li><i class="fas fa-check"></i> Önerilen çözünürlük: 1920x400 piksel</li>
+                            <li><i class="fas fa-check"></i> Önerilen çözünürlük: 1600x400 piksel</li>
                         </ul>
                     </div>
+                    </div>
+                    
                 </div>
                 
                 <form method="post" enctype="multipart/form-data" class="upload-form">

@@ -1,0 +1,873 @@
+/* ========================================
+   TEAMS INDEX - TAKIM LİSTESİ SAYFASI
+   ======================================== */
+.breadcrumb {
+    margin-top: 2rem;
+}
+/* Container ve Genel Layout */
+.teams-container {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* ========================================
+   SAYFA BAŞLIK ALANI
+   ======================================== */
+
+.teams-header {
+    background: linear-gradient(135deg, var(--card-bg) 0%, var(--card-bg-2) 100%);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.teams-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--light-gold) 50%, var(--gold) 100%);
+}
+
+.header-content {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 2rem;
+    align-items: center;
+}
+
+.header-info h1 {
+    color: var(--white);
+    margin-bottom: 0.5rem;
+    font-size: 2.5rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-info h1 i {
+    color: var(--gold);
+    font-size: 2rem;
+}
+
+.header-info p {
+    color: var(--light-grey);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.header-stats {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.stat-card {
+    background: var(--card-bg-3);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    text-align: center;
+    min-width: 120px;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-1-hover);
+    background: var(--card-bg-4);
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--light-grey);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+}
+
+/* ========================================
+   FİLTRELEME VE ARAMA ALANI
+   ======================================== */
+
+.teams-filters {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.filters-form {
+    width: 100%;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+}
+
+.search-group {
+    position: relative;
+}
+
+.search-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--light-grey);
+    z-index: 2;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 2.75rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    color: var(--white);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--gold);
+    background: var(--card-bg-3);
+    box-shadow: 0 0 0 0.2rem rgba(184, 132, 92, 0.25);
+}
+
+.search-input::placeholder {
+    color: var(--light-grey);
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-select {
+    padding: 0.875rem 1rem;
+    background: var(--card-bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    color: var(--white);
+    font-size: 1rem;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23808080' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+    transition: all 0.3s ease;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--gold);
+    background: var(--card-bg-3);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23b8845c' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* ========================================
+   SONUÇ BİLGİLERİ
+   ======================================== */
+
+.results-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 0 0.5rem;
+}
+
+.results-count {
+    color: var(--lighter-grey);
+    font-weight: 500;
+}
+
+.filter-active {
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.page-info {
+    color: var(--light-grey);
+    font-size: 0.9rem;
+}
+
+/* ========================================
+   TAKIM KARTLARI GRİDİ
+   ======================================== */
+
+.teams-grid {
+    width: 1600px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(750px, 1fr));
+    gap: .2rem;
+    margin-bottom: 3rem;
+}
+
+.team-card {
+    width: 790px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    animation: fadeInUp 0.6s ease-out;
+    animation-fill-mode: both;
+    height: fit-content;
+}
+
+.team-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: var(--border-1-hover);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* ========================================
+   TAKIM BANNER VE AVATAR
+   ======================================== */
+
+.team-banner {
+    height: 200px;
+    background: linear-gradient(135deg, var(--card-bg-2) 0%, var(--card-bg-3) 100%);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+    overflow: hidden;
+}
+
+
+.team-avatar {
+    position: absolute;
+    bottom: 25px;
+    left: 2.5rem;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 3px solid;
+    background: var(--card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.team-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+}
+
+.team-badges {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 2;
+}
+
+.badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recruitment-open {
+    background: rgba(0, 128, 0, 0.9);
+    color: var(--white);
+}
+
+.member-badge {
+    background: rgba(184, 132, 92, 0.9);
+    color: var(--white);
+}
+
+.pending-badge {
+    background: rgba(255, 193, 7, 0.9);
+    color: var(--charcoal);
+}
+
+/* ========================================
+   TAKIM KART İÇERİĞİ
+   ======================================== */
+
+.team-content {
+    padding: 2.5rem 1.5rem 1.5rem;
+}
+
+.team-header-info {
+    margin-bottom: 1.5rem;
+}
+
+.team-name {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.team-name a {
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.team-name a:hover {
+    text-shadow: 0 0 8px currentColor;
+}
+
+.team-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.team-tag {
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid;
+}
+
+.team-founder {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--light-grey);
+    font-size: 0.85rem;
+}
+
+.team-founder i {
+    color: var(--gold);
+    font-size: 0.8rem;
+}
+
+.team-description {
+    color: var(--light-grey);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+}
+
+.team-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--card-bg-2);
+    border-radius: 8px;
+    border: 1px solid var(--border-1);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--lighter-grey);
+}
+
+.stat-item i {
+    color: var(--gold);
+    font-size: 0.8rem;
+    width: 12px;
+}
+
+.pending-indicator {
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.team-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.member-indicator,
+.pending-indicator,
+.recruitment-closed {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 6px;
+}
+
+.member-indicator {
+    background: rgba(0, 128, 0, 0.1);
+    color: var(--success);
+    border: 1px solid var(--success);
+}
+
+.pending-indicator {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+    border: 1px solid #ffc107;
+}
+
+.recruitment-closed {
+    background: rgba(220, 53, 69, 0.1);
+    color: var(--red);
+    border: 1px solid var(--red);
+}
+
+/* ========================================
+   KAPASİTE BAR
+   ======================================== */
+
+.capacity-bar {
+    height: 4px;
+    background: var(--card-bg-3);
+    position: relative;
+    overflow: hidden;
+}
+
+.capacity-fill {
+    height: 100%;
+    transition: width 0.6s ease;
+    position: relative;
+}
+
+.capacity-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* ========================================
+   BOŞ DURUM
+   ======================================== */
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--light-grey);
+    grid-column: 1 / -1;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: var(--border-1);
+    margin-bottom: 1.5rem;
+    opacity: 0.7;
+}
+
+.empty-state h3 {
+    color: var(--lighter-grey);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+.empty-state p {
+    margin-bottom: 2rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+}
+
+/* ========================================
+   PAGİNATİON
+   ======================================== */
+
+.pagination-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-top: 3rem;
+}
+
+.pagination {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: var(--card-bg);
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--border-1);
+}
+
+.pagination-link {
+    padding: 0.75rem 1rem;
+    background: var(--card-bg-2);
+    color: var(--lighter-grey);
+    text-decoration: none;
+    border-radius: 6px;
+    border: 1px solid var(--border-1);
+    transition: all 0.3s ease;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 44px;
+    justify-content: center;
+}
+
+.pagination-link:hover {
+    background: var(--card-bg-3);
+    border-color: var(--border-1-hover);
+    color: var(--white);
+    transform: translateY(-1px);
+}
+
+.pagination-link.active {
+    background: var(--gold);
+    color: var(--white);
+    border-color: var(--gold);
+}
+
+.pagination-link.prev,
+.pagination-link.next {
+    padding: 0.75rem 1.25rem;
+}
+
+.pagination-ellipsis {
+    padding: 0.75rem 0.5rem;
+    color: var(--light-grey);
+}
+
+/* ========================================
+   BUTTON STİLLERİ
+   ======================================== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--light-gold) 100%);
+    color: var(--white);
+    border-color: var(--gold);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--light-gold) 0%, var(--gold) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(184, 132, 92, 0.4);
+    color: var(--white);
+    text-decoration: none;
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+.btn-outline-primary:hover {
+    background: var(--gold);
+    color: var(--white);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    color: var(--light-grey);
+    border-color: var(--border-1);
+}
+
+.btn-outline-secondary:hover {
+    background: var(--card-bg-2);
+    color: var(--lighter-grey);
+    border-color: var(--border-1-hover);
+    text-decoration: none;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success) 0%, #006600 100%);
+    color: var(--white);
+    border-color: var(--success);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #006600 0%, var(--success) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 128, 0, 0.3);
+    color: var(--white);
+    text-decoration: none;
+}
+
+.btn i {
+    font-size: 0.85rem;
+}
+
+/* ========================================
+   ALERT MESAJLARI
+   ======================================== */
+
+.alert {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid;
+    animation: slideInDown 0.4s ease;
+}
+
+.alert i {
+    font-size: 1.1rem;
+}
+
+.alert-success {
+    background: rgba(0, 128, 0, 0.1);
+    color: var(--success);
+    border-color: var(--success);
+}
+
+.alert-danger {
+    background: rgba(235, 0, 0, 0.1);
+    color: var(--red);
+    border-color: var(--red);
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   ANİMASYONLAR
+   ======================================== */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   RESPONSİVE TASARIM
+   ======================================== */
+
+@media (max-width: 1200px) {
+    .teams-grid {
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .header-content {
+        grid-template-columns: 1fr auto;
+        gap: 1.5rem;
+    }
+    
+    .header-stats {
+        grid-column: 1 / -1;
+        justify-self: center;
+    }
+}
+
+@media (max-width: 992px) {
+    .filter-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .filter-actions {
+        justify-content: center;
+    }
+    
+    .teams-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+    
+    .header-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 1.5rem;
+    }
+    
+    .header-stats {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .teams-container {
+        padding: 1rem;
+    }
+    
+    .teams-header {
+        padding: 1.5rem;
+    }
+    
+    .header-info h1 {
+        font-size: 2rem;
+    }
+    
+    .header-stats {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .stat-card {
+        min-width: 100px;
+        padding: 1rem;
+    }
+    
+    .teams-filters {
+        padding: 1rem;
+    }
+    
+    .teams-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .team-content {
+        padding: 2rem 1rem 1rem;
+    }
+    
+    .team-stats {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .team-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .team-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .pagination {
+        flex-wrap: wrap;
+        padding: 0.75rem;
+    }
+    
+    .pagination-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .team-avatar {
+        width: 50px;
+        height: 50px;
+        bottom: -25px;
+        left: 1rem;
+    }
+    
+    .team-content {
+        padding-top: 1.75rem;
+    }
+    
+    .team-name {
+        font-size: 1.2rem;
+    }
+    
+    .team-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .results-info {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+}

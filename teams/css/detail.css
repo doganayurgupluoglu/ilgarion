@@ -81,7 +81,7 @@
 }
 
 .team-logo:hover {
-    transform: scale(1.8) translateY(10px);
+    transform: scale(1.6) translateY(10px);
 }
 .team-color-text {
     color: inherit !important;

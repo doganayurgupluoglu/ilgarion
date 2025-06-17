@@ -88,10 +88,12 @@ $can_access_admin_panel = $is_logged_in && has_permission($pdo, 'admin.panel.acc
         <div class="navbar-center">
             <ul class="navbar-nav">
                 <li class="nav-item"><a href="/forum/" class="nav-link <?= (strpos($current_page_uri, '/forum/') === 0) ? 'active' : '' ?>"><i class="fas fa-comments"></i><span>Forum</span></a></li>
+                
                 <li class="nav-item"><a href="/events/" class="nav-link <?= (strpos($current_page_uri, '/events/') === 0) ? 'active' : '' ?>"><i class="fas fa-calendar-alt"></i><span>Etkinlikler</span></a></li>
                 <li class="nav-item"><a href="/gallery/" class="nav-link <?= (strpos($current_page_uri, '/gallery/') === 0) ? 'active' : '' ?>"><i class="fas fa-images"></i><span>Galeri</span></a></li>
                 <li class="nav-item"><a href="/users/" class="nav-link <?= (strpos($current_page_uri, '/users/') === 0) ? 'active' : '' ?>"><i class="fas fa-users"></i><span>Üyeler</span></a></li>
                 <li class="nav-item"><a href="/erkul.php" class="nav-link <?= (strpos($current_page_uri, '/erkul.php') === 0) ? 'active' : '' ?>"><i class="fa-solid fa-calculator"></i><span>Erkul</span></a></li>
+                <li class="nav-item"><a href="/teams/" class="nav-link <?= (strpos($current_page_uri, '/teams/') === 0) ? 'active' : '' ?>"><i class="fas fa-comments"></i><span>Takımlar</span></a></li>
                 <?php if (has_permission($pdo, 'scg.hangar.view')): ?>
                 <li class="nav-item"><a href="/scghangar/" class="nav-link <?= (strpos($current_page_uri, '/scghangar/') === 0) ? 'active' : '' ?>" style="color: #9a3c3c;"><i class="fas fa-rocket"></i><span>SCG Hangar</span></a></li>
                 <?php endif; ?>

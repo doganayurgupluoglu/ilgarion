@@ -358,7 +358,6 @@ function apply_to_team(PDO $pdo, int $team_id, int $user_id, string $message = '
         return false;
     }
 }
-
 /**
  * Takım başvurusunu değerlendirir
  * @param PDO $pdo Veritabanı bağlantısı
@@ -500,9 +499,18 @@ function remove_team_member(PDO $pdo, int $team_id, int $user_id, int $removed_b
                 throw new Exception('Takım lideri çıkarılamaz.');
             }
             
-            // Üyeyi çıkar
+            // 1. Üyeyi team_members tablosundan tamamen sil
             $delete_query = "DELETE FROM team_members WHERE team_id = :team_id AND user_id = :user_id";
             execute_safe_query($pdo, $delete_query, [':team_id' => $team_id, ':user_id' => $user_id]);
+            
+            // 2. Bu kullanıcının bu takım için onaylanmış başvurusunu sil
+            // (Böylece tekrar başvurabilir)
+            $delete_app_query = "DELETE FROM team_applications WHERE team_id = :team_id AND user_id = :user_id AND status = 'approved'";
+            execute_safe_query($pdo, $delete_app_query, [':team_id' => $team_id, ':user_id' => $user_id]);
+            
+            // 3. Eğer bekleyen başvurusu varsa onu da temizle
+            $delete_pending_query = "DELETE FROM team_applications WHERE team_id = :team_id AND user_id = :user_id AND status = 'pending'";
+            execute_safe_query($pdo, $delete_pending_query, [':team_id' => $team_id, ':user_id' => $user_id]);
             
             // Audit log
             audit_log($pdo, $removed_by, 'team_member_removed', 'team', $team_id, $member, [
@@ -557,6 +565,27 @@ function has_pending_application(PDO $pdo, int $team_id, int $user_id): bool {
         return $stmt->fetchColumn() > 0;
     } catch (Exception $e) {
         error_log("Has pending application check error: " . $e->getMessage());
+        return false;
+    }
+}
+/**
+ * Kullanıcının herhangi bir durumdaki başvurusu olup olmadığını kontrol eder
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $team_id Takım ID
+ * @param int $user_id Kullanıcı ID
+ * @return bool Başvuru varsa true
+ */
+function has_any_application(PDO $pdo, int $team_id, int $user_id): bool {
+    try {
+        $query = "
+            SELECT COUNT(*) FROM team_applications 
+            WHERE team_id = :team_id AND user_id = :user_id
+        ";
+        
+        $stmt = execute_safe_query($pdo, $query, [':team_id' => $team_id, ':user_id' => $user_id]);
+        return $stmt->fetchColumn() > 0;
+    } catch (Exception $e) {
+        error_log("Has any application check error: " . $e->getMessage());
         return false;
     }
 }
