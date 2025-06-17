@@ -16,8 +16,8 @@
 
 /* Gallery Header */
 .gallery-header {
-    background: linear-gradient(280deg, var(--border-1), var(--card-bg));
-    border: 1px solid var(--border-1);
+    background: linear-gradient(280deg, var(--card-bg-2), var(--card-bg));
+    border: 1px solid transparent;
     border-radius: 12px;
     padding: 2rem;
     margin-bottom: 2rem;
@@ -25,8 +25,11 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 2rem;
+    transition: all 0.4s ease;
 }
-
+.gallery-header:hover {
+    border-color: var(--border-1);
+}
 .gallery-title h1 {
     margin: 0 0 0.75rem 0;
     font-size: 2rem;
@@ -97,11 +100,14 @@
     align-items: center;
     padding: 1.5rem;
     background: var(--card-bg-2);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 8px;
     margin-bottom: 2rem;
+    transition: all 0.4s ease;
 }
-
+.gallery-pagination:hover {
+    border-color: var(--border-1);
+}
 .pagination-info {
     color: var(--light-grey);
     font-size: 0.9rem;
@@ -120,14 +126,16 @@
     width: 40px;
     height: 40px;
     background: var(--card-bg-3);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     color: var(--lighter-grey);
     text-decoration: none;
     border-radius: 6px;
     transition: all 0.4s ease;
     font-weight: 500;
 }
-
+.btn-page:hover {
+    border-color: var(--border-1);
+}
 .btn-page:hover {
     background: var(--gold);
     color: var(--charcoal);
@@ -167,7 +175,7 @@
 .modal-content {
     position: relative;
     background: var(--card-bg);
-    border: 1px solid var(--border-1-featured);
+    border: 1px solid transparent;
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     animation: modalFadeIn .5s ease;

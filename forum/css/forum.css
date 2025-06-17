@@ -17,8 +17,7 @@
 
 /* Forum Header */
 .forum-header {
-background: linear-gradient(280deg, var(--border-1), var(--card-bg));
-    border: 1px solid var(--border-1);
+background: linear-gradient(280deg, var(--card-bg-2), var(--card-bg));
     border-radius: 12px;
     padding: 2rem;
     margin-bottom: 2rem;
@@ -60,7 +59,7 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
 
 .search-input-group {
     display: flex;
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 6px;
     overflow: hidden;
     transition: all 0.2s ease;
@@ -156,7 +155,6 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
 
 .category-card {
     background: var(--card-bg);
-    border: 1px solid var(--border-1);
     border-radius: 8px;
     padding: 1.5rem;
     display: flex;
@@ -166,10 +164,11 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
     cursor: pointer;
     position: relative;
     overflow: hidden;
+    border: 1px solid transparent;
 }
 
 .category-card:hover {
-    border-color: var(--border-1-hover);
+    border: 1px solid var(--border-1);
 }
 
 .category-icon {
@@ -405,10 +404,13 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
 
 .recent-topics {
     background: var(--card-bg);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
+}
+.recent-topics:hover {
+    border-color: var(--border-1);
 }
 
 .recent-topics h3 {
@@ -429,14 +431,14 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
 
 .recent-topic-item {
     background: var(--card-bg-2);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 6px;
     padding: 1rem;
     transition: all 0.2s ease;
 }
 
 .recent-topic-item:hover {
-    border-color: var(--border-1-hover);
+    border-color: var(--border-1);
 }
 
 .topic-category {
@@ -476,10 +478,13 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
 /* Forum İstatistik Kartı */
 .forum-stats-card {
     background: var(--card-bg);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
+}
+.forum-stats-card:hover {
+    border-color: var(--border-1);
 }
 
 .forum-stats-card h3 {
@@ -500,7 +505,7 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
 
 .stat-box {
     background: var(--card-bg-4);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 6px;
     padding: 1rem;
     display: flex;
@@ -510,7 +515,7 @@ background: linear-gradient(280deg, var(--border-1), var(--card-bg));
 }
 
 .stat-box:hover {
-    border-color: var(--border-1-hover);
+    border-color: var(--border-1);
 }
 
 .stat-icon {

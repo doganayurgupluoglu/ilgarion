@@ -24,13 +24,16 @@
 
 /* Kategori Sayfası Özel Stiller */
 .category-header {
+    background: linear-gradient(280deg, var(--card-bg-2), var(--card-bg));
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-1);
+    align-items: flex-start;
+    gap: 2rem;
 }
+
 
 .category-info {
     display: flex;
@@ -100,10 +103,13 @@
     margin-bottom: 2rem;
     padding: 1rem;
     background-color: var(--card-bg);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 6px;
     flex-wrap: wrap;
     gap: 1rem;
+}
+.topics-toolbar:hover {
+    border-color: var(--border-1);
 }
 
 .topics-filters {
@@ -132,13 +138,16 @@
     text-decoration: none;
     font-size: 0.8rem;
     font-weight: 500;
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     color: var(--light-grey);
     background: transparent;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     gap: 0.4rem;
+}
+.tag-filter:hover {
+    border-color: var(--border-1);
 }
 
 .tag-filter:hover,
@@ -174,7 +183,7 @@
 
 #sortSelect {
     background: var(--card-bg-2);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     color: var(--lighter-grey);
     padding: 0.5rem 0.75rem;
     margin-left: 20px;
@@ -191,14 +200,14 @@
 /* Konular Listesi */
 .topics-list {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 8px;
     overflow: hidden;
 }
 
 .topics-header {
     padding: 1rem;
-    border-bottom: 1px solid var(--border-1);
+    border-bottom: 1px solid transparent;
     background: var(--card-bg-4); 
 }
 
@@ -229,12 +238,13 @@
     align-items: center;
     gap: 1rem;
     padding: .4rem;
-    border-bottom: 1px solid var(--border-1);
+    border-bottom: 1px solid transparent;
     transition: all 0.2s ease;
 }
 
 .topic-item:hover {
     background: var(--card-bg-2);
+    border-color: var(--border-1);
 }
 
 .topic-item:last-child {

@@ -5,12 +5,14 @@
     align-items: flex-start;
     margin-bottom: 2rem;
     padding: 1.5rem;
-    background: linear-gradient(280deg, var(--border-1), var(--card-bg));
-    border: 1px solid var(--border-1);
+    background: linear-gradient(280deg, var(--card-bg-2), var(--card-bg));
+    border: 1px solid transparent;
     border-radius: 8px;
     gap: 2rem;
 }
-
+.topic-header:hover {
+    border-color: var(--border-1);
+}
 .topic-info {
     flex: 1;
     display: flex;
@@ -37,8 +39,8 @@
     margin-bottom: 2rem;
     padding-top: 1rem;
     padding-bottom: 1rem;
-    border-top: 1px solid var(--border-1);
-    border-bottom: 1px solid var(--border-1);
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
 
 }
 
@@ -336,10 +338,12 @@
 }
 
 .topic-first-post {
-    border: 1px solid var(--border-1-featured) !important;
+    border: 1px solid transparent;
     min-height: 500px !important;
 }
-
+.topic-first-post:hover {
+    border-color: var(--border-1-hover) !important;
+}
 .posts-list {
     margin-bottom: 2rem;
 }
@@ -351,7 +355,7 @@
     margin-bottom: 1.5rem;
     padding: 0 0.75rem 0.75rem 0.75rem;
     
-    border-bottom: 1px solid var(--border-1);
+    border-bottom: 1px solid transparent;
 }
 
 .posts-header h3 {
@@ -374,7 +378,7 @@
     gap: 1.5rem;
     padding: 1.5rem;
     background: var(--card-bg);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     border-radius: 8px;
     margin-bottom: 1.5rem;
     transition: all 0.5s ease;
@@ -382,7 +386,7 @@
 }
 
 .post-item:hover {
-    border: 1px solid var(--border-1-hover);
+    border-color: var(--border-1);
 }
 
 /* Silme animasyonu için */
@@ -426,7 +430,7 @@
     width: fit-content;
     border-radius: 6px;
     background-color: var(--card-bg-3);
-    border: 1px solid var(--border-1) !important;
+    border: 1px solid transparent !important;
 }
 
 .author-join-date {
@@ -536,7 +540,7 @@
 
 .post-action-btn:hover {
     color: var(--lighter-grey);
-    border-color: var(--border-1-hover);
+    border-color: var(--border-1);
 }
 
 .post-action-btn.delete {
@@ -552,7 +556,7 @@
 /* Reply Form Styles */
 .reply-form-section {
     background: var(--card-bg-2);
-    border: 1px solid var(--border-1-featured);
+    border: 1px solid transparent;
     border-radius: 8px;
     padding: 1.5rem;
     margin: 2rem 0;
@@ -588,7 +592,7 @@
 
 .editor-btn {
     background-color: transparent;
-    border: 1px solid var(--border-1-featured);
+    border: 1px solid transparent;
     color: var(--gold);
     padding: 0.5rem;
     border-radius: 4px;
@@ -610,7 +614,7 @@
 #reply_content {
     width: 100%;
     background: var(--card-bg-3);
-    border: 1px solid var(--border-1);
+    border: 1px solid transparent;
     color: var(--lighter-grey);
     padding: 1rem;
     border-radius: 6px;
@@ -624,7 +628,7 @@
 
 #reply_content:focus {
     outline: none;
-    border-color: var(--border-1-hover);
+    border-color: var(--border-1);
 }
 
 .char-counter {
@@ -673,7 +677,7 @@
 .btn-preview {
     background: transparent;
     color: var(--gold);
-    border: 1px solid var(--border-1-featured);
+    border: 1px solid transparent;
 }
 
 .btn-preview:hover {

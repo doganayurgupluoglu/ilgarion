@@ -1,0 +1,1308 @@
+/* Teams Module CSS - /teams/css/teams.css */
+/* Projenizin mevcut CSS yapısına uygun olarak düzenlenmiştir */
+
+/* ========================================
+   TEAMS CONTAINER
+   ======================================== */
+.create-team-container {
+    display: grid;
+    grid-template-columns: 1fr 4fr;
+    gap: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    font-family: var(--font);
+    color: var(--lighter-grey);
+}
+/* ========================================
+   PAGE HEADER
+   ======================================== */
+
+.page-header {
+    background: linear-gradient(135deg, var(--card-bg), var(--card-bg-2)) !important;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 2rem !important;
+    margin-top: 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s ease;
+}
+
+.page-header:hover {
+    border-color: var(--border-1);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.header-info h1 {
+    margin: 0 0 0.5rem 0;
+    color: var(--gold);
+    font-size: 2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header-info p {
+    margin: 0;
+    color: var(--light-grey);
+    font-size: 1rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* ========================================
+   ALERTS
+   ======================================== */
+
+.alert {
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid;
+}
+
+.alert-success {
+    background: rgba(40, 167, 69, 0.1);
+    color: var(--success-color, #28a745);
+    border-color: var(--success-color, #28a745);
+}
+
+.alert-danger {
+    background: rgba(220, 53, 69, 0.1);
+    color: var(--danger-color, #dc3545);
+    border-color: var(--danger-color, #dc3545);
+}
+
+.alert i {
+    font-size: 1.1rem;
+}
+
+/* ========================================
+   FORM STYLES
+   ======================================== */
+
+.team-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: var(--lighter-grey);
+    font-size: 0.95rem;
+}
+
+.form-group label .required {
+    color: var(--red);
+    margin-left: 0.25rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--card-bg-3);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--lighter-grey);
+    font-family: var(--font);
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+}
+
+.form-control:hover {
+    border-color: var(--border-1);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(189, 42, 42, 0.2);
+    background: var(--card-bg-2);
+}
+
+.form-control.error {
+    border-color: var(--red);
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
+}
+
+.form-control-color {
+    width: 60px;
+    height: 40px;
+    padding: 0.25rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.form-error {
+    color: var(--red);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.form-help {
+    color: var(--light-grey);
+    font-size: 0.875rem;
+}
+
+/* ========================================
+   FORM LAYOUT
+   ======================================== */
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.color-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.color-input-group .form-control {
+    flex: 1;
+}
+
+.color-preview {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--border-1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--gold);
+}
+
+.checkbox-label {
+    font-weight: 500;
+    color: var(--lighter-grey);
+    cursor: pointer;
+    margin: 0;
+}
+
+/* ========================================
+   FORM ACTIONS
+   ======================================== */
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid transparent;
+}
+
+.form-note {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--light-grey);
+    font-size: 0.875rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
+.btn-primary,
+.btn-secondary,
+.btn-outline-primary,
+.btn-outline-info,
+.btn-outline-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    border: 1px solid;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-align: center;
+}
+
+.btn-primary {
+    background: var(--gold);
+    color: var(--body-bg);
+    border-color: var(--gold);
+}
+
+.btn-primary:hover {
+    background: var(--light-gold);
+    transform: translateY(-1px);
+    text-decoration: none;
+    color: var(--body-bg);
+}
+
+.btn-secondary {
+    background: var(--card-bg-3);
+    color: var(--lighter-grey);
+    border-color: var(--border-1);
+}
+
+.btn-secondary:hover {
+    background: var(--card-bg-2);
+    border-color: var(--gold);
+    color: var(--gold);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+.btn-outline-primary:hover {
+    background: var(--gold);
+    color: var(--body-bg);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.btn-outline-info {
+    background: transparent;
+    color: var(--turquase);
+    border-color: var(--turquase);
+}
+
+.btn-outline-info:hover {
+    background: var(--turquase);
+    color: var(--body-bg);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    color: var(--light-grey);
+    border-color: var(--border-1);
+}
+
+.btn-outline-secondary:hover {
+    background: var(--card-bg-3);
+    color: var(--lighter-grey);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+/* ========================================
+   SIDEBAR STYLES
+   ======================================== */
+.view-main-content {
+    border-radius: 8px;
+    background: var(--card-bg);
+    border: 1px solid transparent;
+    transition: all 0.4s ease;
+    overflow: hidden;
+}
+.view-main-content:hover {
+    border-color: var(--border-1);
+}
+.view-sidebar .view-card {
+    grid-template-columns: 1fr;
+    background: var(--card-bg);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    transition: all 0.4s ease;
+}
+
+.view-card:hover {
+    border-color: var(--border-1);
+}
+
+.view-card-header {
+    background: var(--card-bg-2);
+    padding: 1rem;
+    border-bottom: 1px solid transparent;
+    transition: all 0.4s ease;
+}
+.view-card:hover .view-card-header {
+    border-color: var(--border-1);
+}
+.view-card-header h6 {
+    margin: 0;
+    color: var(--gold);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.view-card-content {
+    padding: 1.5rem;
+    background: var(--card-bg-2);
+    border: 1px solid transparent;
+}
+
+.tip-item {
+    margin-bottom: 1.5rem;
+}
+
+.tip-item:last-child {
+    margin-bottom: 0;
+}
+
+.tip-item strong {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--gold);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.tip-item p {
+    margin: 0;
+    color: var(--light-grey);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.quick-actions a {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* ========================================
+   TEAM CARDS (FOR LISTING PAGE)
+   ======================================== */
+
+.team-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.team-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    border-color: var(--gold);
+}
+
+.team-card-header {
+    position: relative;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, var(--team-color, var(--gold)) 0%, color-mix(in srgb, var(--team-color, var(--gold)) 80%, black) 100%);
+    color: white;
+}
+
+.team-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    object-fit: cover;
+    margin-bottom: 1rem;
+}
+
+.team-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.team-tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.team-card-body {
+    padding: 1.5rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.team-description {
+    color: var(--light-grey);
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+    line-height: 1.6;
+}
+
+.team-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-1);
+}
+
+.team-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--light-grey);
+    font-size: 0.875rem;
+}
+
+.team-stat i {
+    color: var(--gold);
+}
+
+.team-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.recruitment-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.recruitment-status.open {
+    color: var(--success-color, #28a745);
+}
+
+.recruitment-status.closed {
+    color: var(--warning-color, #ffc107);
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 968px) {
+    .teams-container {
+        padding: 1rem 0;
+    }
+    
+    .page-header {
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .header-info h1 {
+        font-size: 1.75rem;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .action-buttons {
+        justify-content: stretch;
+    }
+    
+    .action-buttons a,
+    .action-buttons button {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .create-team-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .header-info h1 {
+        font-size: 1.5rem;
+    }
+    
+    .color-input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .quick-actions a {
+        text-align: center;
+        justify-content: center;
+    }
+}
+
+/* ========================================
+   LOADING STATES
+   ======================================== */
+
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+.text-team-color {
+    color: var(--team-color, var(--gold)) !important;
+}
+
+.bg-team-color {
+    background-color: var(--team-color, var(--gold)) !important;
+}
+
+.border-team-color {
+    border-color: var(--team-color, var(--gold)) !important;
+}/* Teams Module CSS - /teams/css/teams.css */
+
+/* ========================================
+   TEAMS GENEL STİLLER
+   ======================================== */
+
+.teams-container {
+    padding: 0;
+}
+
+.page-header {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary-dark, #0056b3) 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0.5rem;
+}
+
+.page-header h1 {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.page-header .breadcrumb {
+    background: rgba(255, 255, 255, 0.1);
+    margin-bottom: 0;
+}
+
+.page-header .breadcrumb-item + .breadcrumb-item::before {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.page-header .breadcrumb-item a {
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+}
+
+.page-header .breadcrumb-item.active {
+    color: white;
+}
+
+/* ========================================
+   TAKIM KARTLARI
+   ======================================== */
+
+.team-card {
+    transition: all 0.3s ease;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    height: 100%;
+}
+
+.team-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-color: var(--bs-primary);
+}
+
+.team-card-header {
+    position: relative;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, var(--team-color, var(--bs-primary)) 0%, color-mix(in srgb, var(--team-color, var(--bs-primary)) 80%, black) 100%);
+    color: white;
+}
+
+.team-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    object-fit: cover;
+    margin-bottom: 1rem;
+}
+
+.team-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.team-tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.team-card-body {
+    padding: 1.5rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.team-description {
+    color: var(--bs-text-muted);
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+    line-height: 1.6;
+}
+
+.team-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.team-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--bs-text-muted);
+    font-size: 0.875rem;
+}
+
+.team-stat i {
+    color: var(--bs-primary);
+}
+
+.team-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.recruitment-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.recruitment-status.open {
+    color: var(--bs-success);
+}
+
+.recruitment-status.closed {
+    color: var(--bs-warning);
+}
+
+/* ========================================
+   TAKIM DETAY SAYFASI
+   ======================================== */
+
+.team-detail-header {
+    position: relative;
+    background: linear-gradient(135deg, var(--team-color, var(--bs-primary)) 0%, color-mix(in srgb, var(--team-color, var(--bs-primary)) 80%, black) 100%);
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.team-detail-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('/assets/images/team-pattern.png') repeat;
+    opacity: 0.1;
+}
+
+.team-detail-content {
+    position: relative;
+    z-index: 1;
+}
+
+.team-detail-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.9);
+    object-fit: cover;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.team-detail-name {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.team-detail-tag {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.team-detail-stats {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1.5rem;
+}
+
+.team-detail-stat {
+    text-align: center;
+}
+
+.team-detail-stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.team-detail-stat-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+}
+
+/* ========================================
+   ÜYE LİSTESİ
+   ======================================== */
+
+.member-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.member-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.member-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--bs-primary);
+}
+
+.member-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.member-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--bs-border-color);
+}
+
+.member-info h6 {
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.member-role {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    background: var(--role-color, var(--bs-secondary));
+}
+
+.member-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--bs-text-muted);
+    margin-top: 0.5rem;
+}
+
+.member-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.member-status.active { color: var(--bs-success); }
+.member-status.inactive { color: var(--bs-warning); }
+.member-status.banned { color: var(--bs-danger); }
+
+/* ========================================
+   BAŞVURU FORMU VE LİSTESİ
+   ======================================== */
+
+.application-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.application-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.application-header {
+    padding: 1rem;
+    background: var(--bs-light);
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.application-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.application-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.application-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.application-status.pending {
+    background: var(--bs-warning-bg);
+    color: var(--bs-warning-text);
+    border: 1px solid var(--bs-warning-border);
+}
+
+.application-status.approved {
+    background: var(--bs-success-bg);
+    color: var(--bs-success-text);
+    border: 1px solid var(--bs-success-border);
+}
+
+.application-status.rejected {
+    background: var(--bs-danger-bg);
+    color: var(--bs-danger-text);
+    border: 1px solid var(--bs-danger-border);
+}
+
+.application-body {
+    padding: 1rem;
+}
+
+.application-message {
+    background: var(--bs-light);
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+    font-style: italic;
+    border-left: 3px solid var(--bs-primary);
+}
+
+.application-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+/* ========================================
+   FORM STİLLERİ
+   ======================================== */
+
+.team-form .card {
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.team-form .form-label {
+    font-weight: 600;
+    color: var(--bs-dark);
+}
+
+.team-form .form-control:focus,
+.team-form .form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.team-form .form-text {
+    font-size: 0.875rem;
+    color: var(--bs-text-muted);
+}
+
+.color-preview {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--bs-border-color);
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+}
+
+/* ========================================
+   TAKIM YÖNETİM PANELİ
+   ======================================== */
+
+.team-management-nav {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.team-management-nav .nav-link {
+    color: var(--bs-text-muted);
+    font-weight: 500;
+    padding: 1rem 1.5rem;
+    border-radius: 0;
+    transition: all 0.3s ease;
+}
+
+.team-management-nav .nav-link:hover {
+    color: var(--bs-primary);
+    background: var(--bs-light);
+}
+
+.team-management-nav .nav-link.active {
+    color: var(--bs-primary);
+    background: var(--bs-primary-bg);
+    border-bottom: 2px solid var(--bs-primary);
+}
+
+.team-settings-section {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.team-settings-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-light);
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.team-settings-body {
+    padding: 1.5rem;
+}
+
+/* ========================================
+   ROL YÖNETİMİ
+   ======================================== */
+
+.role-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.role-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.role-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.role-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.role-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px var(--bs-border-color);
+}
+
+.role-details h6 {
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.role-description {
+    font-size: 0.875rem;
+    color: var(--bs-text-muted);
+    margin: 0;
+}
+
+.role-meta {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--bs-text-muted);
+}
+
+.role-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 768px) {
+    .team-detail-stats {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .team-detail-name {
+        font-size: 2rem;
+    }
+    
+    .member-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .team-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .page-header {
+        padding: 1.5rem 0;
+    }
+    
+    .team-management-nav .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .team-detail-header {
+        padding: 2rem 0;
+    }
+    
+    .team-detail-logo {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .team-detail-name {
+        font-size: 1.75rem;
+    }
+    
+    .application-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .application-actions {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+/* ========================================
+   DARK MODE SUPPORT
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+    .team-card,
+    .member-card,
+    .application-card,
+    .team-settings-section {
+        background: var(--bs-dark);
+        border-color: var(--bs-border-color-dark, #495057);
+    }
+    
+    .team-card:hover,
+    .member-card:hover,
+    .application-card:hover {
+        border-color: var(--bs-primary);
+    }
+    
+    .application-header,
+    .team-settings-header {
+        background: var(--bs-dark-bg, #212529);
+        border-color: var(--bs-border-color-dark, #495057);
+    }
+    
+    .application-message {
+        background: var(--bs-dark-bg, #212529);
+    }
+}
+
+/* ========================================
+   ANIMASYONLAR
+   ======================================== */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.team-card,
+.member-card,
+.application-card {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.team-card:nth-child(1) { animation-delay: 0.1s; }
+.team-card:nth-child(2) { animation-delay: 0.2s; }
+.team-card:nth-child(3) { animation-delay: 0.3s; }
+.team-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+.text-team-color {
+    color: var(--team-color, var(--bs-primary)) !important;
+}
+
+.bg-team-color {
+    background-color: var(--team-color, var(--bs-primary)) !important;
+}
+
+.border-team-color {
+    border-color: var(--team-color, var(--bs-primary)) !important;
+}
+
+.btn-team-color {
+    background-color: var(--team-color, var(--bs-primary));
+    border-color: var(--team-color, var(--bs-primary));
+    color: white;
+}
+
+.btn-team-color:hover {
+    background-color: color-mix(in srgb, var(--team-color, var(--bs-primary)) 85%, black);
+    border-color: color-mix(in srgb, var(--team-color, var(--bs-primary)) 85%, black);
+    color: white;
+}
