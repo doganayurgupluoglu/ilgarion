@@ -97,64 +97,48 @@ try {
     $stmt->execute([$team_id]);
     $team_stats['pending_applications'] = $stmt->fetchColumn();
     
-    // Rol dağılımı
-    $stmt = $pdo->prepare("
-        SELECT tr.display_name, tr.color, tr.priority, COUNT(*) as count
-        FROM team_members tm
-        JOIN team_roles tr ON tm.team_role_id = tr.id
-        WHERE tm.team_id = ? AND tm.status = 'active'
-        GROUP BY tr.id
-        ORDER BY tr.priority ASC
-    ");
-    $stmt->execute([$team_id]);
-    $team_stats['role_distribution'] = $stmt->fetchAll();
-    
-    // Sekme içeriği için veri getirme
+    // Tab'a göre ek veriler
     switch ($active_tab) {
         case 'members':
-            // Takım üyelerini getir
+            // Üyeleri getir
             $stmt = $pdo->prepare("
-                SELECT tm.*, tr.name as role_name, tr.display_name as role_display_name,
-                       tr.color as role_color, tr.priority, tr.is_management,
-                       u.username, u.ingame_name, u.avatar_path, u.created_at as user_created_at
+                SELECT tm.*, u.username, u.ingame_name, u.avatar_path,
+                       tr.name as role_name, tr.display_name as role_display_name, 
+                       tr.color as role_color, tr.priority as role_priority, tr.is_management
                 FROM team_members tm
-                JOIN team_roles tr ON tm.team_role_id = tr.id
                 JOIN users u ON tm.user_id = u.id
-                WHERE tm.team_id = ?
+                JOIN team_roles tr ON tm.team_role_id = tr.id
+                WHERE tm.team_id = ? AND tm.status = 'active'
                 ORDER BY tr.priority ASC, tm.joined_at ASC
             ");
             $stmt->execute([$team_id]);
             $team_members = $stmt->fetchAll();
+            
+            // Roller listesi
+            $stmt = $pdo->prepare("
+                SELECT * FROM team_roles 
+                WHERE team_id = ? 
+                ORDER BY priority ASC
+            ");
+            $stmt->execute([$team_id]);
+            $team_roles = $stmt->fetchAll();
             break;
             
         case 'applications':
-            // Bekleyen başvuruları getir
+            // Başvuruları getir
             $stmt = $pdo->prepare("
-                SELECT ta.*, u.username, u.ingame_name, u.avatar_path, u.created_at as user_created_at
+                SELECT ta.*, u.username, u.ingame_name, u.avatar_path
                 FROM team_applications ta
                 JOIN users u ON ta.user_id = u.id
                 WHERE ta.team_id = ? AND ta.status = 'pending'
                 ORDER BY ta.applied_at ASC
             ");
             $stmt->execute([$team_id]);
-            $pending_applications = $stmt->fetchAll();
-            
-            // Son işlem gören başvuruları getir
-            $stmt = $pdo->prepare("
-                SELECT ta.*, u.username, ru.username as reviewer_username
-                FROM team_applications ta
-                JOIN users u ON ta.user_id = u.id
-                LEFT JOIN users ru ON ta.reviewed_by_user_id = ru.id
-                WHERE ta.team_id = ? AND ta.status IN ('approved', 'rejected')
-                ORDER BY ta.reviewed_at DESC
-                LIMIT 10
-            ");
-            $stmt->execute([$team_id]);
-            $recent_applications = $stmt->fetchAll();
+            $team_applications = $stmt->fetchAll();
             break;
             
         case 'roles':
-            // Takım rollerini getir
+            // Roller ve yetkileri getir
             $stmt = $pdo->prepare("
                 SELECT tr.*, COUNT(tm.id) as member_count
                 FROM team_roles tr
@@ -164,22 +148,17 @@ try {
                 ORDER BY tr.priority ASC
             ");
             $stmt->execute([$team_id]);
-            $team_roles = $stmt->fetchAll();
-            
-            // Takım yetkilerini getir
-            $stmt = $pdo->prepare("
-                SELECT * FROM team_permissions 
-                WHERE is_active = 1 
-                ORDER BY permission_group, permission_name
-            ");
-            $stmt->execute();
-            $team_permissions = $stmt->fetchAll();
+            $team_roles_detailed = $stmt->fetchAll();
             break;
             
-        default:
-            // Overview için son aktiviteler
+        case 'overview':
+            // Son aktiviteler
             $stmt = $pdo->prepare("
-                SELECT 'member_joined' as type, tm.joined_at as date, u.username, tr.display_name as role_name
+                SELECT 
+                    'member_joined' as type,
+                    tm.joined_at as date,
+                    u.username,
+                    tr.display_name as role_name
                 FROM team_members tm
                 JOIN users u ON tm.user_id = u.id
                 JOIN team_roles tr ON tm.team_role_id = tr.id
@@ -187,10 +166,15 @@ try {
                 
                 UNION ALL
                 
-                SELECT 'application_submitted' as type, ta.applied_at as date, u.username, NULL as role_name
+                SELECT 
+                    'application_received' as type,
+                    ta.applied_at as date,
+                    u.username,
+                    NULL as role_name
                 FROM team_applications ta
                 JOIN users u ON ta.user_id = u.id
-                WHERE ta.team_id = ? AND ta.applied_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                WHERE ta.team_id = ? 
+                AND ta.applied_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                 
                 ORDER BY date DESC
                 LIMIT 10
@@ -215,9 +199,333 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_message = 'Güvenlik hatası.';
     } else {
         try {
-            $action = $_POST['action'] ?? '';
+            // Hem 'action' hem de 'form_type' parametrelerini kontrol et
+            $action = $_POST['action'] ?? $_POST['form_type'] ?? '';
+            
+            // Debug log
+            error_log("Manage.php POST action: $action, POST keys: " . implode(', ', array_keys($_POST)));
             
             switch ($action) {
+                // === SETTINGS TAB ACTIONS ===
+                case 'basic_settings':
+                    // Temel takım ayarları güncelleme
+                    $name = trim($_POST['name'] ?? '');
+                    $description = trim($_POST['description'] ?? '');
+                    $tag = trim($_POST['tag'] ?? '');
+                    $color = $_POST['color'] ?? '#007bff';
+                    $max_members = max(1, min(100, (int)($_POST['max_members'] ?? 50)));
+                    $is_recruitment_open = isset($_POST['is_recruitment_open']) ? 1 : 0;
+                    
+                    // Validasyon
+                    if (strlen($name) < 3 || strlen($name) > 100) {
+                        throw new Exception('Takım adı 3-100 karakter arasında olmalıdır.');
+                    }
+                    
+                    if (strlen($description) > 1000) {
+                        throw new Exception('Açıklama 1000 karakterden uzun olamaz.');
+                    }
+                    
+                    if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
+                        throw new Exception('Geçersiz renk kodu.');
+                    }
+                    
+                    // Takım adı benzersizlik kontrolü
+                    $stmt = $pdo->prepare("SELECT id FROM teams WHERE name = ? AND id != ?");
+                    $stmt->execute([$name, $team_id]);
+                    if ($stmt->rowCount() > 0) {
+                        throw new Exception('Bu takım adı zaten kullanılıyor.');
+                    }
+                    
+                    // Slug oluştur
+                    $slug = strtolower(trim($name));
+                    $slug = preg_replace('/[^a-z0-9\s-]/', '', $slug);
+                    $slug = preg_replace('/\s+/', '-', $slug);
+                    $slug = trim($slug, '-');
+                    if (empty($slug)) $slug = 'team-' . $team_id;
+                    
+                    // Slug benzersizlik kontrolü
+                    $stmt = $pdo->prepare("SELECT id FROM teams WHERE slug = ? AND id != ?");
+                    $stmt->execute([$slug, $team_id]);
+                    if ($stmt->rowCount() > 0) {
+                        $slug = $slug . '-' . time();
+                    }
+                    
+                    // Güncelleme
+                    $stmt = $pdo->prepare("
+                        UPDATE teams SET 
+                            name = ?, slug = ?, description = ?, tag = ?, 
+                            color = ?, max_members = ?, is_recruitment_open = ?,
+                            updated_at = NOW()
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([
+                        $name, $slug, $description, $tag, 
+                        $color, $max_members, $is_recruitment_open, $team_id
+                    ]);
+                    
+                    $success_message = 'Takım ayarları başarıyla güncellendi.';
+                    
+                    // Güncel verileri yeniden çek
+                    $stmt = $pdo->prepare("SELECT * FROM teams WHERE id = ?");
+                    $stmt->execute([$team_id]);
+                    $team_data = $stmt->fetch();
+                    break;
+                    
+                // === ROLES TAB ACTIONS ===
+                case 'create_role':
+                    // Yeni rol oluşturma
+                    $role_name = trim($_POST['role_name'] ?? '');
+                    $role_display_name = trim($_POST['role_display_name'] ?? '');
+                    $role_color = $_POST['role_color'] ?? '#6c757d';
+                    $role_priority = max(1, min(999, (int)($_POST['role_priority'] ?? 100)));
+                    $is_management = isset($_POST['is_management']) ? 1 : 0;
+                    $is_default = isset($_POST['is_default']) ? 1 : 0;
+                    $role_description = trim($_POST['role_description'] ?? '');
+                    
+                    // Validasyon
+                    if (strlen($role_name) < 2 || strlen($role_name) > 50) {
+                        throw new Exception('Rol adı 2-50 karakter arasında olmalıdır.');
+                    }
+                    
+                    if (strlen($role_display_name) < 2 || strlen($role_display_name) > 100) {
+                        throw new Exception('Görünen ad 2-100 karakter arasında olmalıdır.');
+                    }
+                    
+                    if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $role_color)) {
+                        throw new Exception('Geçersiz renk kodu.');
+                    }
+                    
+                    // Rol adı benzersizlik kontrolü
+                    $stmt = $pdo->prepare("SELECT id FROM team_roles WHERE team_id = ? AND name = ?");
+                    $stmt->execute([$team_id, strtolower($role_name)]);
+                    if ($stmt->rowCount() > 0) {
+                        throw new Exception('Bu rol adı zaten kullanılıyor.');
+                    }
+                    
+                    // Varsayılan rol kontrolü
+                    if ($is_default) {
+                        $stmt = $pdo->prepare("UPDATE team_roles SET is_default = 0 WHERE team_id = ?");
+                        $stmt->execute([$team_id]);
+                    }
+                    
+                    // Rol oluştur
+                    $stmt = $pdo->prepare("
+                        INSERT INTO team_roles (
+                            team_id, name, display_name, color, priority, 
+                            is_management, is_default, description
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $team_id, strtolower($role_name), $role_display_name, $role_color,
+                        $role_priority, $is_management, $is_default, $role_description
+                    ]);
+                    
+                    $success_message = 'Rol başarıyla oluşturuldu.';
+                    break;
+                    
+                case 'update_role_permissions':
+                    // Rol yetkilerini güncelleme
+                    $role_id = (int)$_POST['role_id'];
+                    $permissions = $_POST['permissions'] ?? [];
+                    
+                    // Rol kontrolü
+                    $stmt = $pdo->prepare("SELECT * FROM team_roles WHERE id = ? AND team_id = ?");
+                    $stmt->execute([$role_id, $team_id]);
+                    $role = $stmt->fetch();
+                    
+                    if (!$role) {
+                        throw new Exception('Rol bulunamadı.');
+                    }
+                    
+                    $pdo->beginTransaction();
+                    
+                    // Mevcut yetkileri sil
+                    $stmt = $pdo->prepare("DELETE FROM team_role_permissions WHERE team_role_id = ?");
+                    $stmt->execute([$role_id]);
+                    
+                    // Yeni yetkileri ekle
+                    if (!empty($permissions)) {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO team_role_permissions (team_role_id, team_permission_id) 
+                            VALUES (?, ?)
+                        ");
+                        
+                        foreach ($permissions as $permission_id) {
+                            $permission_id = (int)$permission_id;
+                            if ($permission_id > 0) {
+                                $stmt->execute([$role_id, $permission_id]);
+                            }
+                        }
+                    }
+                    
+                    $pdo->commit();
+                    $success_message = 'Rol yetkileri başarıyla güncellendi.';
+                    break;
+                    
+                case 'delete_role':
+                    // Rol silme
+                    $role_id = (int)$_POST['role_id'];
+                    
+                    // Rol kontrolü
+                    $stmt = $pdo->prepare("
+                        SELECT tr.*, COUNT(tm.id) as member_count
+                        FROM team_roles tr
+                        LEFT JOIN team_members tm ON tr.id = tm.team_role_id AND tm.status = 'active'
+                        WHERE tr.id = ? AND tr.team_id = ?
+                        GROUP BY tr.id
+                    ");
+                    $stmt->execute([$role_id, $team_id]);
+                    $role = $stmt->fetch();
+                    
+                    if (!$role) {
+                        throw new Exception('Rol bulunamadı.');
+                    }
+                    
+                    if ($role['name'] === 'owner') {
+                        throw new Exception('Owner rolü silinemez.');
+                    }
+                    
+                    if ($role['member_count'] > 0) {
+                        throw new Exception('Bu role atanmış üyeler var. Önce üyeleri başka rollere taşıyın.');
+                    }
+                    
+                    // Rolü sil
+                    $stmt = $pdo->prepare("DELETE FROM team_roles WHERE id = ?");
+                    $stmt->execute([$role_id]);
+                    
+                    $success_message = 'Rol başarıyla silindi.';
+                    break;
+                    
+                case 'logo_upload':
+                    // Logo yükleme
+                    if (!isset($_FILES['logo']) || $_FILES['logo']['error'] !== UPLOAD_ERR_OK) {
+                        throw new Exception('Lütfen bir logo dosyası seçin.');
+                    }
+                    
+                    $file = $_FILES['logo'];
+                    $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                    $max_size = 2 * 1024 * 1024; // 2MB
+                    
+                    if (!in_array($file['type'], $allowed_types)) {
+                        throw new Exception('Sadece JPEG, PNG, GIF veya WebP formatında resim yükleyebilirsiniz.');
+                    }
+                    
+                    if ($file['size'] > $max_size) {
+                        throw new Exception('Dosya boyutu 2MB\'dan büyük olamaz.');
+                    }
+                    
+                    // Upload dizinini oluştur
+                    $upload_dir = BASE_PATH . '/uploads/teams/logos/';
+                    if (!is_dir($upload_dir)) {
+                        mkdir($upload_dir, 0755, true);
+                    }
+                    
+                    // Eski logo dosyasını sil
+                    if ($team_data['logo_path']) {
+                        $old_file = $upload_dir . $team_data['logo_path'];
+                        if (file_exists($old_file)) {
+                            unlink($old_file);
+                        }
+                    }
+                    
+                    // Dosya adı oluştur
+                    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                    $filename = 'team_' . $team_id . '_logo_' . time() . '.' . $extension;
+                    $filepath = $upload_dir . $filename;
+                    
+                    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                        // Veritabanını güncelle
+                        $stmt = $pdo->prepare("UPDATE teams SET logo_path = ?, updated_at = NOW() WHERE id = ?");
+                        $stmt->execute([$filename, $team_id]);
+                        
+                        $success_message = 'Logo başarıyla yüklendi.';
+                        $team_data['logo_path'] = $filename;
+                    } else {
+                        throw new Exception('Logo dosyası yüklenirken bir hata oluştu.');
+                    }
+                    break;
+                    
+                case 'banner_upload':
+                    // Banner yükleme
+                    if (!isset($_FILES['banner']) || $_FILES['banner']['error'] !== UPLOAD_ERR_OK) {
+                        throw new Exception('Lütfen bir banner dosyası seçin.');
+                    }
+                    
+                    $file = $_FILES['banner'];
+                    $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                    $max_size = 5 * 1024 * 1024; // 5MB
+                    
+                    if (!in_array($file['type'], $allowed_types)) {
+                        throw new Exception('Sadece JPEG, PNG, GIF veya WebP formatında resim yükleyebilirsiniz.');
+                    }
+                    
+                    if ($file['size'] > $max_size) {
+                        throw new Exception('Dosya boyutu 5MB\'dan büyük olamaz.');
+                    }
+                    
+                    // Upload dizinini oluştur
+                    $upload_dir = BASE_PATH . '/uploads/teams/banners/';
+                    if (!is_dir($upload_dir)) {
+                        mkdir($upload_dir, 0755, true);
+                    }
+                    
+                    // Eski banner dosyasını sil
+                    if ($team_data['banner_path']) {
+                        $old_file = BASE_PATH . $team_data['banner_path'];
+                        if (file_exists($old_file)) {
+                            unlink($old_file);
+                        }
+                    }
+                    
+                    // Dosya adı oluştur
+                    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                    $filename = 'team_' . $team_id . '_banner_' . time() . '.' . $extension;
+                    $filepath = $upload_dir . $filename;
+                    $relative_path = '/uploads/teams/banners/' . $filename;
+                    
+                    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                        // Veritabanını güncelle
+                        $stmt = $pdo->prepare("UPDATE teams SET banner_path = ?, updated_at = NOW() WHERE id = ?");
+                        $stmt->execute([$relative_path, $team_id]);
+                        
+                        $success_message = 'Banner başarıyla yüklendi.';
+                        $team_data['banner_path'] = $relative_path;
+                    } else {
+                        throw new Exception('Banner dosyası yüklenirken bir hata oluştu.');
+                    }
+                    break;
+                    
+                case 'delete_team':
+                    // Takım silme
+                    $confirm_name = trim($_POST['confirm_name'] ?? '');
+                    if ($confirm_name !== $team_data['name']) {
+                        throw new Exception('Takım adını doğru yazmadınız.');
+                    }
+                    
+                    // Logo ve banner dosyalarını sil
+                    if ($team_data['logo_path']) {
+                        $logo_file = BASE_PATH . '/uploads/teams/logos/' . $team_data['logo_path'];
+                        if (file_exists($logo_file)) {
+                            unlink($logo_file);
+                        }
+                    }
+                    
+                    if ($team_data['banner_path']) {
+                        $banner_file = BASE_PATH . $team_data['banner_path'];
+                        if (file_exists($banner_file)) {
+                            unlink($banner_file);
+                        }
+                    }
+                    
+                    // Takımı sil (CASCADE ile ilişkili veriler otomatik silinir)
+                    $stmt = $pdo->prepare("DELETE FROM teams WHERE id = ?");
+                    $stmt->execute([$team_id]);
+                    
+                    // Başarılı silme sonrası yönlendir
+                    header('Location: /teams/?success=' . urlencode('Takım başarıyla silindi.'));
+                    exit;
+                    
+                // === MEMBERS TAB ACTIONS ===
                 case 'approve_application':
                     $application_id = (int)$_POST['application_id'];
                     
@@ -357,7 +665,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
                     
                 default:
-                    $error_message = 'Geçersiz işlem.';
+                    $error_message = 'Geçersiz işlem: ' . htmlspecialchars($action);
+                    error_log("Invalid action in manage.php: $action - POST data: " . json_encode($_POST));
             }
             
         } catch (Exception $e) {
@@ -365,6 +674,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->rollBack();
             }
             $error_message = $e->getMessage();
+            error_log("Manage.php exception: " . $e->getMessage());
         }
     }
     
@@ -426,7 +736,7 @@ include BASE_PATH . '/src/includes/navbar.php';
             <div class="header-info">
                 <div class="team-info">
                     <?php if ($team_data['logo_path']): ?>
-                        <img src="/uploads/avatars/<?= htmlspecialchars($team_data['logo_path']) ?>" 
+                        <img src="/uploads/teams/logos/<?= htmlspecialchars($team_data['logo_path']) ?>" 
                              alt="<?= htmlspecialchars($team_data['name']) ?>" 
                              class="team-logo-small"
                              style="border-color: <?= htmlspecialchars($team_data['color']) ?>;">
@@ -557,6 +867,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Store original index
         select.dataset.originalIndex = select.selectedIndex;
+    });
+
+    // Form submission debug
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const action = this.querySelector('input[name="action"]')?.value || 
+                          this.querySelector('input[name="form_type"]')?.value || 
+                          'unknown';
+            console.log('Form submitting with action:', action);
+        });
     });
 });
 </script>

@@ -54,37 +54,26 @@ function create_team(PDO $pdo, array $team_data, int $user_id) {
     }
 }
 
-/**
- * Takım bilgilerini günceller
- * @param PDO $pdo Veritabanı bağlantısı
- * @param int $team_id Takım ID
- * @param array $team_data Güncellenecek veriler
- * @param int $user_id Güncelleyen kullanıcı ID
- * @return bool Başarılı ise true
- */
-function update_team(PDO $pdo, int $team_id, array $team_data, int $user_id): bool {
+function update_team(PDO $pdo, int $team_id, array $team_data, int $updated_by): bool {
     try {
-        return execute_safe_transaction($pdo, function($pdo) use ($team_id, $team_data, $user_id) {
+        return execute_safe_transaction($pdo, function($pdo) use ($team_id, $team_data, $updated_by) {
             // Eski verileri al (audit için)
             $old_data = get_team_by_id($pdo, $team_id);
             if (!$old_data) {
-                throw new Exception('Takım bulunamadı');
+                throw new Exception('Takım bulunamadı.');
             }
             
-            // Slug güncellenmişse yeni slug oluştur
-            $slug = $old_data['slug'];
-            if ($team_data['name'] !== $old_data['name']) {
-                $slug = generate_team_slug($pdo, $team_data['name'], $team_id);
-            }
+            // Slug oluştur
+            $slug = generate_team_slug($pdo, $team_data['name'], $team_id);
             
             $query = "
                 UPDATE teams SET 
-                    name = :name,
-                    slug = :slug,
-                    description = :description,
-                    tag = :tag,
-                    color = :color,
-                    max_members = :max_members,
+                    name = :name, 
+                    slug = :slug, 
+                    description = :description, 
+                    tag = :tag, 
+                    color = :color, 
+                    max_members = :max_members, 
                     is_recruitment_open = :is_recruitment_open,
                     updated_at = NOW()
                 WHERE id = :team_id
@@ -104,12 +93,12 @@ function update_team(PDO $pdo, int $team_id, array $team_data, int $user_id): bo
             execute_safe_query($pdo, $query, $params);
             
             // Audit log
-            audit_log($pdo, $user_id, 'team_updated', 'team', $team_id, $old_data, $team_data);
+            audit_log($pdo, $updated_by, 'team_updated', 'team', $team_id, $old_data, $team_data);
             
             return true;
         });
     } catch (Exception $e) {
-        error_log("Team update error: " . $e->getMessage());
+        error_log("Update team error: " . $e->getMessage());
         return false;
     }
 }
@@ -808,8 +797,9 @@ function get_team_statistics(PDO $pdo, int $team_id): array {
     }
 }
 
+
 /**
- * Takım silme işlemi
+ * Takımı siler (cascade delete ile tüm ilişkili veriler silinir)
  * @param PDO $pdo Veritabanı bağlantısı
  * @param int $team_id Takım ID
  * @param int $deleted_by Silen kullanıcı ID
@@ -818,18 +808,33 @@ function get_team_statistics(PDO $pdo, int $team_id): array {
 function delete_team(PDO $pdo, int $team_id, int $deleted_by): bool {
     try {
         return execute_safe_transaction($pdo, function($pdo) use ($team_id, $deleted_by) {
-            // Takım bilgilerini al
-            $team = get_team_by_id($pdo, $team_id);
-            if (!$team) {
+            // Takım verilerini al (audit için)
+            $team_data = get_team_by_id($pdo, $team_id);
+            if (!$team_data) {
                 throw new Exception('Takım bulunamadı.');
             }
             
-            // Takımı sil (CASCADE ile ilişkili veriler de silinir)
-            $query = "DELETE FROM teams WHERE id = :team_id";
-            execute_safe_query($pdo, $query, [':team_id' => $team_id]);
+            // Logo ve banner dosyalarını sil
+            if ($team_data['logo_path']) {
+                $logo_file = BASE_PATH . '/uploads/teams/logos/' . $team_data['logo_path'];
+                if (file_exists($logo_file)) {
+                    unlink($logo_file);
+                }
+            }
+            
+            if ($team_data['banner_path']) {
+                $banner_file = BASE_PATH . $team_data['banner_path'];
+                if (file_exists($banner_file)) {
+                    unlink($banner_file);
+                }
+            }
             
             // Audit log
-            audit_log($pdo, $deleted_by, 'team_deleted', 'team', $team_id, $team, null);
+            audit_log($pdo, $deleted_by, 'team_deleted', 'team', $team_id, $team_data, null);
+            
+            // Takımı sil (CASCADE ile ilişkili veriler otomatik silinir)
+            $query = "DELETE FROM teams WHERE id = :team_id";
+            execute_safe_query($pdo, $query, [':team_id' => $team_id]);
             
             return true;
         });
@@ -838,4 +843,181 @@ function delete_team(PDO $pdo, int $team_id, int $deleted_by): bool {
         return false;
     }
 }
+
+/**
+ * Takım logo'su yükler
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param array $file $_FILES array element
+ * @param int $team_id Takım ID
+ * @return array Success status ve mesaj
+ */
+function upload_team_logo(PDO $pdo, array $file, int $team_id): array {
+    try {
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $max_size = 2 * 1024 * 1024; // 2MB
+        
+        // Dosya type kontrolü
+        if (!in_array($file['type'], $allowed_types)) {
+            return ['success' => false, 'error' => 'Sadece JPEG, PNG, GIF veya WebP formatında resim yükleyebilirsiniz.'];
+        }
+        
+        // Dosya boyutu kontrolü
+        if ($file['size'] > $max_size) {
+            return ['success' => false, 'error' => 'Dosya boyutu 2MB\'dan büyük olamaz.'];
+        }
+        
+        // Upload dizinini oluştur
+        $upload_dir = BASE_PATH . '/uploads/teams/logos/';
+        if (!is_dir($upload_dir)) {
+            if (!mkdir($upload_dir, 0755, true)) {
+                return ['success' => false, 'error' => 'Upload dizini oluşturulamadı.'];
+            }
+        }
+        
+        // Eski logo dosyasını sil
+        $old_logo = get_team_logo_path($pdo, $team_id);
+        if ($old_logo) {
+            $old_file_path = BASE_PATH . '/uploads/teams/logos/' . $old_logo;
+            if (file_exists($old_file_path)) {
+                unlink($old_file_path);
+            }
+        }
+        
+        // Yeni dosya adı oluştur
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = 'team_' . $team_id . '_logo_' . time() . '.' . $extension;
+        $filepath = $upload_dir . $filename;
+        
+        // Dosyayı taşı
+        if (move_uploaded_file($file['tmp_name'], $filepath)) {
+            // Veritabanını güncelle
+            $query = "UPDATE teams SET logo_path = :logo_path, updated_at = NOW() WHERE id = :team_id";
+            $params = [':logo_path' => $filename, ':team_id' => $team_id];
+            execute_safe_query($pdo, $query, $params);
+            
+            // Audit log
+            audit_log($pdo, $_SESSION['user_id'] ?? 0, 'team_logo_updated', 'team', $team_id, null, [
+                'old_logo' => $old_logo,
+                'new_logo' => $filename
+            ]);
+            
+            return ['success' => true, 'filename' => $filename];
+        } else {
+            return ['success' => false, 'error' => 'Dosya yüklenirken bir hata oluştu.'];
+        }
+    } catch (Exception $e) {
+        error_log("Upload team logo error: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Logo yüklenirken bir hata oluştu.'];
+    }
+}
+
+/**
+ * Takım banner'ı yükler
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param array $file $_FILES array element
+ * @param int $team_id Takım ID
+ * @return array Success status ve mesaj
+ */
+function upload_team_banner(PDO $pdo, array $file, int $team_id): array {
+    try {
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $max_size = 5 * 1024 * 1024; // 5MB
+        
+        // Dosya type kontrolü
+        if (!in_array($file['type'], $allowed_types)) {
+            return ['success' => false, 'error' => 'Sadece JPEG, PNG, GIF veya WebP formatında resim yükleyebilirsiniz.'];
+        }
+        
+        // Dosya boyutu kontrolü
+        if ($file['size'] > $max_size) {
+            return ['success' => false, 'error' => 'Dosya boyutu 5MB\'dan büyük olamaz.'];
+        }
+        
+        // Upload dizinini oluştur
+        $upload_dir = BASE_PATH . '/uploads/teams/banners/';
+        if (!is_dir($upload_dir)) {
+            if (!mkdir($upload_dir, 0755, true)) {
+                return ['success' => false, 'error' => 'Upload dizini oluşturulamadı.'];
+            }
+        }
+        
+        // Eski banner dosyasını sil
+        $old_banner = get_team_banner_path($pdo, $team_id);
+        if ($old_banner) {
+            // Relative path'den full path'e çevir
+            $old_file_path = BASE_PATH . $old_banner;
+            if (file_exists($old_file_path)) {
+                unlink($old_file_path);
+            }
+        }
+        
+        // Yeni dosya adı oluştur
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = 'team_' . $team_id . '_banner_' . time() . '.' . $extension;
+        $filepath = $upload_dir . $filename;
+        
+        // Dosyayı taşı
+        if (move_uploaded_file($file['tmp_name'], $filepath)) {
+            // Relative path oluştur
+            $relative_path = '/uploads/teams/banners/' . $filename;
+            
+            // Veritabanını güncelle
+            $query = "UPDATE teams SET banner_path = :banner_path, updated_at = NOW() WHERE id = :team_id";
+            $params = [':banner_path' => $relative_path, ':team_id' => $team_id];
+            execute_safe_query($pdo, $query, $params);
+            
+            // Audit log
+            audit_log($pdo, $_SESSION['user_id'] ?? 0, 'team_banner_updated', 'team', $team_id, null, [
+                'old_banner' => $old_banner,
+                'new_banner' => $relative_path
+            ]);
+            
+            return ['success' => true, 'path' => $relative_path];
+        } else {
+            return ['success' => false, 'error' => 'Dosya yüklenirken bir hata oluştu.'];
+        }
+    } catch (Exception $e) {
+        error_log("Upload team banner error: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Banner yüklenirken bir hata oluştu.'];
+    }
+}
+
+/**
+ * Takım logo path'ini getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $team_id Takım ID
+ * @return string|null Logo filename
+ */
+function get_team_logo_path(PDO $pdo, int $team_id): ?string {
+    try {
+        $query = "SELECT logo_path FROM teams WHERE id = :team_id";
+        $stmt = execute_safe_query($pdo, $query, [':team_id' => $team_id]);
+        $result = $stmt->fetchColumn();
+        
+        return $result ?: null;
+    } catch (Exception $e) {
+        error_log("Get team logo path error: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Takım banner path'ini getirir
+ * @param PDO $pdo Veritabanı bağlantısı
+ * @param int $team_id Takım ID
+ * @return string|null Banner relative path
+ */
+function get_team_banner_path(PDO $pdo, int $team_id): ?string {
+    try {
+        $query = "SELECT banner_path FROM teams WHERE id = :team_id";
+        $stmt = execute_safe_query($pdo, $query, [':team_id' => $team_id]);
+        $result = $stmt->fetchColumn();
+        
+        return $result ?: null;
+    } catch (Exception $e) {
+        error_log("Get team banner path error: " . $e->getMessage());
+        return null;
+    }
+}
+
 ?>
