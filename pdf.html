@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Makale Görüntüleme Test - Google Docs Viewer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        body.dark-mode .container {
+            background: #2c2c2c;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%);
+        }
+
+        body.dark-mode .article-info {
+            background: #383838;
+            border-bottom: 1px solid #4a4a4a;
+        }
+
+        body.dark-mode .article-title {
+            color: #ffffff;
+        }
+
+        body.dark-mode .article-description {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .meta-item {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .action-buttons {
+            background: #383838;
+        }
+
+        body.dark-mode .test-info {
+            background: #3a3a1a;
+            border: 1px solid #5a5a2a;
+            color: #e6d680;
+        }
+
+        body.dark-mode .test-info h3 {
+            color: #f0d060;
+        }
+
+        body.dark-mode .document-viewer {
+            background: #1a1a1a;
+            /* iframe içeriğini karanlık yapmak için filter kullanıyoruz */
+            filter: invert(1) hue-rotate(180deg);
+            border-radius: 8px;
+        }
+
+        /* Filter'ı disable etmek için toggle */
+        body.dark-mode .document-viewer.no-filter {
+            filter: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .article-info {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .article-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .meta-item i {
+            color: #007bff;
+            width: 16px;
+        }
+
+        .article-title {
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .article-description {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .viewer-container {
+            position: relative;
+            height: 70vh;
+            min-height: 500px;
+        }
+
+        .document-viewer {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #f8f9fa;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e3e3e3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #6c757d;
+            font-size: 16px;
+        }
+
+        .action-buttons {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-2px);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #117a8b;
+            transform: translateY(-2px);
+        }
+
+        .test-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 30px;
+            color: #856404;
+        }
+
+        .test-info h3 {
+            margin-bottom: 10px;
+            color: #795548;
+        }
+
+        .test-info ul {
+            margin-left: 20px;
+        }
+
+        .test-info li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .header {
+                padding: 15px 20px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .article-info, .action-buttons {
+                padding: 15px 20px;
+            }
+            
+            .viewer-container {
+                height: 60vh;
+                min-height: 400px;
+            }
+            
+            .article-meta {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <i class="fas fa-file-pdf"></i>
+                Makale Görüntüleyici
+            </h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="font-size: 14px; opacity: 0.8;">
+                    <i class="fas fa-eye"></i> Google Docs Viewer Test
+                </div>
+                <button class="btn btn-info" onclick="toggleDarkMode()" style="font-size: 12px; padding: 5px 10px;" id="darkModeBtn">
+                    <i class="fas fa-moon" id="darkModeIcon"></i>
+                    <span id="darkModeText">Karanlık Mod</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="test-info">
+            <h3><i class="fas fa-info-circle"></i> Test Bilgileri</h3>
+            <ul>
+                <li><strong>Görüntülenen:</strong> Google Docs dokümanı</li>
+                <li><strong>Teknoloji:</strong> Google Docs Viewer iframe</li>
+                <li><strong>URL:</strong> docs.google.com/document/d/1wBQN-3AxOlHVUY_EydgOfhInrkyH2v-wg5yptqzrX_0</li>
+                <li><strong>Karanlık Mod:</strong> CSS filter ile simüle edilir (sınırlı)</li>
+                <li><strong>Avantajlar:</strong> Hızlı yükleme, mobil uyumlu</li>
+                <li><strong>Dezavantajlar:</strong> Google'a bağımlı, karanlık mod desteği yok</li>
+            </ul>
+            <div style="margin-top: 10px; padding: 10px; background: rgba(255,193,7,0.1); border-radius: 4px; border-left: 3px solid #ffc107;">
+                <strong>Not:</strong> Karanlık mod butonu ile iframe'e CSS filter uygulanır. Bu mükemmel değildir ama geçici bir çözümdür.
+            </div>
+        </div>
+
+        <div class="article-info">
+            <div class="article-title">Örnek Makale Başlığı - Google Docs Test Dokümanı</div>
+            <div class="article-description">
+                Bu bir test dokümanıdır. Google Docs Viewer kullanarak PDF'lerin nasıl görüntüleneceğini test ediyoruz. 
+                Gerçek sistemde buraya makale açıklaması gelecek.
+            </div>
+            <div class="article-meta">
+                <div class="meta-item">
+                    <i class="fas fa-user"></i>
+                    <span>Yükleyen: Test Kullanıcısı</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-calendar"></i>
+                    <span>Tarih: 18 Haziran 2025</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-download"></i>
+                    <span>İndirme: 23 kez</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-tag"></i>
+                    <span>Kategori: Test Dokümanları</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="viewer-container">
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Doküman yükleniyor...</div>
+            </div>
+            <iframe 
+                class="document-viewer" 
+                src="https://docs.google.com/document/d/1wBQN-3AxOlHVUY_EydgOfhInrkyH2v-wg5yptqzrX_0/edit?usp=sharing"
+                onload="hideLoading()"
+                title="Google Docs Doküman Görüntüleyici">
+            </iframe>
+        </div>
+
+        <div class="action-buttons">
+            <a href="https://docs.google.com/document/d/1wBQN-3AxOlHVUY_EydgOfhInrkyH2v-wg5yptqzrX_0/edit?usp=sharing" 
+               target="_blank" class="btn btn-primary">
+                <i class="fas fa-external-link-alt"></i>
+                Yeni Sekmede Aç
+            </a>
+            <button class="btn btn-success" onclick="downloadDocument()">
+                <i class="fas fa-download"></i>
+                İndir (Demo)
+            </button>
+            <button class="btn btn-info" onclick="shareDocument()">
+                <i class="fas fa-share"></i>
+                Paylaş (Demo)
+            </button>
+            <button class="btn btn-primary" onclick="toggleIframeFilter()">
+                <i class="fas fa-adjust"></i>
+                <span id="filterText">Filter Aç/Kapat</span>
+            </button>
+            <button class="btn btn-primary" onclick="testDarkMode()" style="background: #6f42c1;">
+                <i class="fas fa-flask"></i>
+                Test Karanlık Mod
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function hideLoading() {
+            setTimeout(() => {
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                    }, 300);
+                }
+            }, 1000);
+        }
+
+        function downloadDocument() {
+            alert('Gerçek sistemde burada dosya indirilecek.\nDownload count +1 artacak.');
+        }
+
+        function shareDocument() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Örnek Makale',
+                    text: 'Bu makaleyi sizinle paylaşmak istiyorum',
+                    url: window.location.href
+                });
+            } else {
+                // Fallback - URL'yi kopyala
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    alert('Link kopyalandı!');
+                });
+            }
+        }
+
+        // Dark Mode Toggle
+        function toggleDarkMode() {
+            console.log('Dark mode toggle clicked'); // Debug için
+            
+            const body = document.body;
+            const darkModeText = document.getElementById('darkModeText');
+            const icon = document.getElementById('darkModeIcon');
+            
+            if (!body || !darkModeText || !icon) {
+                console.error('Dark mode elements not found');
+                return;
+            }
+            
+            body.classList.toggle('dark-mode');
+            
+            if (body.classList.contains('dark-mode')) {
+                darkModeText.textContent = 'Açık Mod';
+                icon.className = 'fas fa-sun';
+                localStorage.setItem('darkMode', 'enabled');
+                console.log('Dark mode enabled');
+            } else {
+                darkModeText.textContent = 'Karanlık Mod';
+                icon.className = 'fas fa-moon';
+                localStorage.setItem('darkMode', 'disabled');
+                console.log('Dark mode disabled');
+            }
+        }
+
+        // iframe Filter Toggle
+        function toggleIframeFilter() {
+            const iframe = document.querySelector('.document-viewer');
+            const filterText = document.getElementById('filterText');
+            
+            iframe.classList.toggle('no-filter');
+            
+            if (iframe.classList.contains('no-filter')) {
+                filterText.textContent = 'Filter Aç';
+            } else {
+                filterText.textContent = 'Filter Kapat';
+            }
+        }
+
+        // Dark mode durumunu localStorage'dan yükle
+        function loadDarkMode() {
+            console.log('Loading dark mode setting'); // Debug için
+            const darkMode = localStorage.getItem('darkMode');
+            console.log('Stored dark mode:', darkMode);
+            
+            if (darkMode === 'enabled') {
+                document.body.classList.add('dark-mode');
+                const darkModeText = document.getElementById('darkModeText');
+                const icon = document.getElementById('darkModeIcon');
+                
+                if (darkModeText) darkModeText.textContent = 'Açık Mod';
+                if (icon) icon.className = 'fas fa-sun';
+                
+                console.log('Dark mode loaded from storage');
+            }
+        }
+
+        // Test için manuel dark mode
+        function testDarkMode() {
+            document.body.classList.add('dark-mode');
+            console.log('Dark mode test applied');
+        }
+
+        // Responsive iframe height ayarı
+        function adjustIframeHeight() {
+            const iframe = document.querySelector('.document-viewer');
+            const container = document.querySelector('.viewer-container');
+            if (iframe && container) {
+                const containerHeight = container.offsetHeight;
+                iframe.style.height = containerHeight + 'px';
+            }
+        }
+
+        window.addEventListener('resize', adjustIframeHeight);
+        window.addEventListener('load', () => {
+            adjustIframeHeight();
+            loadDarkMode(); // Dark mode ayarını yükle
+        });
+
+        // Loading overlay timeout (eğer iframe yüklenemezse)
+        setTimeout(() => {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay && overlay.style.display !== 'none') {
+                overlay.innerHTML = `
+                    <div style="text-align: center; color: #dc3545;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 15px;"></i>
+                        <div>Doküman yüklenemedi</div>
+                        <div style="font-size: 14px; margin-top: 10px;">Lütfen bağlantınızı kontrol edin</div>
+                    </div>
+                `;
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
