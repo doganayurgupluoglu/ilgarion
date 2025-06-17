@@ -4,6 +4,7 @@
 // SQL güvenlik fonksiyonlarını dahil et
 require_once dirname(dirname(__DIR__)) . '/src/config/database.php';
 require_once BASE_PATH . '/src/functions/sql_security_functions.php';
+require_once BASE_PATH . '/src/functions/enhanced_role_functions.php';
 
 /**
  * Kullanıcının belirli bir yetkiye sahip olup olmadığını kontrol eder (SQL Güvenli)

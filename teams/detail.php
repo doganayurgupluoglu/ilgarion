@@ -27,32 +27,156 @@ if (!$team_id) {
     exit;
 }
 
-// Takım verilerini getir
-$team_data = get_team_by_id($pdo, $team_id);
-if (!$team_data) {
-    header('Location: /teams/?error=team_not_found');
+try {
+    // Takım verilerini getir
+    $stmt = $pdo->prepare("
+        SELECT t.*, u.username as creator_username
+        FROM teams t
+        LEFT JOIN users u ON t.created_by_user_id = u.id
+        WHERE t.id = ?
+    ");
+    $stmt->execute([$team_id]);
+    $team_data = $stmt->fetch();
+    
+    if (!$team_data) {
+        header('Location: /teams/?error=team_not_found');
+        exit;
+    }
+    
+    // Kullanıcı yetkilerini kontrol et
+    $current_user_id = $_SESSION['user_id'];
+    
+    // Takım üyeliği kontrolü - hem active hem de başvuru durumunu kontrol et
+    $stmt = $pdo->prepare("
+        SELECT tm.*, tr.name as role_name, tr.display_name as role_display_name, 
+               tr.color as role_color, tr.is_management, tr.priority
+        FROM team_members tm
+        JOIN team_roles tr ON tm.team_role_id = tr.id
+        WHERE tm.team_id = ? AND tm.user_id = ? AND tm.status = 'active'
+    ");
+    $stmt->execute([$team_id, $current_user_id]);
+    $user_membership = $stmt->fetch();
+    
+    $is_team_member = !empty($user_membership);
+    $user_role_priority = $user_membership['priority'] ?? 999;
+    $is_team_manager = $user_membership['is_management'] ?? false;
+    
+    // Takım sahibi kontrolü
+    $is_team_owner = ($team_data['created_by_user_id'] == $current_user_id);
+    
+    // Genel yetki kontrolü
+    $can_edit_team = $is_team_owner || has_permission($pdo, 'teams.edit_all', $current_user_id);
+    $can_manage_members = $is_team_manager || $is_team_owner;
+    
+    // Başvuru durumu kontrolü - herhangi bir durumda başvuru var mı?
+    $stmt = $pdo->prepare("
+        SELECT status FROM team_applications 
+        WHERE team_id = ? AND user_id = ? 
+        ORDER BY applied_at DESC LIMIT 1
+    ");
+    $stmt->execute([$team_id, $current_user_id]);
+    $latest_application_status = $stmt->fetchColumn();
+    
+    // Sadece pending başvuruları "bekleyen" olarak say
+    $has_pending_application = ($latest_application_status === 'pending');
+    
+    // Eğer approved bir başvuru varsa ve henüz üye değilse, büyük ihtimalle trigger çalışmamıştır
+    if ($latest_application_status === 'approved' && !$is_team_member) {
+        // Manuel olarak üye ekle
+        $stmt = $pdo->prepare("
+            SELECT id FROM team_roles 
+            WHERE team_id = ? AND is_default = 1 
+            LIMIT 1
+        ");
+        $stmt->execute([$team_id]);
+        $default_role_id = $stmt->fetchColumn();
+        
+        if ($default_role_id) {
+            $stmt = $pdo->prepare("
+                INSERT IGNORE INTO team_members (team_id, user_id, team_role_id, status, joined_at)
+                VALUES (?, ?, ?, 'active', NOW())
+            ");
+            $stmt->execute([$team_id, $current_user_id, $default_role_id]);
+            
+            // Üyelik durumunu yeniden kontrol et
+            $stmt = $pdo->prepare("
+                SELECT tm.*, tr.name as role_name, tr.display_name as role_display_name, 
+                       tr.color as role_color, tr.is_management, tr.priority
+                FROM team_members tm
+                JOIN team_roles tr ON tm.team_role_id = tr.id
+                WHERE tm.team_id = ? AND tm.user_id = ? AND tm.status = 'active'
+            ");
+            $stmt->execute([$team_id, $current_user_id]);
+            $user_membership = $stmt->fetch();
+            $is_team_member = !empty($user_membership);
+        }
+    }
+    
+    // Takım üyelerini getir
+    $stmt = $pdo->prepare("
+        SELECT tm.*, tr.name as role_name, tr.display_name as role_display_name,
+               tr.color as role_color, tr.priority, tr.is_management,
+               u.username, u.ingame_name, u.avatar_path
+        FROM team_members tm
+        JOIN team_roles tr ON tm.team_role_id = tr.id
+        JOIN users u ON tm.user_id = u.id
+        WHERE tm.team_id = ? AND tm.status = 'active'
+        ORDER BY tr.priority ASC, tm.joined_at ASC
+    ");
+    $stmt->execute([$team_id]);
+    $team_members = $stmt->fetchAll();
+    
+    // Takım başvurularını getir (yetki varsa)
+    $team_applications = [];
+    if ($can_manage_members) {
+        $stmt = $pdo->prepare("
+            SELECT ta.*, u.username, u.ingame_name, u.avatar_path
+            FROM team_applications ta
+            JOIN users u ON ta.user_id = u.id
+            WHERE ta.team_id = ? AND ta.status = 'pending'
+            ORDER BY ta.applied_at ASC
+        ");
+        $stmt->execute([$team_id]);
+        $team_applications = $stmt->fetchAll();
+    }
+    
+    // Takım istatistikleri
+    $stmt = $pdo->prepare("
+        SELECT 
+            COUNT(*) as total_members,
+            COUNT(CASE WHEN tm.last_activity >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as active_members
+        FROM team_members tm
+        WHERE tm.team_id = ? AND tm.status = 'active'
+    ");
+    $stmt->execute([$team_id]);
+    $team_stats = $stmt->fetch();
+    
+    // Bekleyen başvuru sayısı
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as pending_applications
+        FROM team_applications
+        WHERE team_id = ? AND status = 'pending'
+    ");
+    $stmt->execute([$team_id]);
+    $team_stats['pending_applications'] = $stmt->fetchColumn();
+    
+    // Rol dağılımı
+    $stmt = $pdo->prepare("
+        SELECT tr.display_name, tr.color, COUNT(*) as count
+        FROM team_members tm
+        JOIN team_roles tr ON tm.team_role_id = tr.id
+        WHERE tm.team_id = ? AND tm.status = 'active'
+        GROUP BY tr.id
+        ORDER BY tr.priority ASC
+    ");
+    $stmt->execute([$team_id]);
+    $team_stats['role_distribution'] = $stmt->fetchAll();
+    
+} catch (Exception $e) {
+    error_log("Team detail error: " . $e->getMessage());
+    header('Location: /teams/?error=database_error');
     exit;
 }
-
-// Kullanıcı yetkilerini kontrol et
-$current_user_id = $_SESSION['user_id'];
-$is_team_member = is_team_member($pdo, $team_id, $current_user_id);
-$can_edit_team = can_user_edit_team($pdo, $team_id, $current_user_id);
-$can_manage_members = has_team_permission($pdo, $team_id, $current_user_id, 'team.manage.members');
-$can_view_applications = has_team_permission($pdo, $team_id, $current_user_id, 'team.manage.applications');
-$has_pending_application = has_pending_application($pdo, $team_id, $current_user_id);
-
-// Takım üyelerini getir
-$team_members = get_team_members($pdo, $team_id);
-
-// Takım başvurularını getir (yetki varsa)
-$team_applications = [];
-if ($can_view_applications) {
-    $team_applications = get_team_applications($pdo, $team_id, 'pending');
-}
-
-// Takım istatistikleri
-$team_stats = get_team_statistics($pdo, $team_id);
 
 // Success/Error mesajları
 $success_message = '';
@@ -69,6 +193,9 @@ if (isset($_GET['success'])) {
         case 'application_withdrawn':
             $success_message = 'Başvurunuz geri çekildi.';
             break;
+        case 'left_team':
+            $success_message = 'Takımdan ayrıldınız.';
+            break;
     }
 }
 
@@ -83,7 +210,15 @@ if (isset($_GET['error'])) {
         case 'recruitment_closed':
             $error_message = 'Bu takım şu anda üye alımı yapmıyor.';
             break;
+        case 'team_full':
+            $error_message = 'Takım dolu.';
+            break;
     }
+}
+
+// CSRF token oluştur
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 // Başvuru işlemi
@@ -91,47 +226,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         $error_message = 'Güvenlik hatası.';
     } else {
-        switch ($_POST['action']) {
-            case 'apply':
+        try {
+            if ($_POST['action'] === 'apply') {
+                // Başvuru kontrolleri
                 if ($is_team_member) {
-                    $error_message = 'Zaten bu takımın üyesisiniz.';
-                } elseif ($has_pending_application) {
-                    $error_message = 'Zaten bekleyen bir başvurunuz var.';
-                } elseif (!$team_data['is_recruitment_open']) {
-                    $error_message = 'Bu takım şu anda üye alımı yapmıyor.';
-                } else {
-                    $message = trim($_POST['message'] ?? '');
-                    if (apply_to_team($pdo, $team_id, $current_user_id, $message)) {
-                        header('Location: /teams/detail.php?id=' . $team_id . '&success=application_sent');
-                        exit;
-                    } else {
-                        $error_message = 'Başvuru gönderilirken bir hata oluştu.';
-                    }
+                    throw new Exception('Zaten bu takımın üyesisiniz.');
                 }
-                break;
                 
-            case 'leave_team':
-                if (!$is_team_member) {
-                    $error_message = 'Bu takımın üyesi değilsiniz.';
-                } else {
-                    if (remove_team_member($pdo, $team_id, $current_user_id, $current_user_id, 'Kullanıcı takımdan ayrıldı')) {
-                        header('Location: /teams/?success=left_team');
-                        exit;
-                    } else {
-                        $error_message = 'Takımdan ayrılırken bir hata oluştu.';
-                    }
+                if (!$team_data['is_recruitment_open']) {
+                    throw new Exception('Bu takım şu anda üye alımı yapmıyor.');
                 }
-                break;
+                
+                if ($team_stats['total_members'] >= $team_data['max_members']) {
+                    throw new Exception('Takım dolu.');
+                }
+                
+                if ($has_pending_application) {
+                    throw new Exception('Zaten bekleyen bir başvurunuz var.');
+                }
+                
+                // Başvuru oluştur
+                $application_message = trim($_POST['message'] ?? '');
+                
+                $stmt = $pdo->prepare("
+                    INSERT INTO team_applications (team_id, user_id, message, status, applied_at)
+                    VALUES (?, ?, ?, 'pending', NOW())
+                ");
+                $result = $stmt->execute([$team_id, $current_user_id, $application_message]);
+                
+                if ($result) {
+                    header('Location: /teams/detail.php?id=' . $team_id . '&success=application_sent');
+                    exit;
+                } else {
+                    throw new Exception('Başvuru gönderilirken hata oluştu.');
+                }
+                
+            } elseif ($_POST['action'] === 'withdraw_application') {
+                if (!$has_pending_application) {
+                    throw new Exception('Geri çekilecek başvuru bulunamadı.');
+                }
+                
+                $stmt = $pdo->prepare("
+                    UPDATE team_applications 
+                    SET status = 'withdrawn'
+                    WHERE team_id = ? AND user_id = ? AND status = 'pending'
+                ");
+                $result = $stmt->execute([$team_id, $current_user_id]);
+                
+                if ($result) {
+                    header('Location: /teams/detail.php?id=' . $team_id . '&success=application_withdrawn');
+                    exit;
+                } else {
+                    throw new Exception('İşlem gerçekleştirilemedi.');
+                }
+                
+            } elseif ($_POST['action'] === 'leave_team') {
+                if (!$is_team_member) {
+                    throw new Exception('Bu takımın üyesi değilsiniz.');
+                }
+                
+                if ($is_team_owner) {
+                    throw new Exception('Takım lideri takımdan ayrılamaz. Önce liderliği devretmelisiniz.');
+                }
+                
+                $stmt = $pdo->prepare("
+                    UPDATE team_members 
+                    SET status = 'inactive'
+                    WHERE team_id = ? AND user_id = ?
+                ");
+                $result = $stmt->execute([$team_id, $current_user_id]);
+                
+                if ($result) {
+                    header('Location: /teams/?success=left_team');
+                    exit;
+                } else {
+                    throw new Exception('İşlem gerçekleştirilemedi.');
+                }
+            }
+            
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
         }
     }
 }
 
-// CSRF token
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-$page_title = htmlspecialchars($team_data['name']) . ' - Takım Detayı';
+// Sayfa başlığı
+$page_title = htmlspecialchars($team_data['name']) . ' - Takım Detayları';
 
 include BASE_PATH . '/src/includes/header.php';
 include BASE_PATH . '/src/includes/navbar.php';
@@ -140,418 +320,622 @@ include BASE_PATH . '/src/includes/navbar.php';
 <!-- Teams CSS -->
 <link rel="stylesheet" href="/teams/css/detail.css">
 
-<div class="teams-container">
-    <!-- Team Header -->
-    <div class="team-detail-header" style="--team-color: <?= htmlspecialchars($team_data['color']) ?>;">
-        <div class="team-detail-content">
-            <div class="team-detail-info">
-                <div class="team-logo-section">
-                    <?php if ($team_data['logo_path']): ?>
-                        <img src="<?= htmlspecialchars($team_data['logo_path']) ?>" 
-                             alt="<?= htmlspecialchars($team_data['name']) ?> Logo" 
-                             class="team-detail-logo">
-                    <?php else: ?>
-                        <div class="team-detail-logo-placeholder">
-                            <i class="fas fa-users"></i>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                
-                <div class="team-basic-info">
-                    <h1 class="team-detail-name"><?= htmlspecialchars($team_data['name']) ?></h1>
-                    
-                    <div class="team-meta-info">
-                        <?php if ($team_data['tag']): ?>
-                            <span class="team-detail-tag">[<?= htmlspecialchars($team_data['tag']) ?>]</span>
-                        <?php endif; ?>
-                        
-                        <span class="team-creator">
-                            <i class="fas fa-crown"></i>
-                            Kurucu: <?= htmlspecialchars($team_data['creator_username']) ?>
-                        </span>
-                        
-                        <span class="team-created">
-                            <i class="fas fa-calendar"></i>
-                            <?= date('d.m.Y', strtotime($team_data['created_at'])) ?>
-                        </span>
-                    </div>
-                    
-                    <div class="team-detail-stats">
-                        <div class="team-detail-stat">
-                            <span class="team-detail-stat-value"><?= $team_stats['total_members'] ?></span>
-                            <span class="team-detail-stat-label">Üye</span>
-                        </div>
-                        <div class="team-detail-stat">
-                            <span class="team-detail-stat-value"><?= $team_data['max_members'] ?></span>
-                            <span class="team-detail-stat-label">Kapasite</span>
-                        </div>
-                        <?php if ($can_view_applications): ?>
-                        <div class="team-detail-stat">
-                            <span class="team-detail-stat-value"><?= $team_stats['pending_applications'] ?></span>
-                            <span class="team-detail-stat-label">Bekleyen</span>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
+<div class="site-container">
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="/" class="breadcrumb-item">
+            <i class="fas fa-home"></i> Ana Sayfa
+        </a>
+        <span class="breadcrumb-item">
+            <a href="/teams/">Takımlar</a>
+        </span>
+        <span class="breadcrumb-item active">
+            <i class="fas fa-users"></i> <?= htmlspecialchars($team_data['name']) ?>
+        </span>
+    </nav>
+
+    <div class="team-detail-container">
+        <!-- Team Header -->
+        <div class="team-header">
+            <!-- Team Banner -->
+            <div class="team-banner <?= $team_data['banner_path'] ? 'has-image' : '' ?>" 
+                 <?= $team_data['banner_path'] ? 'style="--banner-image: url(' . htmlspecialchars($team_data['banner_path']) . ')"' : '' ?>>
             </div>
             
-            <div class="team-actions-section">
-                <?php if ($can_edit_team): ?>
-                    <a href="/teams/create.php?id=<?= $team_id ?>" class="btn-primary">
-                        <i class="fas fa-edit"></i> Takımı Düzenle
-                    </a>
+            <!-- Team Info -->
+            <div class="team-info">
+                <!-- Team Logo -->
+                <?php if ($team_data['logo_path']): ?>
+                    <img src="<?= htmlspecialchars($team_data['logo_path']) ?>" 
+                         alt="<?= htmlspecialchars($team_data['name']) ?>" 
+                         class="team-logo">
+                <?php else: ?>
+                    <div class="team-logo">
+                        <?= strtoupper(substr($team_data['name'], 0, 2)) ?>
+                    </div>
                 <?php endif; ?>
                 
-                <?php if ($is_team_member): ?>
-                    <button type="button" class="btn-secondary" onclick="showLeaveTeamModal()">
-                        <i class="fas fa-sign-out-alt"></i> Takımdan Ayrıl
-                    </button>
-                <?php elseif (!$has_pending_application && $team_data['is_recruitment_open']): ?>
-                    <button type="button" class="btn-primary" onclick="showApplicationModal()">
-                        <i class="fas fa-paper-plane"></i> Başvur
-                    </button>
-                <?php elseif ($has_pending_application): ?>
-                    <span class="recruitment-status pending">
-                        <i class="fas fa-clock"></i> Başvuru Beklemede
-                    </span>
-                <?php elseif (!$team_data['is_recruitment_open']): ?>
-                    <span class="recruitment-status closed">
-                        <i class="fas fa-times"></i> Üye Alımı Kapalı
-                    </span>
-                <?php endif; ?>
+                <!-- Team Main Info -->
+                <div class="team-main-info">
+                    <h1 class="team-name" style="color: <?= htmlspecialchars($team_data['color']) ?>">
+                        <?= htmlspecialchars($team_data['name']) ?>
+                    </h1>
+                    
+                    <div class="team-meta">
+                        <?php if ($team_data['tag']): ?>
+                            <span class="team-tag" style="color: <?= htmlspecialchars($team_data['color']) ?>; border-color: <?= htmlspecialchars($team_data['color']) ?>; background-color: <?= htmlspecialchars($team_data['color']) ?>20;">
+                                <i class="fas fa-tag"></i>
+                                <?= htmlspecialchars($team_data['tag']) ?>
+                            </span>
+                        <?php endif; ?>
+                        
+                        <span class="team-status <?= $team_data['status'] ?>">
+                            <i class="fas fa-circle"></i>
+                            <?= ucfirst($team_data['status']) ?>
+                        </span>
+                        
+                        <span class="recruitment-status <?= $team_data['is_recruitment_open'] ? 'open' : 'closed' ?>">
+                            <i class="fas fa-<?= $team_data['is_recruitment_open'] ? 'unlock' : 'lock' ?>"></i>
+                            <?= $team_data['is_recruitment_open'] ? 'Üye Alımı Açık' : 'Üye Alımı Kapalı' ?>
+                        </span>
+                    </div>
+                    
+                    <div class="team-stats">
+                        <div class="team-stat">
+                            <i class="fas fa-users"></i>
+                            <span><?= $team_stats['total_members'] ?>/<?= $team_data['max_members'] ?> üye</span>
+                        </div>
+                        
+                        <div class="team-stat">
+                            <i class="fas fa-user-plus"></i>
+                            <span><?= htmlspecialchars($team_data['creator_username']) ?> tarafından kuruldu</span>
+                        </div>
+                        
+                        <div class="team-stat">
+                            <i class="fas fa-calendar"></i>
+                            <span><?= date('d.m.Y', strtotime($team_data['created_at'])) ?></span>
+                        </div>
+                        
+                        <?php if ($can_manage_members && $team_stats['pending_applications'] > 0): ?>
+                            <div class="team-stat">
+                                <i class="fas fa-clock"></i>
+                                <span><?= $team_stats['pending_applications'] ?> bekleyen başvuru</span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
                 
-                <?php if ($can_manage_members): ?>
-                    <a href="/teams/applications.php?id=<?= $team_id ?>" class="btn-outline-info">
-                        <i class="fas fa-clipboard-list"></i> 
-                        Başvurular <?= $team_stats['pending_applications'] > 0 ? '(' . $team_stats['pending_applications'] . ')' : '' ?>
-                    </a>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Messages -->
-    <?php if ($success_message): ?>
-        <div class="alert alert-success">
-            <i class="fas fa-check-circle"></i>
-            <?= htmlspecialchars($success_message) ?>
-        </div>
-    <?php endif; ?>
-
-    <?php if ($error_message): ?>
-        <div class="alert alert-danger">
-            <i class="fas fa-exclamation-circle"></i>
-            <?= htmlspecialchars($error_message) ?>
-        </div>
-    <?php endif; ?>
-
-    <!-- Main Content -->
-    <div class="view-container">
-        <!-- Main Content -->
-        <div class="view-main-content">
-            <!-- Team Description -->
-            <?php if ($team_data['description']): ?>
-            <div class="view-card">
-                <div class="view-card-header">
-                    <h5><i class="fas fa-info-circle"></i> Takım Hakkında</h5>
-                </div>
-                <div class="view-card-content">
-                    <p class="team-description-text"><?= nl2br(htmlspecialchars($team_data['description'])) ?></p>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Team Members -->
-            <div class="view-card">
-                <div class="view-card-header">
-                    <h5><i class="fas fa-users"></i> Takım Üyeleri (<?= count($team_members) ?>)</h5>
-                    <?php if ($can_manage_members): ?>
-                        <a href="/teams/members.php?id=<?= $team_id ?>" class="btn-outline-primary btn-sm">
-                            <i class="fas fa-cog"></i> Üye Yönetimi
-                        </a>
+                <!-- Team Actions -->
+                <div class="team-actions">
+                    <?php if ($is_team_member): ?>
+                        <?php if ($can_manage_members): ?>
+                            <a href="/teams/manage.php?id=<?= $team_id ?>" class="btn btn-primary">
+                                <i class="fas fa-cog"></i> Takımı Yönet
+                            </a>
+                        <?php endif; ?>
+                        
+                        <?php if ($can_edit_team): ?>
+                            <a href="/teams/create.php?id=<?= $team_id ?>" class="btn btn-outline-primary">
+                                <i class="fas fa-edit"></i> Düzenle
+                            </a>
+                        <?php endif; ?>
+                        
+                        <?php if (!$is_team_owner): ?>
+                            <form method="POST" style="display: inline;" 
+                                  onsubmit="return confirm('Takımdan ayrılmak istediğinizden emin misiniz?')">
+                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                                <input type="hidden" name="action" value="leave_team">
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="fas fa-sign-out-alt"></i> Takımdan Ayrıl
+                                </button>
+                            </form>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <?php if ($has_pending_application): ?>
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                                <input type="hidden" name="action" value="withdraw_application">
+                                <button type="submit" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Başvuruyu Geri Çek
+                                </button>
+                            </form>
+                            <span class="text-warning">
+                                <i class="fas fa-clock"></i> Başvurunuz değerlendiriliyor
+                            </span>
+                        <?php elseif ($team_data['is_recruitment_open'] && $team_stats['total_members'] < $team_data['max_members'] && !$latest_application_status): ?>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#applicationModal">
+                                <i class="fas fa-plus"></i> Takıma Başvur
+                            </button>
+                        <?php else: ?>
+                            <span class="text-muted">
+                                <i class="fas fa-lock"></i> 
+                                <?= !$team_data['is_recruitment_open'] ? 'Üye alımı kapalı' : 'Takım dolu' ?>
+                            </span>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
-                <div class="view-card-content">
-                    <?php if (empty($team_members)): ?>
-                        <div class="empty-state">
-                            <i class="fas fa-users"></i>
-                            <p>Henüz takım üyesi bulunmuyor.</p>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <?php if ($success_message): ?>
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <?= htmlspecialchars($success_message) ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($error_message): ?>
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                <?= htmlspecialchars($error_message) ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Main Content -->
+        <div class="team-content">
+            <!-- Main Content -->
+            <div class="team-main-content">
+                <!-- Team Description -->
+                <?php if ($team_data['description']): ?>
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fas fa-info-circle"></i> 
+                                Takım Hakkında
+                            </h3>
                         </div>
-                    <?php else: ?>
-                        <div class="member-list">
-                            <?php foreach ($team_members as $member): ?>
-                                <div class="member-card" data-member-id="<?= $member['id'] ?>">
-                                    <div class="member-header">
-                                        <div class="member-avatar-section">
-                                            <?php if ($member['avatar_path']): ?>
-                                                <img src="<?= htmlspecialchars($member['avatar_path']) ?>" 
-                                                     alt="<?= htmlspecialchars($member['username']) ?>" 
-                                                     class="member-avatar">
-                                            <?php else: ?>
-                                                <div class="member-avatar-placeholder">
-                                                    <i class="fas fa-user"></i>
-                                                </div>
-                                            <?php endif; ?>
-                                        </div>
+                        <div class="card-content">
+                            <div class="team-description">
+                                <?= nl2br(htmlspecialchars($team_data['description'])) ?>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Team Members -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3>
+                            <i class="fas fa-users"></i> 
+                            Takım Üyeleri (<?= count($team_members) ?>)
+                        </h3>
+                        <?php if ($can_manage_members): ?>
+                            <div class="card-actions">
+                                <a href="/teams/members.php?id=<?= $team_id ?>" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-cog"></i> Üye Yönetimi
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="card-content">
+                        <?php if (empty($team_members)): ?>
+                            <div class="empty-state">
+                                <i class="fas fa-users"></i>
+                                <p>Henüz takım üyesi bulunmuyor.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="members-list">
+                                <?php foreach ($team_members as $member): ?>
+                                    <div class="member-card">
+                                        <?php if ($member['avatar_path']): ?>
+                                            <img src="/uploads/avatars/<?= htmlspecialchars($member['avatar_path']) ?>" 
+                                                 alt="<?= htmlspecialchars($member['username']) ?>" 
+                                                 class="member-avatar">
+                                        <?php else: ?>
+                                            <div class="member-avatar">
+                                                <?= strtoupper(substr($member['username'], 0, 1)) ?>
+                                            </div>
+                                        <?php endif; ?>
                                         
                                         <div class="member-info">
-                                            <h6 class="member-name"><?= htmlspecialchars($member['username']) ?></h6>
+                                            <div class="member-name">
+                                                <a href="#" class="user-link" data-user-id="<?= $member['user_id'] ?>" 
+                                                   title="<?= htmlspecialchars($member['username']) ?> profilini görüntüle"
+                                                   style="color: <?= htmlspecialchars($member['role_color']) ?>;">
+                                                    <?= htmlspecialchars($member['username']) ?>
+                                                </a>
+                                                <?php if ($member['user_id'] == $team_data['created_by_user_id']): ?>
+                                                    <i class="fas fa-crown" title="Takım Lideri" style="color: <?= htmlspecialchars($member['role_color']) ?>;"></i>
+                                                <?php endif; ?>
+                                            </div>
                                             <?php if ($member['ingame_name']): ?>
-                                                <p class="member-ingame"><?= htmlspecialchars($member['ingame_name']) ?></p>
+                                                <div class="member-ingame">
+                                                    <?= htmlspecialchars($member['ingame_name']) ?>
+                                                </div>
                                             <?php endif; ?>
-                                            <span class="member-role" style="background-color: <?= htmlspecialchars($member['role_color']) ?>">
-                                                <?= htmlspecialchars($member['role_display_name']) ?>
-                                            </span>
+                                            <div class="member-role">
+                                                <span class="role-badge" style="background-color: <?= htmlspecialchars($member['role_color']) ?>; color: white;">
+                                                    <?= htmlspecialchars($member['role_display_name']) ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="member-status">
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar"></i>
+                                                <?= date('d.m.Y', strtotime($member['joined_at'])) ?>
+                                            </small>
+                                        </div>
+                                        
+                                        <?php if ($can_manage_members && $member['user_id'] != $current_user_id): ?>
+                                            <div class="member-actions">
+                                                <a href="/teams/members.php?id=<?= $team_id ?>&member=<?= $member['user_id'] ?>" 
+                                                   class="btn btn-outline-secondary btn-xs">
+                                                    <i class="fas fa-cog"></i>
+                                                </a>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Pending Applications (if user can manage) -->
+                <?php if ($can_manage_members && !empty($team_applications)): ?>
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fas fa-clock"></i> 
+                                Bekleyen Başvurular (<?= count($team_applications) ?>)
+                            </h3>
+                            <div class="card-actions">
+                                <a href="/teams/applications.php?id=<?= $team_id ?>" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-list"></i> Tümünü Görüntüle
+                                </a>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="activity-list">
+                                <?php foreach (array_slice($team_applications, 0, 5) as $application): ?>
+                                    <div class="activity-item">
+                                        <div class="activity-icon">
+                                            <i class="fas fa-user-plus"></i>
+                                        </div>
+                                        <div class="activity-content">
+                                            <div class="activity-text">
+                                                <strong><?= htmlspecialchars($application['username']) ?></strong>
+                                                takıma başvurdu
+                                                <?php if ($application['message']): ?>
+                                                    <br><small>"<?= htmlspecialchars(substr($application['message'], 0, 100)) ?><?= strlen($application['message']) > 100 ? '...' : '' ?>"</small>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="activity-time">
+                                                <?= date('d.m.Y H:i', strtotime($application['applied_at'])) ?>
+                                            </div>
                                         </div>
                                     </div>
-                                    
-                                    <div class="member-meta">
-                                        <span class="member-joined">
-                                            <i class="fas fa-calendar"></i>
-                                            <?= date('d.m.Y', strtotime($member['joined_at'])) ?>
-                                        </span>
-                                        <span class="member-status <?= $member['status'] ?>">
-                                            <i class="fas fa-circle"></i>
-                                            <?= ucfirst($member['status']) ?>
-                                        </span>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
-                    <?php endif; ?>
-                </div>
+                    </div>
+                <?php endif; ?>
             </div>
-        </div>
-        
-        <!-- Sidebar -->
-        <div class="view-sidebar">
-            <!-- Team Stats -->
-            <div class="view-card">
-                <div class="view-card-header">
-                    <h6><i class="fas fa-chart-bar"></i> İstatistikler</h6>
-                </div>
-                <div class="view-card-content">
-                    <div class="team-stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-value"><?= $team_stats['total_members'] ?></div>
-                            <div class="stat-label">Toplam Üye</div>
+
+            <!-- Sidebar -->
+            <div class="team-sidebar">
+                <!-- Team Stats -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-bar"></i> İstatistikler</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value"><?= $team_stats['total_members'] ?></div>
+                                <div class="stat-label">Toplam Üye</div>
+                            </div>
+                            
+                            <div class="stat-item">
+                                <div class="stat-value"><?= $team_stats['active_members'] ?></div>
+                                <div class="stat-label">Aktif Üye</div>
+                            </div>
+                            
+                            <div class="stat-item">
+                                <div class="stat-value"><?= $team_data['max_members'] - $team_stats['total_members'] ?></div>
+                                <div class="stat-label">Boş Kapasite</div>
+                            </div>
+                            
+                            <?php if ($can_manage_members): ?>
+                                <div class="stat-item">
+                                    <div class="stat-value"><?= $team_stats['pending_applications'] ?></div>
+                                    <div class="stat-label">Bekleyen Başvuru</div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         
                         <?php if (!empty($team_stats['role_distribution'])): ?>
-                            <?php foreach ($team_stats['role_distribution'] as $role): ?>
-                                <div class="stat-item">
-                                    <div class="stat-value" style="color: <?= htmlspecialchars($role['color']) ?>">
-                                        <?= $role['count'] ?>
+                            <div class="role-distribution">
+                                <h4>Rol Dağılımı</h4>
+                                <?php foreach ($team_stats['role_distribution'] as $role): ?>
+                                    <div class="role-item">
+                                        <span class="role-name" style="color: <?= htmlspecialchars($role['color']) ?>">
+                                            <?= htmlspecialchars($role['display_name']) ?>
+                                        </span>
+                                        <span class="role-count"><?= $role['count'] ?></span>
                                     </div>
-                                    <div class="stat-label"><?= htmlspecialchars($role['display_name']) ?></div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Recruitment Status -->
+                <?php if (!$is_team_member): ?>
+                    <div class="content-card recruitment-card">
+                        <div class="card-content">
+                            <div class="recruitment-status <?= $team_data['is_recruitment_open'] ? 'open' : 'closed' ?>">
+                                <i class="fas fa-<?= $team_data['is_recruitment_open'] ? 'unlock' : 'lock' ?>"></i>
+                                <?= $team_data['is_recruitment_open'] ? 'Üye Alımı Açık' : 'Üye Alımı Kapalı' ?>
+                            </div>
+                            
+                            <?php if ($team_data['is_recruitment_open']): ?>
+                                <div class="recruitment-info">
+                                    Bu takım yeni üyeler arıyor. Başvuru yapabilir ve takıma katılabilirsiniz.
                                 </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Team Info -->
-            <div class="view-card">
-                <div class="view-card-header">
-                    <h6><i class="fas fa-info"></i> Takım Bilgileri</h6>
-                </div>
-                <div class="view-card-content">
-                    <div class="team-info-list">
-                        <div class="info-item">
-                            <span class="info-label">Durum:</span>
-                            <span class="info-value">
-                                <?php if ($team_data['is_recruitment_open']): ?>
-                                    <span class="recruitment-status open">
-                                        <i class="fas fa-check"></i> Üye Alımı Açık
-                                    </span>
-                                <?php else: ?>
-                                    <span class="recruitment-status closed">
-                                        <i class="fas fa-times"></i> Üye Alımı Kapalı
-                                    </span>
+                                
+                                <?php if (!$has_pending_application && $team_stats['total_members'] < $team_data['max_members']): ?>
+                                    <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#applicationModal">
+                                        <i class="fas fa-plus"></i> Takıma Başvur
+                                    </button>
                                 <?php endif; ?>
-                            </span>
+                            <?php else: ?>
+                                <div class="recruitment-info">
+                                    Bu takım şu anda yeni üye kabul etmiyor.
+                                </div>
+                            <?php endif; ?>
                         </div>
-                        
-                        <div class="info-item">
-                            <span class="info-label">Kapasite:</span>
-                            <span class="info-value">
-                                <?= $team_stats['total_members'] ?> / <?= $team_data['max_members'] ?>
-                            </span>
-                        </div>
-                        
-                        <div class="info-item">
-                            <span class="info-label">Oluşturulma:</span>
-                            <span class="info-value">
-                                <?= date('d.m.Y', strtotime($team_data['created_at'])) ?>
-                            </span>
-                        </div>
-                        
-                        <?php if ($team_data['updated_at']): ?>
-                        <div class="info-item">
-                            <span class="info-label">Son Güncelleme:</span>
-                            <span class="info-value">
-                                <?= date('d.m.Y', strtotime($team_data['updated_at'])) ?>
-                            </span>
-                        </div>
-                        <?php endif; ?>
                     </div>
-                </div>
-            </div>
+                <?php endif; ?>
 
-            <!-- Quick Actions -->
-            <?php if ($is_team_member || $can_edit_team): ?>
-            <div class="view-card">
-                <div class="view-card-header">
-                    <h6><i class="fas fa-bolt"></i> Hızlı İşlemler</h6>
-                </div>
-                <div class="view-card-content">
-                    <div class="quick-actions">
-                        <?php if ($can_edit_team): ?>
-                            <a href="/teams/create.php?id=<?= $team_id ?>" class="btn-outline-primary">
-                                <i class="fas fa-edit"></i> Takımı Düzenle
-                            </a>
-                            <a href="/teams/settings.php?id=<?= $team_id ?>" class="btn-outline-secondary">
-                                <i class="fas fa-cog"></i> Gelişmiş Ayarlar
-                            </a>
-                        <?php endif; ?>
-                        
-                        <?php if ($can_manage_members): ?>
-                            <a href="/teams/members.php?id=<?= $team_id ?>" class="btn-outline-info">
-                                <i class="fas fa-users"></i> Üye Yönetimi
-                            </a>
-                        <?php endif; ?>
-                        
-                        <?php if ($can_view_applications && $team_stats['pending_applications'] > 0): ?>
-                            <a href="/teams/applications.php?id=<?= $team_id ?>" class="btn-outline-warning">
-                                <i class="fas fa-clipboard-list"></i> 
-                                Bekleyen Başvurular (<?= $team_stats['pending_applications'] ?>)
-                            </a>
-                        <?php endif; ?>
+                <!-- Team Management (for managers) -->
+                <?php if ($can_manage_members): ?>
+                    <div class="content-card management-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-tools"></i> Yönetim</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="management-actions">
+                                <a href="/teams/members.php?id=<?= $team_id ?>" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                                    <i class="fas fa-users"></i> Üye Yönetimi
+                                </a>
+                                
+                                <a href="/teams/applications.php?id=<?= $team_id ?>" class="btn btn-outline-info btn-sm w-100 mb-2">
+                                    <i class="fas fa-clipboard-list"></i> Başvuru Yönetimi
+                                    <?php if ($team_stats['pending_applications'] > 0): ?>
+                                        <span class="badge badge-warning"><?= $team_stats['pending_applications'] ?></span>
+                                    <?php endif; ?>
+                                </a>
+                                
+                                <?php if ($can_edit_team): ?>
+                                    <a href="/teams/create.php?id=<?= $team_id ?>" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                                        <i class="fas fa-edit"></i> Takım Ayarları
+                                    </a>
+                                <?php endif; ?>
+                                
+                                <a href="/teams/roles.php?id=<?= $team_id ?>" class="btn btn-outline-secondary btn-sm w-100">
+                                    <i class="fas fa-user-tag"></i> Rol Yönetimi
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                <?php endif; ?>
             </div>
-            <?php endif; ?>
         </div>
     </div>
 </div>
 
 <!-- Application Modal -->
-<?php if (!$is_team_member && !$has_pending_application && $team_data['is_recruitment_open']): ?>
-<div id="applicationModal" class="modal" style="display: none;">
-    <div class="modal-overlay" onclick="hideApplicationModal()"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <h4>Takıma Başvur</h4>
-            <button class="modal-close" onclick="hideApplicationModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form method="POST" class="application-form">
-            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-            <input type="hidden" name="action" value="apply">
-            
-            <div class="modal-body">
-                <p>
-                    <strong><?= htmlspecialchars($team_data['name']) ?></strong> takımına başvurmak istediğinizden emin misiniz?
-                </p>
-                
-                <div class="form-group">
-                    <label for="application_message">Başvuru Mesajı (İsteğe bağlı)</label>
-                    <textarea id="application_message" 
-                              name="message" 
-                              class="form-control" 
-                              rows="4" 
-                              maxlength="1000"
-                              placeholder="Kendinizi tanıtın ve neden bu takıma katılmak istediğinizi açıklayın..."></textarea>
-                    <small class="form-help">Maksimum 1000 karakter</small>
+<div class="modal fade" id="applicationModal" tabindex="-1" aria-labelledby="applicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="applicationModalLabel">
+                        <i class="fas fa-user-plus"></i> <?= htmlspecialchars($team_data['name']) ?> Takımına Başvur
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="hideApplicationModal()">
-                    İptal
-                </button>
-                <button type="submit" class="btn-primary">
-                    <i class="fas fa-paper-plane"></i> Başvuru Gönder
-                </button>
-            </div>
-        </form>
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <input type="hidden" name="action" value="apply">
+                    
+                    <div class="form-group">
+                        <label for="message" class="form-label">Başvuru Mesajı (İsteğe Bağlı)</label>
+                        <textarea class="form-control" id="message" name="message" rows="4" 
+                                  placeholder="Kendinizi tanıtın, takıma neden katılmak istediğinizi belirtin..."></textarea>
+                        <small class="form-text text-muted">
+                            Bu mesaj takım yöneticileri tarafından görülecektir.
+                        </small>
+                    </div>
+                    
+                    <div class="team-info-summary">
+                        <h6>Takım Bilgileri:</h6>
+                        <ul>
+                            <li><strong>Maksimum Üye:</strong> <?= $team_data['max_members'] ?></li>
+                            <li><strong>Mevcut Üye:</strong> <?= $team_stats['total_members'] ?></li>
+                            <li><strong>Boş Kapasite:</strong> <?= $team_data['max_members'] - $team_stats['total_members'] ?></li>
+                            <?php if ($team_data['tag']): ?>
+                                <li><strong>Takım Türü:</strong> <?= htmlspecialchars($team_data['tag']) ?></li>
+                            <?php endif; ?>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> İptal
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Başvuru Gönder
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-<?php endif; ?>
-
-<!-- Leave Team Modal -->
-<?php if ($is_team_member): ?>
-<div id="leaveTeamModal" class="modal" style="display: none;">
-    <div class="modal-overlay" onclick="hideLeaveTeamModal()"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <h4>Takımdan Ayrıl</h4>
-            <button class="modal-close" onclick="hideLeaveTeamModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form method="POST">
-            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-            <input type="hidden" name="action" value="leave_team">
-            
-            <div class="modal-body">
-                <div class="warning-message">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>
-                        <strong><?= htmlspecialchars($team_data['name']) ?></strong> takımından ayrılmak istediğinizden emin misiniz?
-                    </p>
-                    <p class="warning-text">
-                        Bu işlem geri alınamaz. Tekrar katılmak için yeniden başvuru yapmanız gerekecek.
-                    </p>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="hideLeaveTeamModal()">
-                    İptal
-                </button>
-                <button type="submit" class="btn-danger">
-                    <i class="fas fa-sign-out-alt"></i> Takımdan Ayrıl
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-<?php endif; ?>
-
-<!-- Teams JavaScript -->
-<script src="/teams/js/teams.js"></script>
 
 <script>
-// Set team color for CSS
-document.documentElement.style.setProperty('--team-color', '<?= htmlspecialchars($team_data['color']) ?>');
+// Modal functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Modal elements
+    const modal = document.getElementById('applicationModal');
+    const modalTriggers = document.querySelectorAll('[data-bs-toggle="modal"]');
+    const modalCloses = document.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+    const modalOverlay = modal;
 
-// Modal functions
-function showApplicationModal() {
-    document.getElementById('applicationModal').style.display = 'block';
-}
+    // Open modal
+    modalTriggers.forEach(trigger => {
+        trigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetModal = document.querySelector(this.getAttribute('data-bs-target'));
+            if (targetModal) {
+                openModal(targetModal);
+            }
+        });
+    });
 
-function hideApplicationModal() {
-    document.getElementById('applicationModal').style.display = 'none';
-}
+    // Close modal
+    modalCloses.forEach(closeBtn => {
+        closeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = this.closest('.modal');
+            if (modal) {
+                closeModal(modal);
+            }
+        });
+    });
 
-function showLeaveTeamModal() {
-    document.getElementById('leaveTeamModal').style.display = 'block';
-}
-
-function hideLeaveTeamModal() {
-    document.getElementById('leaveTeamModal').style.display = 'none';
-}
-
-// Close modals with Escape key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        hideApplicationModal();
-        hideLeaveTeamModal();
+    // Close modal on overlay click
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal(this);
+            }
+        });
     }
+
+    // Close modal on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const openModal = document.querySelector('.modal.show');
+            if (openModal) {
+                closeModal(openModal);
+            }
+        }
+    });
+
+    function openModal(modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        
+        // Add show class with slight delay for animation
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 10);
+        
+        // Focus first input
+        const firstInput = modal.querySelector('input, textarea, select, button');
+        if (firstInput) {
+            firstInput.focus();
+        }
+    }
+
+    function closeModal(modal) {
+        modal.classList.remove('show');
+        
+        // Wait for animation to complete before hiding
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        }, 300);
+    }
+
+    // Form validation for application modal
+    const applicationForm = document.querySelector('#applicationModal form');
+    if (applicationForm) {
+        applicationForm.addEventListener('submit', function(e) {
+            const messageField = this.querySelector('#message');
+            
+            // Optional validation - you can add more rules here
+            if (messageField && messageField.value.trim().length > 1000) {
+                e.preventDefault();
+                alert('Mesaj çok uzun. Lütfen 1000 karakterden kısa tutun.');
+                messageField.focus();
+                return false;
+            }
+            
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+            }
+        });
+    }
+
+    // Character counter for message textarea
+    const messageTextarea = document.querySelector('#message');
+    if (messageTextarea) {
+        // Create character counter
+        const counterDiv = document.createElement('div');
+        counterDiv.className = 'character-counter';
+        counterDiv.style.cssText = 'text-align: right; font-size: 0.8rem; color: var(--light-grey); margin-top: 0.25rem;';
+        messageTextarea.parentNode.appendChild(counterDiv);
+        
+        function updateCounter() {
+            const current = messageTextarea.value.length;
+            const max = 1000;
+            counterDiv.textContent = `${current}/${max} karakter`;
+            
+            if (current > max * 0.9) {
+                counterDiv.style.color = 'var(--red)';
+            } else if (current > max * 0.7) {
+                counterDiv.style.color = '#ffc107';
+            } else {
+                counterDiv.style.color = 'var(--light-grey)';
+            }
+        }
+        
+        messageTextarea.addEventListener('input', updateCounter);
+        updateCounter(); // Initial count
+    }
+
+    // Confirm dialogs for dangerous actions
+    // Leave team confirmation
+    const leaveTeamForms = document.querySelectorAll('form[onsubmit*="confirm"]');
+    leaveTeamForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            if (!confirm('Takımdan ayrılmak istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+                e.preventDefault();
+            }
+        });
+    });
+    
+    // Withdraw application confirmation
+    const withdrawForms = document.querySelectorAll('input[value="withdraw_application"]');
+    withdrawForms.forEach(input => {
+        input.closest('form').addEventListener('submit', function(e) {
+            if (!confirm('Başvurunuzu geri çekmek istediğinizden emin misiniz?')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // Auto-refresh for real-time updates (optional)
+    <?php if ($can_manage_members): ?>
+        // Refresh page every 5 minutes if user can manage members (to see new applications)
+        setTimeout(function() {
+            if (document.hidden === false) {
+                location.reload();
+            }
+        }, 300000); // 5 minutes
+    <?php endif; ?>
 });
 </script>
 
 <?php include BASE_PATH . '/src/includes/footer.php'; ?>
+
+<!-- User Popover Component -->
+<?php include BASE_PATH . '/src/includes/user_popover.php'; ?>
